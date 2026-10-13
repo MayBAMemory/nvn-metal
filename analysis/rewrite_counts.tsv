@@ -1,0 +1,4 @@
+module	build_id	x18	tpidr_r	tpidr_w	tpidrro_r	svc	cntpct	cntvct
+main	d9ba7db72ffafecd07f5f5535dec0573	6577	0	0	0	0	0	0
+sdk	b39add63421be525d352e576dab438d3	11919	2	3	58	77	33	0
+subsdk0	535249a546887cac875a099e9c8ef367	10486	0	0	0	0	0	0

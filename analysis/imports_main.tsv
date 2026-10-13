@@ -1,0 +1,708 @@
+mangled	demangled	ns	defined_in	d2r	d2r_file
+_Unwind_Resume	_Unwind_Resume	libc	sdk		-
+_ZN2nn2fs10CreateFileEPKcl	nn::fs::CreateFile(char const*, long)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs10DeleteFileEPKc	nn::fs::DeleteFile(char const*)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs11GetFileSizeEPlNS0_10FileHandleE	nn::fs::GetFileSize(long*, nn::fs::FileHandle)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs12SetAllocatorEPFPvmEPFvS1_mE	nn::fs::SetAllocator(void* (*)(unsigned long), void (*)(void*, unsigned long))	nn::fs	sdk		-
+_ZN2nn2fs13MountSaveDataEPKcRKNS_7account3UidE	nn::fs::MountSaveData(char const*, nn::account::Uid const&)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs14CommitSaveDataEPKc	nn::fs::CommitSaveData(char const*)	nn::fs	sdk		-
+_ZN2nn2fs14EnsureSaveDataERKNS_7account3UidE	nn::fs::EnsureSaveData(nn::account::Uid const&)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs22QueryMountRomCacheSizeEPm	nn::fs::QueryMountRomCacheSize(unsigned long*)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs25CleanDirectoryRecursivelyEPKc	nn::fs::CleanDirectoryRecursively(char const*)	nn::fs	sdk		-
+_ZN2nn2fs26SetPriorityOnCurrentThreadENS0_8PriorityE	nn::fs::SetPriorityOnCurrentThread(nn::fs::Priority)	nn::fs	sdk		-
+_ZN2nn2fs7UnmountEPKc	nn::fs::Unmount(char const*)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs8MountRomEPKcPvm	nn::fs::MountRom(char const*, void*, unsigned long)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs8OpenFileEPNS0_10FileHandleEPKci	nn::fs::OpenFile(nn::fs::FileHandle*, char const*, int)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs8ReadFileENS0_10FileHandleElPvm	nn::fs::ReadFile(nn::fs::FileHandle, long, void*, unsigned long)	nn::fs	sdk		-
+_ZN2nn2fs8ReadFileEPmNS0_10FileHandleElPvm	nn::fs::ReadFile(unsigned long*, nn::fs::FileHandle, long, void*, unsigned long)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs9CloseFileENS0_10FileHandleE	nn::fs::CloseFile(nn::fs::FileHandle)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs9FlushFileENS0_10FileHandleE	nn::fs::FlushFile(nn::fs::FileHandle)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs9WriteFileENS0_10FileHandleElPKvmRKNS0_11WriteOptionE	nn::fs::WriteFile(nn::fs::FileHandle, long, void const*, unsigned long, nn::fs::WriteOption const&)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2oe10InitializeEv	nn::oe::Initialize()	nn::oe	sdk	HLE_FORCE	dm/host/hle_sdkinit.c
+_ZN2nn2oe15SetCpuBoostModeENS0_12CpuBoostModeE	nn::oe::SetCpuBoostMode(nn::oe::CpuBoostMode)	nn::oe	sdk		-
+_ZN2nn2oe17FinishStartupLogoEv	nn::oe::FinishStartupLogo()	nn::oe	sdk		-
+_ZN2nn2oe18GetDesiredLanguageEv	nn::oe::GetDesiredLanguage()	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe18GetPerformanceModeEv	nn::oe::GetPerformanceMode()	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe20GetCurrentFocusStateEv	nn::oe::GetCurrentFocusState()	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe20SetFocusHandlingModeENS0_17FocusHandlingModeE	nn::oe::SetFocusHandlingMode(nn::oe::FocusHandlingMode)	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe24SetExpectedVolumeBalanceEff	nn::oe::SetExpectedVolumeBalance(float, float)	nn::oe	sdk		-
+_ZN2nn2oe25TryPopNotificationMessageEPj	nn::oe::TryPopNotificationMessage(unsigned int*)	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe27SetPerformanceConfigurationENS0_15PerformanceModeEi	nn::oe::SetPerformanceConfiguration(nn::oe::PerformanceMode, int)	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe28SetResumeNotificationEnabledEb	nn::oe::SetResumeNotificationEnabled(bool)	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2oe31EnterExitRequestHandlingSectionEv	nn::oe::EnterExitRequestHandlingSection()	nn::oe	sdk		-
+_ZN2nn2oe31LeaveExitRequestHandlingSectionEv	nn::oe::LeaveExitRequestHandlingSection()	nn::oe	sdk		-
+_ZN2nn2oe38SetUserInactivityDetectionTimeExtendedEb	nn::oe::SetUserInactivityDetectionTimeExtended(bool)	nn::oe	sdk		-
+_ZN2nn2oe44SetPerformanceModeChangedNotificationEnabledEb	nn::oe::SetPerformanceModeChangedNotificationEnabled(bool)	nn::oe	sdk	HLE_FORCE	dm/host/hle_oe.c
+_ZN2nn2os10ClearEventEPNS0_9EventTypeE	nn::os::ClearEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os10WaitThreadEPNS0_10ThreadTypeE	nn::os::WaitThread(nn::os::ThreadType*)	nn::os	sdk		-
+_ZN2nn2os11FreeTlsSlotENS0_7TlsSlotE	nn::os::FreeTlsSlot(nn::os::TlsSlot)	nn::os	sdk		-
+_ZN2nn2os11GetThreadIdEPKNS0_10ThreadTypeE	nn::os::GetThreadId(nn::os::ThreadType const*)	nn::os	sdk		-
+_ZN2nn2os11GetTlsValueENS0_7TlsSlotE	nn::os::GetTlsValue(nn::os::TlsSlot)	nn::os	sdk		-
+_ZN2nn2os11SetTlsValueENS0_7TlsSlotEm	nn::os::SetTlsValue(nn::os::TlsSlot, unsigned long)	nn::os	sdk		-
+_ZN2nn2os11SignalEventEPNS0_9EventTypeE	nn::os::SignalEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os11SleepThreadENS_8TimeSpanE	nn::os::SleepThread(nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os11StartThreadEPNS0_10ThreadTypeE	nn::os::StartThread(nn::os::ThreadType*)	nn::os	sdk		-
+_ZN2nn2os11UnlockMutexEPNS0_9MutexTypeE	nn::os::UnlockMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os11YieldThreadEv	nn::os::YieldThread()	nn::os	sdk		-
+_ZN2nn2os12CreateThreadEPNS0_10ThreadTypeEPFvPvES3_S3_mi	nn::os::CreateThread(nn::os::ThreadType*, void (*)(void*), void*, void*, unsigned long, int)	nn::os	sdk		-
+_ZN2nn2os12CreateThreadEPNS0_10ThreadTypeEPFvPvES3_S3_mii	nn::os::CreateThread(nn::os::ThreadType*, void (*)(void*), void*, void*, unsigned long, int, int)	nn::os	sdk		-
+_ZN2nn2os12TryLockMutexEPNS0_9MutexTypeE	nn::os::TryLockMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os12TryWaitEventEPNS0_9EventTypeE	nn::os::TryWaitEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os13ConvertToTickENS_8TimeSpanE	nn::os::ConvertToTick(nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os13DestroyThreadEPNS0_10ThreadTypeE	nn::os::DestroyThread(nn::os::ThreadType*)	nn::os	sdk		-
+_ZN2nn2os13FinalizeEventEPNS0_9EventTypeE	nn::os::FinalizeEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os13FinalizeMutexEPNS0_9MutexTypeE	nn::os::FinalizeMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os13GetSystemTickEv	nn::os::GetSystemTick()	nn::os	sdk		-
+_ZN2nn2os13SetThreadNameEPNS0_10ThreadTypeEPKc	nn::os::SetThreadName(nn::os::ThreadType*, char const*)	nn::os	sdk		-
+_ZN2nn2os14TimedWaitEventEPNS0_9EventTypeENS_8TimeSpanE	nn::os::TimedWaitEvent(nn::os::EventType*, nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os15AcquireReadLockEPNS0_20ReaderWriterLockTypeE	nn::os::AcquireReadLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os15AllocateTlsSlotEPNS0_7TlsSlotEPFvmE	nn::os::AllocateTlsSlot(nn::os::TlsSlot*, void (*)(unsigned long))	nn::os	sdk		-
+_ZN2nn2os15FreeMemoryBlockEmm	nn::os::FreeMemoryBlock(unsigned long, unsigned long)	nn::os	sdk		-
+_ZN2nn2os15InitializeEventEPNS0_9EventTypeEbNS0_14EventClearModeE	nn::os::InitializeEvent(nn::os::EventType*, bool, nn::os::EventClearMode)	nn::os	sdk		-
+_ZN2nn2os15InitializeMutexEPNS0_9MutexTypeEbi	nn::os::InitializeMutex(nn::os::MutexType*, bool, int)	nn::os	sdk		-
+_ZN2nn2os15JamMessageQueueEPNS0_16MessageQueueTypeEm	nn::os::JamMessageQueue(nn::os::MessageQueueType*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os15QueryMemoryInfoEPNS0_10MemoryInfoE	nn::os::QueryMemoryInfo(nn::os::MemoryInfo*)	nn::os	sdk		-
+_ZN2nn2os15ReleaseReadLockEPNS0_20ReaderWriterLockTypeE	nn::os::ReleaseReadLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os15WaitSystemEventEPNS0_15SystemEventTypeE	nn::os::WaitSystemEvent(nn::os::SystemEventType*)	nn::os	sdk		-
+_ZN2nn2os16AcquireWriteLockEPNS0_20ReaderWriterLockTypeE	nn::os::AcquireWriteLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os16GetCurrentThreadEv	nn::os::GetCurrentThread()	nn::os	sdk		-
+_ZN2nn2os16ReleaseWriteLockEPNS0_20ReaderWriterLockTypeE	nn::os::ReleaseWriteLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os16SendMessageQueueEPNS0_16MessageQueueTypeEm	nn::os::SendMessageQueue(nn::os::MessageQueueType*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os17ConvertToTimeSpanENS0_4TickE	nn::os::ConvertToTimeSpan(nn::os::Tick)	nn::os	sdk		-
+_ZN2nn2os17FinalizeMultiWaitEPNS0_13MultiWaitTypeE	nn::os::FinalizeMultiWait(nn::os::MultiWaitType*)	nn::os	sdk		-
+_ZN2nn2os17GetThreadCoreMaskEPiPmPKNS0_10ThreadTypeE	nn::os::GetThreadCoreMask(int*, unsigned long*, nn::os::ThreadType const*)	nn::os	sdk		-
+_ZN2nn2os17GetThreadPriorityEPKNS0_10ThreadTypeE	nn::os::GetThreadPriority(nn::os::ThreadType const*)	nn::os	sdk		-
+_ZN2nn2os17SetMemoryHeapSizeEm	nn::os::SetMemoryHeapSize(unsigned long)	nn::os	sdk		-
+_ZN2nn2os17SetThreadCoreMaskEPNS0_10ThreadTypeEim	nn::os::SetThreadCoreMask(nn::os::ThreadType*, int, unsigned long)	nn::os	sdk		-
+_ZN2nn2os18DestroySystemEventEPNS0_15SystemEventTypeE	nn::os::DestroySystemEvent(nn::os::SystemEventType*)	nn::os	sdk		-
+_ZN2nn2os18TryAcquireReadLockEPNS0_20ReaderWriterLockTypeE	nn::os::TryAcquireReadLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os18TryWaitSystemEventEPNS0_15SystemEventTypeE	nn::os::TryWaitSystemEvent(nn::os::SystemEventType*)	nn::os	sdk		-
+_ZN2nn2os19AllocateMemoryBlockEPmm	nn::os::AllocateMemoryBlock(unsigned long*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os19GenerateRandomBytesEPvm	nn::os::GenerateRandomBytes(void*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os19InitializeMultiWaitEPNS0_13MultiWaitTypeE	nn::os::InitializeMultiWait(nn::os::MultiWaitType*)	nn::os	sdk		-
+_ZN2nn2os19LinkMultiWaitHolderEPNS0_13MultiWaitTypeEPNS0_19MultiWaitHolderTypeE	nn::os::LinkMultiWaitHolder(nn::os::MultiWaitType*, nn::os::MultiWaitHolderType*)	nn::os	sdk		-
+_ZN2nn2os19ReceiveMessageQueueEPmPNS0_16MessageQueueTypeE	nn::os::ReceiveMessageQueue(unsigned long*, nn::os::MessageQueueType*)	nn::os	sdk		-
+_ZN2nn2os19TryAcquireWriteLockEPNS0_20ReaderWriterLockTypeE	nn::os::TryAcquireWriteLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os19TrySendMessageQueueEPNS0_16MessageQueueTypeEm	nn::os::TrySendMessageQueue(nn::os::MessageQueueType*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os20ChangeThreadPriorityEPNS0_10ThreadTypeEi	nn::os::ChangeThreadPriority(nn::os::ThreadType*, int)	nn::os	sdk		-
+_ZN2nn2os20FinalizeMessageQueueEPNS0_16MessageQueueTypeE	nn::os::FinalizeMessageQueue(nn::os::MessageQueueType*)	nn::os	sdk		-
+_ZN2nn2os20GetCurrentCoreNumberEv	nn::os::GetCurrentCoreNumber()	nn::os	sdk		-
+_ZN2nn2os20GetThreadNamePointerEPKNS0_10ThreadTypeE	nn::os::GetThreadNamePointer(nn::os::ThreadType const*)	nn::os	sdk		-
+_ZN2nn2os20SetThreadNamePointerEPNS0_10ThreadTypeEPKc	nn::os::SetThreadNamePointer(nn::os::ThreadType*, char const*)	nn::os	sdk		-
+_ZN2nn2os20TimedWaitSystemEventEPNS0_15SystemEventTypeENS_8TimeSpanE	nn::os::TimedWaitSystemEvent(nn::os::SystemEventType*, nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os21UnlinkMultiWaitHolderEPNS0_19MultiWaitHolderTypeE	nn::os::UnlinkMultiWaitHolder(nn::os::MultiWaitHolderType*)	nn::os	sdk		-
+_ZN2nn2os21WaitConditionVariableEPNS0_21ConditionVariableTypeEPNS0_9MutexTypeE	nn::os::WaitConditionVariable(nn::os::ConditionVariableType*, nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os22GetSystemTickFrequencyEv	nn::os::GetSystemTickFrequency()	nn::os	sdk		-
+_ZN2nn2os22InitializeMessageQueueEPNS0_16MessageQueueTypeEPmm	nn::os::InitializeMessageQueue(nn::os::MessageQueueType*, unsigned long*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os22TryReceiveMessageQueueEPmPNS0_16MessageQueueTypeE	nn::os::TryReceiveMessageQueue(unsigned long*, nn::os::MessageQueueType*)	nn::os	sdk		-
+_ZN2nn2os23FinalizeMultiWaitHolderEPNS0_19MultiWaitHolderTypeE	nn::os::FinalizeMultiWaitHolder(nn::os::MultiWaitHolderType*)	nn::os	sdk		-
+_ZN2nn2os23SignalConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::SignalConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os24FinalizeReaderWriterLockEPNS0_20ReaderWriterLockTypeE	nn::os::FinalizeReaderWriterLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os24TimedReceiveMessageQueueEPmPNS0_16MessageQueueTypeENS_8TimeSpanE	nn::os::TimedReceiveMessageQueue(unsigned long*, nn::os::MessageQueueType*, nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os25FinalizeConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::FinalizeConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os25InitializeMultiWaitHolderEPNS0_19MultiWaitHolderTypeEPNS0_9EventTypeE	nn::os::InitializeMultiWaitHolder(nn::os::MultiWaitHolderType*, nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os26BroadcastConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::BroadcastConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os26GetMultiWaitHolderUserDataEPKNS0_19MultiWaitHolderTypeE	nn::os::GetMultiWaitHolderUserData(nn::os::MultiWaitHolderType const*)	nn::os	sdk		-
+_ZN2nn2os26GetThreadAvailableCoreMaskEv	nn::os::GetThreadAvailableCoreMask()	nn::os	sdk		-
+_ZN2nn2os26InitializeReaderWriterLockEPNS0_20ReaderWriterLockTypeE	nn::os::InitializeReaderWriterLock(nn::os::ReaderWriterLockType*)	nn::os	sdk		-
+_ZN2nn2os26SetMultiWaitHolderUserDataEPNS0_19MultiWaitHolderTypeEm	nn::os::SetMultiWaitHolderUserData(nn::os::MultiWaitHolderType*, unsigned long)	nn::os	sdk		-
+_ZN2nn2os26TimedWaitConditionVariableEPNS0_21ConditionVariableTypeEPNS0_9MutexTypeENS_8TimeSpanE	nn::os::TimedWaitConditionVariable(nn::os::ConditionVariableType*, nn::os::MutexType*, nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os27InitializeConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::InitializeConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os7WaitAnyEPNS0_13MultiWaitTypeE	nn::os::WaitAny(nn::os::MultiWaitType*)	nn::os	sdk		-
+_ZN2nn2os9LockMutexEPNS0_9MutexTypeE	nn::os::LockMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os9WaitEventEPNS0_9EventTypeE	nn::os::WaitEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2vi10InitializeEv	nn::vi::Initialize()	nn::vi	sdk	HLE_FORCE	dm/gfx/hle_vi.c
+_ZN2nn2vi11CreateLayerEPPNS0_5LayerEPNS0_7DisplayE	nn::vi::CreateLayer(nn::vi::Layer**, nn::vi::Display*)	nn::vi	sdk	HLE_FORCE	dm/gfx/hle_vi.c
+_ZN2nn2vi12CloseDisplayEPNS0_7DisplayE	nn::vi::CloseDisplay(nn::vi::Display*)	nn::vi	sdk		-
+_ZN2nn2vi12DestroyLayerEPNS0_5LayerE	nn::vi::DestroyLayer(nn::vi::Layer*)	nn::vi	sdk		-
+_ZN2nn2vi15GetNativeWindowEPPvPNS0_5LayerE	nn::vi::GetNativeWindow(void**, nn::vi::Layer*)	nn::vi	sdk	HLE_FORCE	dm/gfx/hle_vi.c
+_ZN2nn2vi18OpenDefaultDisplayEPPNS0_7DisplayE	nn::vi::OpenDefaultDisplay(nn::vi::Display**)	nn::vi	sdk	HLE_FORCE	dm/gfx/hle_vi.c
+_ZN2nn2vi8FinalizeEv	nn::vi::Finalize()	nn::vi	sdk		-
+_ZN2nn3err9ShowErrorENS_6ResultE	nn::err::ShowError(nn::Result)	nn::err	sdk	HLE_FORCE	dm/host/hle_misc.c
+_ZN2nn3hid12GetNpadStateEPNS0_16NpadFullKeyStateERKj	nn::hid::GetNpadState(nn::hid::NpadFullKeyState*, unsigned int const&)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid12GetNpadStateEPNS0_16NpadJoyDualStateERKj	nn::hid::GetNpadState(nn::hid::NpadJoyDualState*, unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid12GetNpadStateEPNS0_16NpadJoyLeftStateERKj	nn::hid::GetNpadState(nn::hid::NpadJoyLeftState*, unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid12GetNpadStateEPNS0_17NpadHandheldStateERKj	nn::hid::GetNpadState(nn::hid::NpadHandheldState*, unsigned int const&)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid12GetNpadStateEPNS0_17NpadJoyRightStateERKj	nn::hid::GetNpadState(nn::hid::NpadJoyRightState*, unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid13VibrationNode30DefaultVibrationSampleIntervalE	nn::hid::VibrationNode::DefaultVibrationSampleInterval	nn::hid	sdk		-
+_ZN2nn3hid14DisconnectNpadERKj	nn::hid::DisconnectNpad(unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid14InitializeNpadEv	nn::hid::InitializeNpad()	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid14SetExplainTextEPNS0_20ControllerSupportArgEPKcRKj	nn::hid::SetExplainText(nn::hid::ControllerSupportArg*, char const*, unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid15GetNpadStyleSetERKj	nn::hid::GetNpadStyleSet(unsigned int const&)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid17StopSixAxisSensorERKNS0_19SixAxisSensorHandleE	nn::hid::StopSixAxisSensor(nn::hid::SixAxisSensorHandle const&)	nn::hid	sdk		-
+_ZN2nn3hid18GetNpadJoyHoldTypeEv	nn::hid::GetNpadJoyHoldType()	nn::hid	sdk		-
+_ZN2nn3hid18ParseVibrationFileEPNS0_17VibrationFileInfoEPNS0_26VibrationFileParserContextEPKvm	nn::hid::ParseVibrationFile(nn::hid::VibrationFileInfo*, nn::hid::VibrationFileParserContext*, void const*, unsigned long)	nn::hid	sdk		-
+_ZN2nn3hid18SendVibrationValueERKNS0_21VibrationDeviceHandleERKNS0_14VibrationValueE	nn::hid::SendVibrationValue(nn::hid::VibrationDeviceHandle const&, nn::hid::VibrationValue const&)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid18SetNpadJoyHoldTypeENS0_15NpadJoyHoldTypeE	nn::hid::SetNpadJoyHoldType(nn::hid::NpadJoyHoldType)	nn::hid	sdk		-
+_ZN2nn3hid18StartSixAxisSensorERKNS0_19SixAxisSensorHandleE	nn::hid::StartSixAxisSensor(nn::hid::SixAxisSensorHandle const&)	nn::hid	sdk		-
+_ZN2nn3hid18SwapNpadAssignmentERKjS2_	nn::hid::SwapNpadAssignment(unsigned int const&, unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid19GetTouchScreenStateILm16EEEvPNS0_16TouchScreenStateIXT_EEE	void nn::hid::GetTouchScreenState<16ul>(nn::hid::TouchScreenState<16ul>*)	nn::hid	sdk		-
+_ZN2nn3hid20ControllerSupportArg10SetDefaultEv	nn::hid::ControllerSupportArg::SetDefault()	nn::hid	sdk		-
+_ZN2nn3hid20GetNpadJoyAssignmentERKj	nn::hid::GetNpadJoyAssignment(unsigned int const&)	nn::hid	sdk		-
+_ZN2nn3hid20StopLrAssignmentModeEv	nn::hid::StopLrAssignmentMode()	nn::hid	sdk		-
+_ZN2nn3hid21GetSixAxisSensorStateEPNS0_18SixAxisSensorStateERKNS0_19SixAxisSensorHandleE	nn::hid::GetSixAxisSensorState(nn::hid::SixAxisSensorState*, nn::hid::SixAxisSensorHandle const&)	nn::hid	sdk		-
+_ZN2nn3hid21InitializeTouchScreenEv	nn::hid::InitializeTouchScreen()	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid21IsSixAxisSensorAtRestERKNS0_19SixAxisSensorHandleE	nn::hid::IsSixAxisSensorAtRest(nn::hid::SixAxisSensorHandle const&)	nn::hid	sdk		-
+_ZN2nn3hid21ShowControllerSupportEPNS0_27ControllerSupportResultInfoERKNS0_20ControllerSupportArgE	nn::hid::ShowControllerSupport(nn::hid::ControllerSupportResultInfo*, nn::hid::ControllerSupportArg const&)	nn::hid	sdk		-
+_ZN2nn3hid21StartLrAssignmentModeEv	nn::hid::StartLrAssignmentMode()	nn::hid	sdk		-
+_ZN2nn3hid22RetrieveVibrationValueEPNS0_14VibrationValueEiPNS0_26VibrationFileParserContextE	nn::hid::RetrieveVibrationValue(nn::hid::VibrationValue*, int, nn::hid::VibrationFileParserContext*)	nn::hid	sdk		-
+_ZN2nn3hid22SetSupportedNpadIdTypeEPKjm	nn::hid::SetSupportedNpadIdType(unsigned int const*, unsigned long)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid23GetSixAxisSensorHandlesEPNS0_19SixAxisSensorHandleEiRKjNS_4util10BitFlagSetILi32ENS0_12NpadStyleTagEEE	nn::hid::GetSixAxisSensorHandles(nn::hid::SixAxisSensorHandle*, int, unsigned int const&, nn::util::BitFlagSet<32, nn::hid::NpadStyleTag>)	nn::hid	sdk		-
+_ZN2nn3hid24GetSupportedNpadStyleSetEv	nn::hid::GetSupportedNpadStyleSet()	nn::hid	sdk		-
+_ZN2nn3hid24SetSupportedNpadStyleSetENS_4util10BitFlagSetILi32ENS0_12NpadStyleTagEEE	nn::hid::SetSupportedNpadStyleSet(nn::util::BitFlagSet<32, nn::hid::NpadStyleTag>)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid24ShowControllerStrapGuideEv	nn::hid::ShowControllerStrapGuide()	nn::hid	sdk		-
+_ZN2nn3hid25GetVibrationDeviceHandlesEPNS0_21VibrationDeviceHandleEiRKjNS_4util10BitFlagSetILi32ENS0_12NpadStyleTagEEE	nn::hid::GetVibrationDeviceHandles(nn::hid::VibrationDeviceHandle*, int, unsigned int const&, nn::util::BitFlagSet<32, nn::hid::NpadStyleTag>)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid25InitializeVibrationDeviceERKNS0_21VibrationDeviceHandleE	nn::hid::InitializeVibrationDevice(nn::hid::VibrationDeviceHandle const&)	nn::hid	sdk	HLE_FORCE	dm/host/hle_hid.c
+_ZN2nn3hid30SetNpadJoyAssignmentModeSingleERKjNS0_17NpadJoyDeviceTypeE	nn::hid::SetNpadJoyAssignmentModeSingle(unsigned int const&, nn::hid::NpadJoyDeviceType)	nn::hid	sdk		-
+_ZN2nn3mem17StandardAllocator10InitializeEPvm	nn::mem::StandardAllocator::Initialize(void*, unsigned long)	nn::mem	sdk		-
+_ZN2nn3mem17StandardAllocator10ReallocateEPvm	nn::mem::StandardAllocator::Reallocate(void*, unsigned long)	nn::mem	sdk		-
+_ZN2nn3mem17StandardAllocator4FreeEPv	nn::mem::StandardAllocator::Free(void*)	nn::mem	sdk		-
+_ZN2nn3mem17StandardAllocator8AllocateEm	nn::mem::StandardAllocator::Allocate(unsigned long)	nn::mem	sdk		-
+_ZN2nn3mem17StandardAllocator8AllocateEmm	nn::mem::StandardAllocator::Allocate(unsigned long, unsigned long)	nn::mem	sdk	HLE_FORCE	dm/host/hle_svc.c
+_ZN2nn3mem17StandardAllocator8FinalizeEv	nn::mem::StandardAllocator::Finalize()	nn::mem	sdk		-
+_ZN2nn3mem17StandardAllocatorC1Ev	nn::mem::StandardAllocator::StandardAllocator()	nn::mem	sdk		-
+_ZN2nn3mem19NumberLineAllocator10InitializeEPFPvmS2_ES2_PFvS2_S2_ES2_b	nn::mem::NumberLineAllocator::Initialize(void* (*)(unsigned long, void*), void*, void (*)(void*, void*), void*, bool)	nn::mem	sdk		-
+_ZN2nn3mem19NumberLineAllocator4FreeEi	nn::mem::NumberLineAllocator::Free(int)	nn::mem	sdk		-
+_ZN2nn3mem19NumberLineAllocator8AddRangeEii	nn::mem::NumberLineAllocator::AddRange(int, int)	nn::mem	sdk		-
+_ZN2nn3mem19NumberLineAllocator8AllocateEPii	nn::mem::NumberLineAllocator::Allocate(int*, int)	nn::mem	sdk		-
+_ZN2nn3mem19NumberLineAllocator8FinalizeEv	nn::mem::NumberLineAllocator::Finalize()	nn::mem	sdk		-
+_ZN2nn3nfp10GetTagInfoEPNS0_7TagInfoERKNS0_12DeviceHandleE	nn::nfp::GetTagInfo(nn::nfp::TagInfo*, nn::nfp::DeviceHandle const&)	nn::nfp	sdk		-
+_ZN2nn3nfp10InitializeEv	nn::nfp::Initialize()	nn::nfp	sdk		-
+_ZN2nn3nfp11ListDevicesEPNS0_12DeviceHandleEPii	nn::nfp::ListDevices(nn::nfp::DeviceHandle*, int*, int)	nn::nfp	sdk		-
+_ZN2nn3nfp12GetModelInfoEPNS0_9ModelInfoERKNS0_12DeviceHandleE	nn::nfp::GetModelInfo(nn::nfp::ModelInfo*, nn::nfp::DeviceHandle const&)	nn::nfp	sdk		-
+_ZN2nn3nfp13StopDetectionERKNS0_12DeviceHandleE	nn::nfp::StopDetection(nn::nfp::DeviceHandle const&)	nn::nfp	sdk		-
+_ZN2nn3nfp14GetDeviceStateERKNS0_12DeviceHandleE	nn::nfp::GetDeviceState(nn::nfp::DeviceHandle const&)	nn::nfp	sdk		-
+_ZN2nn3nfp14StartDetectionERKNS0_12DeviceHandleE	nn::nfp::StartDetection(nn::nfp::DeviceHandle const&)	nn::nfp	sdk		-
+_ZN2nn3nfp29AttachAvailabilityChangeEventEPNS_2os15SystemEventTypeE	nn::nfp::AttachAvailabilityChangeEvent(nn::os::SystemEventType*)	nn::nfp	sdk		-
+_ZN2nn3nfp5MountERKNS0_12DeviceHandleENS0_9ModelTypeENS0_11MountTargetE	nn::nfp::Mount(nn::nfp::DeviceHandle const&, nn::nfp::ModelType, nn::nfp::MountTarget)	nn::nfp	sdk		-
+_ZN2nn3nfp8FinalizeEv	nn::nfp::Finalize()	nn::nfp	sdk		-
+_ZN2nn3nfp9GetNpadIdEPjRKNS0_12DeviceHandleE	nn::nfp::GetNpadId(unsigned int*, nn::nfp::DeviceHandle const&)	nn::nfp	sdk		-
+_ZN2nn3nsd9ResolveExEPNS0_4FqdnERKS1_	nn::nsd::ResolveEx(nn::nsd::Fqdn*, nn::nsd::Fqdn const&)	nn::nsd	sdk	HLE_FORCE	dm/host/hle_misc.c
+_ZN2nn3pdm30QueryApplicationPlayStatisticsEPNS0_25ApplicationPlayStatisticsERKNS_7account3UidEPKNS_13ApplicationIdEi	nn::pdm::QueryApplicationPlayStatistics(nn::pdm::ApplicationPlayStatistics*, nn::account::Uid const&, nn::ApplicationId const*, int)	nn::pdm	sdk		-
+_ZN2nn3ssl7Context15ImportServerPkiEPmPKcjNS0_17CertificateFormatE	nn::ssl::Context::ImportServerPki(unsigned long*, char const*, unsigned int, nn::ssl::CertificateFormat)	nn::ssl	sdk		-
+_ZN2nn3ssl7Context6CreateENS1_10SslVersionE	nn::ssl::Context::Create(nn::ssl::Context::SslVersion)	nn::ssl	sdk		-
+_ZN2nn3web19ShowOfflineHtmlPageEPNS0_26OfflineHtmlPageReturnValueERKNS0_22ShowOfflineHtmlPageArgE	nn::web::ShowOfflineHtmlPage(nn::web::OfflineHtmlPageReturnValue*, nn::web::ShowOfflineHtmlPageArg const&)	nn::web	sdk		-
+_ZN2nn3web22ShowOfflineHtmlPageArg17SetPointerEnabledEb	nn::web::ShowOfflineHtmlPageArg::SetPointerEnabled(bool)	nn::web	sdk		-
+_ZN2nn3web22ShowOfflineHtmlPageArg18SetFooterFixedKindENS0_22OfflineFooterFixedKindE	nn::web::ShowOfflineHtmlPageArg::SetFooterFixedKind(nn::web::OfflineFooterFixedKind)	nn::web	sdk		-
+_ZN2nn3web22ShowOfflineHtmlPageArg21SetJsExtensionEnabledEb	nn::web::ShowOfflineHtmlPageArg::SetJsExtensionEnabled(bool)	nn::web	sdk		-
+_ZN2nn3web22ShowOfflineHtmlPageArg25SetTouchEnabledOnContentsEb	nn::web::ShowOfflineHtmlPageArg::SetTouchEnabledOnContents(bool)	nn::web	sdk		-
+_ZN2nn3web22ShowOfflineHtmlPageArgC1EPKc	nn::web::ShowOfflineHtmlPageArg::ShowOfflineHtmlPageArg(char const*)	nn::web	sdk		-
+_ZN2nn3web26OfflineHtmlPageReturnValueC1Ev	nn::web::OfflineHtmlPageReturnValue::OfflineHtmlPageReturnValue()	nn::web	sdk		-
+_ZN2nn4bcat10InitializeEv	nn::bcat::Initialize()	nn::bcat	sdk		-
+_ZN2nn4bcat17DeliveryCacheFile4OpenEPKc	nn::bcat::DeliveryCacheFile::Open(char const*)	nn::bcat	sdk		-
+_ZN2nn4bcat17DeliveryCacheFile4ReadEPmlPvm	nn::bcat::DeliveryCacheFile::Read(unsigned long*, long, void*, unsigned long)	nn::bcat	sdk		-
+_ZN2nn4bcat17DeliveryCacheFile5CloseEv	nn::bcat::DeliveryCacheFile::Close()	nn::bcat	sdk		-
+_ZN2nn4bcat17DeliveryCacheFileC1Ev	nn::bcat::DeliveryCacheFile::DeliveryCacheFile()	nn::bcat	sdk		-
+_ZN2nn4bcat17DeliveryCacheFileD1Ev	nn::bcat::DeliveryCacheFile::~DeliveryCacheFile()	nn::bcat	sdk		-
+_ZN2nn4bcat21DeliveryCacheProgress6UpdateEv	nn::bcat::DeliveryCacheProgress::Update()	nn::bcat	sdk		-
+_ZN2nn4bcat21DeliveryCacheProgressC1Ev	nn::bcat::DeliveryCacheProgress::DeliveryCacheProgress()	nn::bcat	sdk		-
+_ZN2nn4bcat21DeliveryCacheProgressD1Ev	nn::bcat::DeliveryCacheProgress::~DeliveryCacheProgress()	nn::bcat	sdk		-
+_ZN2nn4bcat22DeliveryCacheDirectory4OpenEPKc	nn::bcat::DeliveryCacheDirectory::Open(char const*)	nn::bcat	sdk		-
+_ZN2nn4bcat22DeliveryCacheDirectory4ReadEPiPNS0_27DeliveryCacheDirectoryEntryEi	nn::bcat::DeliveryCacheDirectory::Read(int*, nn::bcat::DeliveryCacheDirectoryEntry*, int)	nn::bcat	sdk		-
+_ZN2nn4bcat22DeliveryCacheDirectory5CloseEv	nn::bcat::DeliveryCacheDirectory::Close()	nn::bcat	sdk		-
+_ZN2nn4bcat22DeliveryCacheDirectoryC1Ev	nn::bcat::DeliveryCacheDirectory::DeliveryCacheDirectory()	nn::bcat	sdk		-
+_ZN2nn4bcat22DeliveryCacheDirectoryD1Ev	nn::bcat::DeliveryCacheDirectory::~DeliveryCacheDirectory()	nn::bcat	sdk		-
+_ZN2nn4bcat24RequestSyncDeliveryCacheEPNS0_21DeliveryCacheProgressE	nn::bcat::RequestSyncDeliveryCache(nn::bcat::DeliveryCacheProgress*)	nn::bcat	sdk		-
+_ZN2nn4bcat25MountDeliveryCacheStorageEv	nn::bcat::MountDeliveryCacheStorage()	nn::bcat	sdk		-
+_ZN2nn4bcat27UnmountDeliveryCacheStorageEv	nn::bcat::UnmountDeliveryCacheStorage()	nn::bcat	sdk		-
+_ZN2nn4bcat31EnumerateDeliveryCacheDirectoryEPiPNS0_13DirectoryNameEi	nn::bcat::EnumerateDeliveryCacheDirectory(int*, nn::bcat::DirectoryName*, int)	nn::bcat	sdk		-
+_ZN2nn4cstd5IsInfEf	nn::cstd::IsInf(float)	nn::cstd	sdk		-
+_ZN2nn4cstd5IsNanEf	nn::cstd::IsNan(float)	nn::cstd	sdk		-
+_ZN2nn4diag6detail9AbortImplEPKcS3_S3_i	nn::diag::detail::AbortImpl(char const*, char const*, char const*, int)	nn::diag::detail	sdk		-
+_ZN2nn4diag6detail9AbortImplEPKcS3_S3_iPKNS_6ResultES3_z	nn::diag::detail::AbortImpl(char const*, char const*, char const*, int, nn::Result const*, char const*, ...)	nn::diag::detail	sdk		-
+_ZN2nn4lmem11DumpExpHeapEPNS0_6detail8HeapHeadE	nn::lmem::DumpExpHeap(nn::lmem::detail::HeapHead*)	nn::lmem	sdk		-
+_ZN2nn4lmem12DumpUnitHeapEPNS0_6detail8HeapHeadE	nn::lmem::DumpUnitHeap(nn::lmem::detail::HeapHead*)	nn::lmem	sdk		-
+_ZN2nn4lmem13CreateExpHeapEPvmi	nn::lmem::CreateExpHeap(void*, unsigned long, int)	nn::lmem	sdk		-
+_ZN2nn4lmem13FreeToExpHeapEPNS0_6detail8HeapHeadEPv	nn::lmem::FreeToExpHeap(nn::lmem::detail::HeapHead*, void*)	nn::lmem	sdk		-
+_ZN2nn4lmem14CreateUnitHeapEPvmmiiNS0_13InfoPlacementE	nn::lmem::CreateUnitHeap(void*, unsigned long, unsigned long, int, int, nn::lmem::InfoPlacement)	nn::lmem	sdk		-
+_ZN2nn4lmem14DestroyExpHeapEPNS0_6detail8HeapHeadE	nn::lmem::DestroyExpHeap(nn::lmem::detail::HeapHead*)	nn::lmem	sdk		-
+_ZN2nn4lmem14FreeToUnitHeapEPNS0_6detail8HeapHeadEPv	nn::lmem::FreeToUnitHeap(nn::lmem::detail::HeapHead*, void*)	nn::lmem	sdk		-
+_ZN2nn4lmem15DestroyUnitHeapEPNS0_6detail8HeapHeadE	nn::lmem::DestroyUnitHeap(nn::lmem::detail::HeapHead*)	nn::lmem	sdk		-
+_ZN2nn4lmem19AllocateFromExpHeapEPNS0_6detail8HeapHeadEmi	nn::lmem::AllocateFromExpHeap(nn::lmem::detail::HeapHead*, unsigned long, int)	nn::lmem	sdk		-
+_ZN2nn4lmem20AllocateFromUnitHeapEPNS0_6detail8HeapHeadE	nn::lmem::AllocateFromUnitHeap(nn::lmem::detail::HeapHead*)	nn::lmem	sdk		-
+_ZN2nn4lmem23GetExpHeapTotalFreeSizeEPNS0_6detail8HeapHeadE	nn::lmem::GetExpHeapTotalFreeSize(nn::lmem::detail::HeapHead*)	nn::lmem	sdk		-
+_ZN2nn4lmem23GetRequiredUnitHeapSizeEmiib	nn::lmem::GetRequiredUnitHeapSize(unsigned long, int, int, bool)	nn::lmem	sdk		-
+_ZN2nn4lmem25GetExpHeapAllocatableSizeEPNS0_6detail8HeapHeadEi	nn::lmem::GetExpHeapAllocatableSize(nn::lmem::detail::HeapHead*, int)	nn::lmem	sdk		-
+_ZN2nn4nifm10InitializeEv	nn::nifm::Initialize()	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4nifm18IsNetworkAvailableEv	nn::nifm::IsNetworkAvailable()	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4nifm20CancelNetworkRequestEv	nn::nifm::CancelNetworkRequest()	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4nifm20SubmitNetworkRequestEv	nn::nifm::SubmitNetworkRequest()	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4nifm22GetCurrentProxySettingEPNS0_12ProxySettingE	nn::nifm::GetCurrentProxySetting(nn::nifm::ProxySetting*)	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4nifm22IsNetworkRequestOnHoldEv	nn::nifm::IsNetworkRequestOnHold()	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4nifm26GetCurrentPrimaryIpAddressEP7in_addr	nn::nifm::GetCurrentPrimaryIpAddress(in_addr*)	nn::nifm	sdk		-
+_ZN2nn4nifm31HandleNetworkRequestErrorResultEv	nn::nifm::HandleNetworkRequestErrorResult()	nn::nifm	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn4time10InitializeEv	nn::time::Initialize()	nn::time	sdk	HLE_FORCE	dm/host/hle_time.c
+_ZN2nn4time13ClockSnapshot31CreateWithAdjustableSystemClockEPS1_	nn::time::ClockSnapshot::CreateWithAdjustableSystemClock(nn::time::ClockSnapshot*)	nn::time	sdk		-
+_ZN2nn4time13ClockSnapshotC1Ev	nn::time::ClockSnapshot::ClockSnapshot()	nn::time	sdk		-
+_ZN2nn4time14ToCalendarTimeEPNS0_12CalendarTimeEPNS0_22CalendarAdditionalInfoERKNS0_9PosixTimeE	nn::time::ToCalendarTime(nn::time::CalendarTime*, nn::time::CalendarAdditionalInfo*, nn::time::PosixTime const&)	nn::time	sdk	HLE_FORCE	dm/host/hle_time.c
+_ZN2nn4time20CalculateSpanBetweenEPNS_8TimeSpanERKNS0_13ClockSnapshotES5_	nn::time::CalculateSpanBetween(nn::TimeSpan*, nn::time::ClockSnapshot const&, nn::time::ClockSnapshot const&)	nn::time	sdk		-
+_ZN2nn4time23StandardUserSystemClock14GetCurrentTimeEPNS0_9PosixTimeE	nn::time::StandardUserSystemClock::GetCurrentTime(nn::time::PosixTime*)	nn::time	sdk	HLE_FORCE	dm/host/hle_time.c
+_ZN2nn4time8FinalizeEv	nn::time::Finalize()	nn::time	sdk		-
+_ZN2nn4timeleERKNS0_12CalendarTimeES3_	nn::time::operator<=(nn::time::CalendarTime const&, nn::time::CalendarTime const&)	nn::time	sdk		-
+_ZN2nn4util11ReferSymbolEPKv	nn::util::ReferSymbol(void const*)	nn::util	sdk		-
+_ZN2nn4util14DecompressZlibEPvmPKvmS1_m	nn::util::DecompressZlib(void*, unsigned long, void const*, unsigned long, void*, unsigned long)	nn::util	sdk		-
+_ZN2nn4util15RelocationTable10UnrelocateEv	nn::util::RelocationTable::Unrelocate()	nn::util	sdk		-
+_ZN2nn4util15RelocationTable8RelocateEv	nn::util::RelocationTable::Relocate()	nn::util	sdk		-
+_ZN2nn4util16BinaryFileHeader12SetRelocatedEb	nn::util::BinaryFileHeader::SetRelocated(bool)	nn::util	sdk		-
+_ZN2nn4util16BinaryFileHeader13GetFirstBlockEv	nn::util::BinaryFileHeader::GetFirstBlock()	nn::util	sdk		-
+_ZN2nn4util16BinaryFileHeader18GetRelocationTableEv	nn::util::BinaryFileHeader::GetRelocationTable()	nn::util	sdk		-
+_ZN2nn4util18MatrixRowMajor4x3f16ConstantIdentityE	nn::util::MatrixRowMajor4x3f::ConstantIdentity	nn::util	sdk		-
+_ZN2nn4util27ConvertCharacterUtf8ToUtf32EPjPKc	nn::util::ConvertCharacterUtf8ToUtf32(unsigned int*, char const*)	nn::util	sdk		-
+_ZN2nn4util30ConvertStringUtf16NativeToUtf8EPciPKt	nn::util::ConvertStringUtf16NativeToUtf8(char*, int, unsigned short const*)	nn::util	sdk		-
+_ZN2nn4util30ConvertStringUtf8ToUtf16NativeEPtiPKc	nn::util::ConvertStringUtf8ToUtf16Native(unsigned short*, int, char const*)	nn::util	sdk		-
+_ZN2nn4util30PickOutCharacterFromUtf8StringEPcPPKc	nn::util::PickOutCharacterFromUtf8String(char*, char const**)	nn::util	sdk		-
+_ZN2nn4util6TinyMt10InitializeEj	nn::util::TinyMt::Initialize(unsigned int)	nn::util	sdk		-
+_ZN2nn4util6TinyMt17GenerateRandomU32Ev	nn::util::TinyMt::GenerateRandomU32()	nn::util	sdk		-
+_ZN2nn4util6detail14FloatDegree180E	nn::util::detail::FloatDegree180	nn::util::detail	sdk		-
+_ZN2nn4util6detail15CosCoefficientsE	nn::util::detail::CosCoefficients	nn::util::detail	sdk		-
+_ZN2nn4util6detail15FloatPiDivided2E	nn::util::detail::FloatPiDivided2	nn::util::detail	sdk		-
+_ZN2nn4util6detail15SinCoefficientsE	nn::util::detail::SinCoefficients	nn::util::detail	sdk		-
+_ZN2nn4util6detail16AtanCoefficientsE	nn::util::detail::AtanCoefficients	nn::util::detail	sdk		-
+_ZN2nn4util6detail16Float1Divided2PiE	nn::util::detail::Float1Divided2Pi	nn::util::detail	sdk		-
+_ZN2nn4util6detail17SinCosSampleTableE	nn::util::detail::SinCosSampleTable	nn::util::detail	sdk		-
+_ZN2nn4util6detail19AngleIndexHalfRoundE	nn::util::detail::AngleIndexHalfRound	nn::util::detail	sdk		-
+_ZN2nn4util6detail22FloatQuaternionEpsilonE	nn::util::detail::FloatQuaternionEpsilon	nn::util::detail	sdk		-
+_ZN2nn4util6detail7FloatPiE	nn::util::detail::FloatPi	nn::util::detail	sdk		-
+_ZN2nn4util6detail8Float2PiE	nn::util::detail::Float2Pi	nn::util::detail	sdk		-
+_ZN2nn4util6detail8FloatUlpE	nn::util::detail::FloatUlp	nn::util::detail	sdk		-
+_ZN2nn4util7FloatPiE	nn::util::FloatPi	nn::util	sdk		-
+_ZN2nn4util8BitArray5resetEv	nn::util::BitArray::reset()	nn::util	sdk		-
+_ZN2nn4util8SNPrintfEPcmPKcz	nn::util::SNPrintf(char*, unsigned long, char const*, ...)	nn::util	sdk		-
+_ZN2nn4util8Vector3f12ConstantZeroE	nn::util::Vector3f::ConstantZero	nn::util	sdk		-
+_ZN2nn5audio11RemoveDelayEPNS0_19AudioRendererConfigEPNS0_9DelayTypeEPNS0_10SubMixTypeE	nn::audio::RemoveDelay(nn::audio::AudioRendererConfig*, nn::audio::DelayType*, nn::audio::SubMixType*)	nn::audio	sdk		-
+_ZN2nn5audio11RemoveDelayEPNS0_19AudioRendererConfigEPNS0_9DelayTypeEPNS0_12FinalMixTypeE	nn::audio::RemoveDelay(nn::audio::AudioRendererConfig*, nn::audio::DelayType*, nn::audio::FinalMixType*)	nn::audio	sdk		-
+_ZN2nn5audio12IsVoiceValidEPKNS0_9VoiceTypeE	nn::audio::IsVoiceValid(nn::audio::VoiceType const*)	nn::audio	sdk		-
+_ZN2nn5audio12SetDelayTimeEPNS0_9DelayTypeENS_8TimeSpanE	nn::audio::SetDelayTime(nn::audio::DelayType*, nn::TimeSpan)	nn::audio	sdk		-
+_ZN2nn5audio12StopAudioOutEPNS0_8AudioOutE	nn::audio::StopAudioOut(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio13AcquireSubMixEPNS0_19AudioRendererConfigEPNS0_10SubMixTypeEii	nn::audio::AcquireSubMix(nn::audio::AudioRendererConfig*, nn::audio::SubMixType*, int, int)	nn::audio	sdk		-
+_ZN2nn5audio13AddDeviceSinkEPNS0_19AudioRendererConfigEPNS0_14DeviceSinkTypeEPNS0_12FinalMixTypeEPKaiPKc	nn::audio::AddDeviceSink(nn::audio::AudioRendererConfig*, nn::audio::DeviceSinkType*, nn::audio::FinalMixType*, signed char const*, int, char const*)	nn::audio	sdk		-
+_ZN2nn5audio13CloseAudioOutEPNS0_8AudioOutE	nn::audio::CloseAudioOut(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio13GetSinkNodeIdEPKNS0_14DeviceSinkTypeE	nn::audio::GetSinkNodeId(nn::audio::DeviceSinkType const*)	nn::audio	sdk		-
+_ZN2nn5audio13GetSinkNodeIdEPKNS0_22CircularBufferSinkTypeE	nn::audio::GetSinkNodeId(nn::audio::CircularBufferSinkType const*)	nn::audio	sdk		-
+_ZN2nn5audio13ReleaseSubMixEPNS0_19AudioRendererConfigEPNS0_10SubMixTypeE	nn::audio::ReleaseSubMix(nn::audio::AudioRendererConfig*, nn::audio::SubMixType*)	nn::audio	sdk		-
+_ZN2nn5audio13SetAuxEnabledEPNS0_7AuxTypeEb	nn::audio::SetAuxEnabled(nn::audio::AuxType*, bool)	nn::audio	sdk		-
+_ZN2nn5audio13SetVoicePitchEPNS0_9VoiceTypeEf	nn::audio::SetVoicePitch(nn::audio::VoiceType*, float)	nn::audio	sdk		-
+_ZN2nn5audio13StartAudioOutEPNS0_8AudioOutE	nn::audio::StartAudioOut(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio14AddI3dl2ReverbEPNS0_19AudioRendererConfigEPNS0_15I3dl2ReverbTypeEPvmPNS0_10SubMixTypeEi	nn::audio::AddI3dl2Reverb(nn::audio::AudioRendererConfig*, nn::audio::I3dl2ReverbType*, void*, unsigned long, nn::audio::SubMixType*, int)	nn::audio	sdk		-
+_ZN2nn5audio14AddI3dl2ReverbEPNS0_19AudioRendererConfigEPNS0_15I3dl2ReverbTypeEPvmPNS0_12FinalMixTypeEi	nn::audio::AddI3dl2Reverb(nn::audio::AudioRendererConfig*, nn::audio::I3dl2ReverbType*, void*, unsigned long, nn::audio::FinalMixType*, int)	nn::audio	sdk		-
+_ZN2nn5audio14GetVoiceNodeIdEPKNS0_9VoiceTypeE	nn::audio::GetVoiceNodeId(nn::audio::VoiceType const*)	nn::audio	sdk		-
+_ZN2nn5audio14SetDelayInGainEPNS0_9DelayTypeEf	nn::audio::SetDelayInGain(nn::audio::DelayType*, float)	nn::audio	sdk		-
+_ZN2nn5audio14SetVoiceVolumeEPNS0_9VoiceTypeEf	nn::audio::SetVoiceVolume(nn::audio::VoiceType*, float)	nn::audio	sdk		-
+_ZN2nn5audio15AcquireFinalMixEPNS0_19AudioRendererConfigEPNS0_12FinalMixTypeEi	nn::audio::AcquireFinalMix(nn::audio::AudioRendererConfig*, nn::audio::FinalMixType*, int)	nn::audio	sdk		-
+_ZN2nn5audio15GetSubMixNodeIdEPKNS0_10SubMixTypeE	nn::audio::GetSubMixNodeId(nn::audio::SubMixType const*)	nn::audio	sdk		-
+_ZN2nn5audio15PerformanceInfo15MoveToNextFrameEv	nn::audio::PerformanceInfo::MoveToNextFrame()	nn::audio	sdk		-
+_ZN2nn5audio15PerformanceInfo9SetBufferEPKvm	nn::audio::PerformanceInfo::SetBuffer(void const*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio15PerformanceInfoC1Ev	nn::audio::PerformanceInfo::PerformanceInfo()	nn::audio	sdk		-
+_ZN2nn5audio15PerformanceInfoD1Ev	nn::audio::PerformanceInfo::~PerformanceInfo()	nn::audio	sdk		-
+_ZN2nn5audio15ReleaseFinalMixEPNS0_19AudioRendererConfigEPNS0_12FinalMixTypeE	nn::audio::ReleaseFinalMix(nn::audio::AudioRendererConfig*, nn::audio::FinalMixType*)	nn::audio	sdk		-
+_ZN2nn5audio15SetDelayDryGainEPNS0_9DelayTypeEf	nn::audio::SetDelayDryGain(nn::audio::DelayType*, float)	nn::audio	sdk		-
+_ZN2nn5audio15SetDelayEnabledEPNS0_9DelayTypeEb	nn::audio::SetDelayEnabled(nn::audio::DelayType*, bool)	nn::audio	sdk		-
+_ZN2nn5audio15SetSubMixVolumeEPNS0_10SubMixTypeEf	nn::audio::SetSubMixVolume(nn::audio::SubMixType*, float)	nn::audio	sdk		-
+_ZN2nn5audio16AcquireVoiceSlotEPNS0_19AudioRendererConfigEPNS0_9VoiceTypeEiiNS0_12SampleFormatEiPKvm	nn::audio::AcquireVoiceSlot(nn::audio::AudioRendererConfig*, nn::audio::VoiceType*, int, int, nn::audio::SampleFormat, int, void const*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio16AppendWaveBufferEPNS0_9VoiceTypeEPKNS0_10WaveBufferE	nn::audio::AppendWaveBuffer(nn::audio::VoiceType*, nn::audio::WaveBuffer const*)	nn::audio	sdk		-
+_ZN2nn5audio16GetAuxSampleRateEPKNS0_7AuxTypeE	nn::audio::GetAuxSampleRate(nn::audio::AuxType const*)	nn::audio	sdk		-
+_ZN2nn5audio16IsDelayRemovableEPKNS0_9DelayTypeE	nn::audio::IsDelayRemovable(nn::audio::DelayType const*)	nn::audio	sdk		-
+_ZN2nn5audio16ReleaseVoiceSlotEPNS0_19AudioRendererConfigEPNS0_9VoiceTypeE	nn::audio::ReleaseVoiceSlot(nn::audio::AudioRendererConfig*, nn::audio::VoiceType*)	nn::audio	sdk		-
+_ZN2nn5audio16SetVoicePriorityEPNS0_9VoiceTypeEi	nn::audio::SetVoicePriority(nn::audio::VoiceType*, int)	nn::audio	sdk		-
+_ZN2nn5audio17AcquireMemoryPoolEPNS0_19AudioRendererConfigEPNS0_14MemoryPoolTypeEPvm	nn::audio::AcquireMemoryPool(nn::audio::AudioRendererConfig*, nn::audio::MemoryPoolType*, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio17GetAuxSampleCountEPKNS0_7AuxTypeE	nn::audio::GetAuxSampleCount(nn::audio::AuxType const*)	nn::audio	sdk		-
+_ZN2nn5audio17GetSampleByteSizeENS0_12SampleFormatE	nn::audio::GetSampleByteSize(nn::audio::SampleFormat)	nn::audio	sdk		-
+_ZN2nn5audio17GetVoicePlayStateEPKNS0_9VoiceTypeE	nn::audio::GetVoicePlayState(nn::audio::VoiceType const*)	nn::audio	sdk		-
+_ZN2nn5audio17OpenAudioRendererEPNS0_19AudioRendererHandleEPNS_2os11SystemEventERKNS0_22AudioRendererParameterEPvm	nn::audio::OpenAudioRenderer(nn::audio::AudioRendererHandle*, nn::os::SystemEvent*, nn::audio::AudioRendererParameter const&, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio17ReadAuxSendBufferEPNS0_7AuxTypeEPii	nn::audio::ReadAuxSendBuffer(nn::audio::AuxType*, int*, int)	nn::audio	sdk		-
+_ZN2nn5audio17ReleaseMemoryPoolEPNS0_19AudioRendererConfigEPNS0_14MemoryPoolTypeE	nn::audio::ReleaseMemoryPool(nn::audio::AudioRendererConfig*, nn::audio::MemoryPoolType*)	nn::audio	sdk		-
+_ZN2nn5audio17RemoveI3dl2ReverbEPNS0_19AudioRendererConfigEPNS0_15I3dl2ReverbTypeEPNS0_10SubMixTypeE	nn::audio::RemoveI3dl2Reverb(nn::audio::AudioRendererConfig*, nn::audio::I3dl2ReverbType*, nn::audio::SubMixType*)	nn::audio	sdk		-
+_ZN2nn5audio17RemoveI3dl2ReverbEPNS0_19AudioRendererConfigEPNS0_15I3dl2ReverbTypeEPNS0_12FinalMixTypeE	nn::audio::RemoveI3dl2Reverb(nn::audio::AudioRendererConfig*, nn::audio::I3dl2ReverbType*, nn::audio::FinalMixType*)	nn::audio	sdk		-
+_ZN2nn5audio17SetAudioOutVolumeEPNS0_8AudioOutEf	nn::audio::SetAudioOutVolume(nn::audio::AudioOut*, float)	nn::audio	sdk		-
+_ZN2nn5audio17SetAuxInputOutputEPNS0_7AuxTypeEPKaS4_i	nn::audio::SetAuxInputOutput(nn::audio::AuxType*, signed char const*, signed char const*, int)	nn::audio	sdk		-
+_ZN2nn5audio17SetVoiceMixVolumeEPNS0_9VoiceTypeEPNS0_10SubMixTypeEfii	nn::audio::SetVoiceMixVolume(nn::audio::VoiceType*, nn::audio::SubMixType*, float, int, int)	nn::audio	sdk		-
+_ZN2nn5audio17SetVoiceMixVolumeEPNS0_9VoiceTypeEPNS0_12FinalMixTypeEfii	nn::audio::SetVoiceMixVolume(nn::audio::VoiceType*, nn::audio::FinalMixType*, float, int, int)	nn::audio	sdk		-
+_ZN2nn5audio17SetVoicePlayStateEPNS0_9VoiceTypeENS1_9PlayStateE	nn::audio::SetVoicePlayState(nn::audio::VoiceType*, nn::audio::VoiceType::PlayState)	nn::audio	sdk		-
+_ZN2nn5audio17StopAudioRendererENS0_19AudioRendererHandleE	nn::audio::StopAudioRenderer(nn::audio::AudioRendererHandle)	nn::audio	sdk		-
+_ZN2nn5audio18CloseAudioRendererENS0_19AudioRendererHandleE	nn::audio::CloseAudioRenderer(nn::audio::AudioRendererHandle)	nn::audio	sdk		-
+_ZN2nn5audio18GetMemoryPoolStateEPKNS0_14MemoryPoolTypeE	nn::audio::GetMemoryPoolState(nn::audio::MemoryPoolType const*)	nn::audio	sdk		-
+_ZN2nn5audio18SetSubMixMixVolumeEPNS0_10SubMixTypeEPNS0_12FinalMixTypeEfii	nn::audio::SetSubMixMixVolume(nn::audio::SubMixType*, nn::audio::FinalMixType*, float, int, int)	nn::audio	sdk		-
+_ZN2nn5audio18SetSubMixMixVolumeEPNS0_10SubMixTypeES2_fii	nn::audio::SetSubMixMixVolume(nn::audio::SubMixType*, nn::audio::SubMixType*, float, int, int)	nn::audio	sdk		-
+_ZN2nn5audio18StartAudioRendererENS0_19AudioRendererHandleE	nn::audio::StartAudioRenderer(nn::audio::AudioRendererHandle)	nn::audio	sdk		-
+_ZN2nn5audio19InitializeResamplerEPNS0_13ResamplerTypeEPvmiii	nn::audio::InitializeResampler(nn::audio::ResamplerType*, void*, unsigned long, int, int, int)	nn::audio	sdk		-
+_ZN2nn5audio19ListAudioDeviceNameEPNS0_15AudioDeviceNameEi	nn::audio::ListAudioDeviceName(nn::audio::AudioDeviceName*, int)	nn::audio	sdk		-
+_ZN2nn5audio19OpenDefaultAudioOutEPNS0_8AudioOutERKNS0_17AudioOutParameterE	nn::audio::OpenDefaultAudioOut(nn::audio::AudioOut*, nn::audio::AudioOutParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio19SetDelayInputOutputEPNS0_9DelayTypeEPKaS4_i	nn::audio::SetDelayInputOutput(nn::audio::DelayType*, signed char const*, signed char const*, int)	nn::audio	sdk		-
+_ZN2nn5audio19SetDownMixParameterEPNS0_14DeviceSinkTypeEPKNS1_16DownMixParameterE	nn::audio::SetDownMixParameter(nn::audio::DeviceSinkType*, nn::audio::DeviceSinkType::DownMixParameter const*)	nn::audio	sdk		-
+_ZN2nn5audio19SetVoiceDestinationEPNS0_19AudioRendererConfigEPNS0_9VoiceTypeEPNS0_10SubMixTypeE	nn::audio::SetVoiceDestination(nn::audio::AudioRendererConfig*, nn::audio::VoiceType*, nn::audio::SubMixType*)	nn::audio	sdk		-
+_ZN2nn5audio19SetVoiceDestinationEPNS0_19AudioRendererConfigEPNS0_9VoiceTypeEPNS0_12FinalMixTypeE	nn::audio::SetVoiceDestination(nn::audio::AudioRendererConfig*, nn::audio::VoiceType*, nn::audio::FinalMixType*)	nn::audio	sdk		-
+_ZN2nn5audio20AppendAudioOutBufferEPNS0_8AudioOutEPNS0_14AudioOutBufferE	nn::audio::AppendAudioOutBuffer(nn::audio::AudioOut*, nn::audio::AudioOutBuffer*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio20IsMemoryPoolAttachedEPKNS0_14MemoryPoolTypeE	nn::audio::IsMemoryPoolAttached(nn::audio::MemoryPoolType const*)	nn::audio	sdk		-
+_ZN2nn5audio20IsVoiceDroppedFlagOnEPKNS0_9VoiceTypeE	nn::audio::IsVoiceDroppedFlagOn(nn::audio::VoiceType const*)	nn::audio	sdk		-
+_ZN2nn5audio20SetDelayFeedbackGainEPNS0_9DelayTypeEf	nn::audio::SetDelayFeedbackGain(nn::audio::DelayType*, float)	nn::audio	sdk		-
+_ZN2nn5audio20SetSubMixDestinationEPNS0_19AudioRendererConfigEPNS0_10SubMixTypeEPNS0_12FinalMixTypeE	nn::audio::SetSubMixDestination(nn::audio::AudioRendererConfig*, nn::audio::SubMixType*, nn::audio::FinalMixType*)	nn::audio	sdk		-
+_ZN2nn5audio20SetSubMixDestinationEPNS0_19AudioRendererConfigEPNS0_10SubMixTypeES4_	nn::audio::SetSubMixDestination(nn::audio::AudioRendererConfig*, nn::audio::SubMixType*, nn::audio::SubMixType*)	nn::audio	sdk		-
+_ZN2nn5audio20WriteAuxReturnBufferEPNS0_7AuxTypeEPKii	nn::audio::WriteAuxReturnBuffer(nn::audio::AuxType*, int const*, int)	nn::audio	sdk		-
+_ZN2nn5audio21AddCircularBufferSinkEPNS0_19AudioRendererConfigEPNS0_22CircularBufferSinkTypeEPNS0_12FinalMixTypeEPKaiPvmNS0_12SampleFormatE	nn::audio::AddCircularBufferSink(nn::audio::AudioRendererConfig*, nn::audio::CircularBufferSinkType*, nn::audio::FinalMixType*, signed char const*, int, void*, unsigned long, nn::audio::SampleFormat)	nn::audio	sdk		-
+_ZN2nn5audio21GetAudioOutSampleRateEPKNS0_8AudioOutE	nn::audio::GetAudioOutSampleRate(nn::audio::AudioOut const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio21GetReleasedWaveBufferEPNS0_9VoiceTypeE	nn::audio::GetReleasedWaveBuffer(nn::audio::VoiceType*)	nn::audio	sdk		-
+_ZN2nn5audio21SetAudioOutBufferInfoEPNS0_14AudioOutBufferEPvmm	nn::audio::SetAudioOutBufferInfo(nn::audio::AudioOutBuffer*, void*, unsigned long, unsigned long)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio21SetDelayChannelSpreadEPNS0_9DelayTypeEf	nn::audio::SetDelayChannelSpread(nn::audio::DelayType*, float)	nn::audio	sdk		-
+_ZN2nn5audio21SetDelayLowPassAmountEPNS0_9DelayTypeEf	nn::audio::SetDelayLowPassAmount(nn::audio::DelayType*, float)	nn::audio	sdk		-
+_ZN2nn5audio21SetI3dl2ReverbDryGainEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbDryGain(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio21SetI3dl2ReverbEnabledEPNS0_15I3dl2ReverbTypeEb	nn::audio::SetI3dl2ReverbEnabled(nn::audio::I3dl2ReverbType*, bool)	nn::audio	sdk		-
+_ZN2nn5audio22IsI3dl2ReverbRemovableEPKNS0_15I3dl2ReverbTypeE	nn::audio::IsI3dl2ReverbRemovable(nn::audio::I3dl2ReverbType const*)	nn::audio	sdk		-
+_ZN2nn5audio22ProcessResamplerBufferEPNS0_13ResamplerTypeEPiPsmPKsi	nn::audio::ProcessResamplerBuffer(nn::audio::ResamplerType*, int*, short*, unsigned long, short const*, int)	nn::audio	sdk		-
+_ZN2nn5audio22ReadCircularBufferSinkEPNS0_22CircularBufferSinkTypeEPvm	nn::audio::ReadCircularBufferSink(nn::audio::CircularBufferSinkType*, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio22SetI3dl2ReverbRoomGainEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbRoomGain(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio23GetAudioOutChannelCountEPKNS0_8AudioOutE	nn::audio::GetAudioOutChannelCount(nn::audio::AudioOut const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio23GetAudioOutSampleFormatEPKNS0_8AudioOutE	nn::audio::GetAudioOutSampleFormat(nn::audio::AudioOut const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio23RequestAttachMemoryPoolEPNS0_14MemoryPoolTypeE	nn::audio::RequestAttachMemoryPool(nn::audio::MemoryPoolType*)	nn::audio	sdk		-
+_ZN2nn5audio23RequestDetachMemoryPoolEPNS0_14MemoryPoolTypeE	nn::audio::RequestDetachMemoryPool(nn::audio::MemoryPoolType*)	nn::audio	sdk		-
+_ZN2nn5audio24SetI3dl2ReverbReverbGainEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbReverbGain(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio24SetI3dl2ReverbRoomHfGainEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbRoomHfGain(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio25GetAudioOutBufferDataSizeEPKNS0_14AudioOutBufferE	nn::audio::GetAudioOutBufferDataSize(nn::audio::AudioOutBuffer const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio25GetReleasedAudioOutBufferEPNS0_8AudioOutE	nn::audio::GetReleasedAudioOutBuffer(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio25GetVoicePlayedSampleCountEPKNS0_9VoiceTypeE	nn::audio::GetVoicePlayedSampleCount(nn::audio::VoiceType const*)	nn::audio	sdk		-
+_ZN2nn5audio25SetI3dl2ReverbHfReferenceEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbHfReference(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio25SetI3dl2ReverbInputOutputEPNS0_15I3dl2ReverbTypeEPKaS4_i	nn::audio::SetI3dl2ReverbInputOutput(nn::audio::I3dl2ReverbType*, signed char const*, signed char const*, int)	nn::audio	sdk		-
+_ZN2nn5audio25SetPerformanceFrameBufferEPNS0_19AudioRendererConfigEPvm	nn::audio::SetPerformanceFrameBuffer(nn::audio::AudioRendererConfig*, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio26RequestUpdateAudioRendererENS0_19AudioRendererHandleEPKNS0_19AudioRendererConfigE	nn::audio::RequestUpdateAudioRenderer(nn::audio::AudioRendererHandle, nn::audio::AudioRendererConfig const*)	nn::audio	sdk		-
+_ZN2nn5audio26SetAudioDeviceOutputVolumeEPKNS0_15AudioDeviceNameEf	nn::audio::SetAudioDeviceOutputVolume(nn::audio::AudioDeviceName const*, float)	nn::audio	sdk		-
+_ZN2nn5audio26SetDownMixParameterEnabledEPNS0_14DeviceSinkTypeEb	nn::audio::SetDownMixParameterEnabled(nn::audio::DeviceSinkType*, bool)	nn::audio	sdk		-
+_ZN2nn5audio27InitializeAudioOutParameterEPNS0_17AudioOutParameterE	nn::audio::InitializeAudioOutParameter(nn::audio::AudioOutParameter*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio28GetAudioOutBufferDataPointerEPKNS0_14AudioOutBufferE	nn::audio::GetAudioOutBufferDataPointer(nn::audio::AudioOutBuffer const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio29ExecuteAudioRendererRenderingENS0_19AudioRendererHandleE	nn::audio::ExecuteAudioRendererRendering(nn::audio::AudioRendererHandle)	nn::audio	sdk		-
+_ZN2nn5audio29GetRequiredBufferSizeForDelayENS_8TimeSpanEii	nn::audio::GetRequiredBufferSizeForDelay(nn::TimeSpan, int, int)	nn::audio	sdk		-
+_ZN2nn5audio29GetResamplerOutputSampleCountEPKNS0_13ResamplerTypeEi	nn::audio::GetResamplerOutputSampleCount(nn::audio::ResamplerType const*, int)	nn::audio	sdk		-
+_ZN2nn5audio29InitializeAudioRendererConfigEPNS0_19AudioRendererConfigERKNS0_22AudioRendererParameterEPvm	nn::audio::InitializeAudioRendererConfig(nn::audio::AudioRendererConfig*, nn::audio::AudioRendererParameter const&, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio29IsValidAudioRendererParameterERKNS0_22AudioRendererParameterE	nn::audio::IsValidAudioRendererParameter(nn::audio::AudioRendererParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio29SetI3dl2ReverbReflectionsGainEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbReflectionsGain(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio29SetVoiceBiquadFilterParameterEPNS0_9VoiceTypeEiRKNS0_21BiquadFilterParameterE	nn::audio::SetVoiceBiquadFilterParameter(nn::audio::VoiceType*, int, nn::audio::BiquadFilterParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio30GetAudioRendererWorkBufferSizeERKNS0_22AudioRendererParameterE	nn::audio::GetAudioRendererWorkBufferSize(nn::audio::AudioRendererParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio31SetI3dl2ReverbLateReverbDensityEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbLateReverbDensity(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio32InitializeAudioRendererParameterEPNS0_22AudioRendererParameterE	nn::audio::InitializeAudioRendererParameter(nn::audio::AudioRendererParameter*)	nn::audio	sdk		-
+_ZN2nn5audio33GetAudioRendererElapsedFrameCountEPKNS0_19AudioRendererConfigE	nn::audio::GetAudioRendererElapsedFrameCount(nn::audio::AudioRendererConfig const*)	nn::audio	sdk		-
+_ZN2nn5audio33GetRequiredBufferSizeForResamplerEi	nn::audio::GetRequiredBufferSizeForResampler(int)	nn::audio	sdk		-
+_ZN2nn5audio33SetI3dl2ReverbLateReverbDecayTimeEPNS0_15I3dl2ReverbTypeENS_8TimeSpanE	nn::audio::SetI3dl2ReverbLateReverbDecayTime(nn::audio::I3dl2ReverbType*, nn::TimeSpan)	nn::audio	sdk		-
+_ZN2nn5audio33SetI3dl2ReverbLateReverbDelayTimeEPNS0_15I3dl2ReverbTypeENS_8TimeSpanE	nn::audio::SetI3dl2ReverbLateReverbDelayTime(nn::audio::I3dl2ReverbType*, nn::TimeSpan)	nn::audio	sdk		-
+_ZN2nn5audio33SetI3dl2ReverbLateReverbDiffusionEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbLateReverbDiffusion(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio33SetI3dl2ReverbReflectionDelayTimeEPNS0_15I3dl2ReverbTypeENS_8TimeSpanE	nn::audio::SetI3dl2ReverbReflectionDelayTime(nn::audio::I3dl2ReverbType*, nn::TimeSpan)	nn::audio	sdk		-
+_ZN2nn5audio35GetRequiredBufferSizeForI3dl2ReverbEii	nn::audio::GetRequiredBufferSizeForI3dl2Reverb(int, int)	nn::audio	sdk		-
+_ZN2nn5audio36GetAudioRendererConfigWorkBufferSizeERKNS0_22AudioRendererParameterE	nn::audio::GetAudioRendererConfigWorkBufferSize(nn::audio::AudioRendererParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio36SetI3dl2ReverbLateReverbHfDecayRatioEPNS0_15I3dl2ReverbTypeEf	nn::audio::SetI3dl2ReverbLateReverbHfDecayRatio(nn::audio::I3dl2ReverbType*, float)	nn::audio	sdk		-
+_ZN2nn5audio41GetRequiredBufferSizeForPerformanceFramesERKNS0_22AudioRendererParameterE	nn::audio::GetRequiredBufferSizeForPerformanceFrames(nn::audio::AudioRendererParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio42GetRequiredBufferSizeForCircularBufferSinkEPKNS0_22AudioRendererParameterEiiNS0_12SampleFormatE	nn::audio::GetRequiredBufferSizeForCircularBufferSink(nn::audio::AudioRendererParameter const*, int, int, nn::audio::SampleFormat)	nn::audio	sdk		-
+_ZN2nn5audio43GetRequiredBufferSizeForAuxSendReturnBufferEPKNS0_22AudioRendererParameterEii	nn::audio::GetRequiredBufferSizeForAuxSendReturnBuffer(nn::audio::AudioRendererParameter const*, int, int)	nn::audio	sdk		-
+_ZN2nn5audio6AddAuxEPNS0_19AudioRendererConfigEPNS0_7AuxTypeEPNS0_10SubMixTypeEPvS7_m	nn::audio::AddAux(nn::audio::AudioRendererConfig*, nn::audio::AuxType*, nn::audio::SubMixType*, void*, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio6AddAuxEPNS0_19AudioRendererConfigEPNS0_7AuxTypeEPNS0_12FinalMixTypeEPvS7_m	nn::audio::AddAux(nn::audio::AudioRendererConfig*, nn::audio::AuxType*, nn::audio::FinalMixType*, void*, void*, unsigned long)	nn::audio	sdk		-
+_ZN2nn5audio8AddDelayEPNS0_19AudioRendererConfigEPNS0_9DelayTypeEPvmPNS0_10SubMixTypeENS_8TimeSpanEi	nn::audio::AddDelay(nn::audio::AudioRendererConfig*, nn::audio::DelayType*, void*, unsigned long, nn::audio::SubMixType*, nn::TimeSpan, int)	nn::audio	sdk		-
+_ZN2nn5audio8AddDelayEPNS0_19AudioRendererConfigEPNS0_9DelayTypeEPvmPNS0_12FinalMixTypeENS_8TimeSpanEi	nn::audio::AddDelay(nn::audio::AudioRendererConfig*, nn::audio::DelayType*, void*, unsigned long, nn::audio::FinalMixType*, nn::TimeSpan, int)	nn::audio	sdk		-
+_ZN2nn5audio9RemoveAuxEPNS0_19AudioRendererConfigEPNS0_7AuxTypeEPNS0_10SubMixTypeE	nn::audio::RemoveAux(nn::audio::AudioRendererConfig*, nn::audio::AuxType*, nn::audio::SubMixType*)	nn::audio	sdk		-
+_ZN2nn5audio9RemoveAuxEPNS0_19AudioRendererConfigEPNS0_7AuxTypeEPNS0_12FinalMixTypeE	nn::audio::RemoveAux(nn::audio::AudioRendererConfig*, nn::audio::AuxType*, nn::audio::FinalMixType*)	nn::audio	sdk		-
+_ZN2nn5codec19HardwareOpusDecoderC1Ei	nn::codec::HardwareOpusDecoder::HardwareOpusDecoder(int)	nn::codec	sdk	HLE_FORCE	dm/host/hle_codec.c
+_ZN2nn5codec19HardwareOpusDecoderD1Ev	nn::codec::HardwareOpusDecoder::~HardwareOpusDecoder()	nn::codec	sdk		-
+_ZN2nn5codec36GetHardwareOpusDecoderWorkBufferSizeEii	nn::codec::GetHardwareOpusDecoderWorkBufferSize(int, int)	nn::codec	sdk		-
+_ZN2nn5prepo10InitializeEv	nn::prepo::Initialize()	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport10SetEventIdEPKc	nn::prepo::PlayReport::SetEventId(char const*)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport3AddEPKcRKNS0_5ArrayE	nn::prepo::PlayReport::Add(char const*, nn::prepo::Array const&)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport3AddEPKcS3_	nn::prepo::PlayReport::Add(char const*, char const*)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport3AddEPKcb	nn::prepo::PlayReport::Add(char const*, bool)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport3AddEPKcd	nn::prepo::PlayReport::Add(char const*, double)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport3AddEPKcl	nn::prepo::PlayReport::Add(char const*, long)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport4SaveERKNS_7account3UidE	nn::prepo::PlayReport::Save(nn::account::Uid const&)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReport9SetBufferEPvm	nn::prepo::PlayReport::SetBuffer(void*, unsigned long)	nn::prepo	sdk		-
+_ZN2nn5prepo10PlayReportC1Ev	nn::prepo::PlayReport::PlayReport()	nn::prepo	sdk		-
+_ZN2nn5prepo5Array3AddEl	nn::prepo::Array::Add(long)	nn::prepo	sdk		-
+_ZN2nn5prepo5Array9SetBufferEPvm	nn::prepo::Array::SetBuffer(void*, unsigned long)	nn::prepo	sdk		-
+_ZN2nn5prepo5ArrayC1Ev	nn::prepo::Array::Array()	nn::prepo	sdk		-
+_ZN2nn5swkbd10MakePresetEPNS0_14KeyboardConfigENS0_6PresetE	nn::swkbd::MakePreset(nn::swkbd::KeyboardConfig*, nn::swkbd::Preset)	nn::swkbd	sdk		-
+_ZN2nn5swkbd12ShowKeyboardEPNS0_6StringERKNS0_15ShowKeyboardArgE	nn::swkbd::ShowKeyboard(nn::swkbd::String*, nn::swkbd::ShowKeyboardArg const&)	nn::swkbd	sdk	HLE_FORCE	dm/host/hle_swkbd.c
+_ZN2nn5swkbd16SetGuideTextUtf8EPNS0_14KeyboardConfigEPKc	nn::swkbd::SetGuideTextUtf8(nn::swkbd::KeyboardConfig*, char const*)	nn::swkbd	sdk		-
+_ZN2nn5swkbd25GetRequiredWorkBufferSizeEb	nn::swkbd::GetRequiredWorkBufferSize(bool)	nn::swkbd	sdk		-
+_ZN2nn5swkbd27GetRequiredStringBufferSizeEv	nn::swkbd::GetRequiredStringBufferSize()	nn::swkbd	sdk		-
+_ZN2nn6crypto16GenerateSha1HashEPvmPKvm	nn::crypto::GenerateSha1Hash(void*, unsigned long, void const*, unsigned long)	nn::crypto	sdk		-
+_ZN2nn6crypto6detail7Md5Impl10InitializeEv	nn::crypto::detail::Md5Impl::Initialize()	nn::crypto::detail	sdk		-
+_ZN2nn6crypto6detail7Md5Impl6UpdateEPKvm	nn::crypto::detail::Md5Impl::Update(void const*, unsigned long)	nn::crypto::detail	sdk		-
+_ZN2nn6crypto6detail7Md5Impl7GetHashEPvm	nn::crypto::detail::Md5Impl::GetHash(void*, unsigned long)	nn::crypto::detail	sdk		-
+_ZN2nn6crypto6detail7Md5ImplD1Ev	nn::crypto::detail::Md5Impl::~Md5Impl()	nn::crypto::detail	sdk		-
+_ZN2nn6detail21UnexpectedDefaultImplEPKcS2_i	nn::detail::UnexpectedDefaultImpl(char const*, char const*, int)	nn::detail	sdk		-
+_ZN2nn6fontll18ScalableFontEngine10GetAdvanceEPsS2_PiS3_jt	nn::fontll::ScalableFontEngine::GetAdvance(short*, short*, int*, int*, unsigned int, unsigned short)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine10GetKerningEPiS2_jj	nn::fontll::ScalableFontEngine::GetKerning(int*, int*, unsigned int, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine10InitializeEPvj	nn::fontll::ScalableFontEngine::Initialize(void*, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine11SetAutoHintEb	nn::fontll::ScalableFontEngine::SetAutoHint(bool)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine13ReleasesGlyphEPv	nn::fontll::ScalableFontEngine::ReleasesGlyph(void*)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine13SetBoldWeightEi	nn::fontll::ScalableFontEngine::SetBoldWeight(int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine14GetFontMetricsEPNS0_7MetricsE	nn::fontll::ScalableFontEngine::GetFontMetrics(nn::fontll::Metrics*)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine15AcquireGlyphmapEjt	nn::fontll::ScalableFontEngine::AcquireGlyphmap(unsigned int, unsigned short)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine15CheckGlyphExistEj	nn::fontll::ScalableFontEngine::CheckGlyphExist(unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine15SetOutlineWidthEt	nn::fontll::ScalableFontEngine::SetOutlineWidth(unsigned short)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine17AcquireOtfKerningEPKNS0_15OtfKerningTableEjjj	nn::fontll::ScalableFontEngine::AcquireOtfKerning(nn::fontll::OtfKerningTable const*, unsigned int, unsigned int, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine21AcquireOtfKerningLastEPKNS0_15OtfKerningTableEjj	nn::fontll::ScalableFontEngine::AcquireOtfKerningLast(nn::fontll::OtfKerningTable const*, unsigned int, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine22AcquireOtfKerningFirstEPKNS0_15OtfKerningTableEjj	nn::fontll::ScalableFontEngine::AcquireOtfKerningFirst(nn::fontll::OtfKerningTable const*, unsigned int, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine22GetPointerToWorkBufferEv	nn::fontll::ScalableFontEngine::GetPointerToWorkBuffer()	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine23FinalizeOtfKerningTableEPNS0_15OtfKerningTableEPFvPvS4_ES4_	nn::fontll::ScalableFontEngine::FinalizeOtfKerningTable(nn::fontll::OtfKerningTable*, void (*)(void*, void*), void*)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine25InitializeOtfKerningTableEPFPvmmS2_ES2_b	nn::fontll::ScalableFontEngine::InitializeOtfKerningTable(void* (*)(unsigned long, unsigned long, void*), void*, bool)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine7SetFontEPc	nn::fontll::ScalableFontEngine::SetFont(char*)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine8FinalizeEv	nn::fontll::ScalableFontEngine::Finalize()	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine8GetErrorEv	nn::fontll::ScalableFontEngine::GetError()	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine8LoadFontEPcPKvjj	nn::fontll::ScalableFontEngine::LoadFont(char*, void const*, unsigned int, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine8SetFlagsENS1_5FlagsE	nn::fontll::ScalableFontEngine::SetFlags(nn::fontll::ScalableFontEngine::Flags)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngine8SetScaleEiiii	nn::fontll::ScalableFontEngine::SetScale(int, int, int, int)	nn::fontll	sdk		-
+_ZN2nn6fontll18ScalableFontEngineC1Ev	nn::fontll::ScalableFontEngine::ScalableFontEngine()	nn::fontll	sdk		-
+_ZN2nn6fontll24ScalableFontEngineHelper6DecodeEPKvj	nn::fontll::ScalableFontEngineHelper::Decode(void const*, unsigned int)	nn::fontll	sdk		-
+_ZN2nn6socket10GetSockOptEiiiPvPj	nn::socket::GetSockOpt(int, int, int, void*, unsigned int*)	nn::socket	sdk		-
+_ZN2nn6socket10InitializeERKNS0_6ConfigE	nn::socket::Initialize(nn::socket::Config const&)	nn::socket	sdk	HLE_FORCE	dm/host/hle_net.c
+_ZN2nn6socket10SetSockOptEiiiPKvj	nn::socket::SetSockOpt(int, int, int, void const*, unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket11GetAddrInfoEPKcS2_PK8addrinfoPPS3_	nn::socket::GetAddrInfo(char const*, char const*, addrinfo const*, addrinfo**)	nn::socket	sdk		-
+_ZN2nn6socket11GetSockNameEiP8sockaddrPj	nn::socket::GetSockName(int, sockaddr*, unsigned int*)	nn::socket	sdk		-
+_ZN2nn6socket12FreeAddrInfoEP8addrinfo	nn::socket::FreeAddrInfo(addrinfo*)	nn::socket	sdk		-
+_ZN2nn6socket12GetLastErrnoEv	nn::socket::GetLastErrno()	nn::socket	sdk		-
+_ZN2nn6socket4BindEiPK8sockaddrj	nn::socket::Bind(int, sockaddr const*, unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket4PollEP6pollfdmi	nn::socket::Poll(pollfd*, unsigned long, int)	nn::socket	sdk		-
+_ZN2nn6socket4RecvEiPvmi	nn::socket::Recv(int, void*, unsigned long, int)	nn::socket	sdk		-
+_ZN2nn6socket4SendEiPKvmi	nn::socket::Send(int, void const*, unsigned long, int)	nn::socket	sdk		-
+_ZN2nn6socket5CloseEi	nn::socket::Close(int)	nn::socket	sdk		-
+_ZN2nn6socket5FcntlEiiz	nn::socket::Fcntl(int, int, ...)	nn::socket	sdk		-
+_ZN2nn6socket6AcceptEiP8sockaddrPj	nn::socket::Accept(int, sockaddr*, unsigned int*)	nn::socket	sdk		-
+_ZN2nn6socket6ListenEii	nn::socket::Listen(int, int)	nn::socket	sdk		-
+_ZN2nn6socket6SendToEiPKvmiPK8sockaddrj	nn::socket::SendTo(int, void const*, unsigned long, int, sockaddr const*, unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket6SocketEiii	nn::socket::Socket(int, int, int)	nn::socket	sdk		-
+_ZN2nn6socket7ConnectEiPK8sockaddrj	nn::socket::Connect(int, sockaddr const*, unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket8FinalizeEv	nn::socket::Finalize()	nn::socket	sdk		-
+_ZN2nn6socket8InetNtoaE7in_addr	nn::socket::InetNtoa(in_addr)	nn::socket	sdk		-
+_ZN2nn6socket8InetNtopEiPKvPcj	nn::socket::InetNtop(int, void const*, char*, unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket8InetPtonEiPKcPv	nn::socket::InetPton(int, char const*, void*)	nn::socket	sdk		-
+_ZN2nn6socket8RecvFromEiPvmiP8sockaddrPj	nn::socket::RecvFrom(int, void*, unsigned long, int, sockaddr*, unsigned int*)	nn::socket	sdk		-
+_ZN2nn6socket8ShutdownEii	nn::socket::Shutdown(int, int)	nn::socket	sdk		-
+_ZN2nn6socket9InetHtonlEj	nn::socket::InetHtonl(unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket9InetHtonsEt	nn::socket::InetHtons(unsigned short)	nn::socket	sdk		-
+_ZN2nn6socket9InetNtohlEj	nn::socket::InetNtohl(unsigned int)	nn::socket	sdk		-
+_ZN2nn6socket9InetNtohsEt	nn::socket::InetNtohs(unsigned short)	nn::socket	sdk		-
+_ZN2nn7account10InitializeEv	nn::account::Initialize()	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account12AsyncContext14GetSystemEventEPNS_2os11SystemEventE	nn::account::AsyncContext::GetSystemEvent(nn::os::SystemEvent*)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account12AsyncContext6CancelEv	nn::account::AsyncContext::Cancel()	nn::account	sdk		-
+_ZN2nn7account12AsyncContext7HasDoneEPb	nn::account::AsyncContext::HasDone(bool*)	nn::account	sdk		-
+_ZN2nn7account12AsyncContext9GetResultEv	nn::account::AsyncContext::GetResult()	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account12AsyncContextC1Ev	nn::account::AsyncContext::AsyncContext()	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account12AsyncContextD1Ev	nn::account::AsyncContext::~AsyncContext()	nn::account	sdk		-
+_ZN2nn7account22TryOpenPreselectedUserEPNS0_10UserHandleE	nn::account::TryOpenPreselectedUser(nn::account::UserHandle*)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account26GetNetworkServiceAccountIdEPNS0_23NetworkServiceAccountIdERKNS0_10UserHandleE	nn::account::GetNetworkServiceAccountId(nn::account::NetworkServiceAccountId*, nn::account::UserHandle const&)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account36EnsureNetworkServiceAccountAvailableERKNS0_10UserHandleE	nn::account::EnsureNetworkServiceAccountAvailable(nn::account::UserHandle const&)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account37LoadNetworkServiceAccountIdTokenCacheEPmPcmRKNS0_10UserHandleE	nn::account::LoadNetworkServiceAccountIdTokenCache(unsigned long*, char*, unsigned long, nn::account::UserHandle const&)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account44EnsureNetworkServiceAccountIdTokenCacheAsyncEPNS0_12AsyncContextERKNS0_10UserHandleE	nn::account::EnsureNetworkServiceAccountIdTokenCacheAsync(nn::account::AsyncContext*, nn::account::UserHandle const&)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn7account9CloseUserERKNS0_10UserHandleE	nn::account::CloseUser(nn::account::UserHandle const&)	nn::account	sdk		-
+_ZN2nn7account9GetUserIdEPNS0_3UidERKNS0_10UserHandleE	nn::account::GetUserId(nn::account::Uid*, nn::account::UserHandle const&)	nn::account	sdk	HLE_FORCE	dm/host/hle_account.c
+_ZN2nn8settingseqERKNS0_12LanguageCodeERKNS0_8LanguageE	nn::settings::operator==(nn::settings::LanguageCode const&, nn::settings::Language const&)	nn::settings	sdk		-
+_ZN2nv18InitializeGraphicsEPvm	nv::InitializeGraphics(void*, unsigned long)	nv	sdk	HLE_FORCE	dm/gfx/hle_nv.c
+_ZN2nv20SetGraphicsAllocatorEPFPvmmS0_EPFvS0_S0_EPFS0_S0_mS0_ES0_	nv::SetGraphicsAllocator(void* (*)(unsigned long, unsigned long, void*), void (*)(void*, void*), void* (*)(void*, unsigned long, void*), void*)	nv	sdk	HLE_FORCE	dm/gfx/hle_nv.c
+_ZN5movie11SetCoreMaskEm	movie::SetCoreMask(unsigned long)	movie	subsdk0		-
+_ZN5movie12SetAllocatorEPFPvmmS0_EPFvS0_S0_EPFS0_S0_mS0_ES0_	movie::SetAllocator(void* (*)(unsigned long, unsigned long, void*), void (*)(void*, void*), void* (*)(void*, unsigned long, void*), void*)	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie17GetThreadPriorityEv	movie::GetThreadPriority()	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie6Buffer12SetInt32DataEi	movie::Buffer::SetInt32Data(int)	movie	subsdk0		-
+_ZN5movie6Buffer12SetInt64DataEl	movie::Buffer::SetInt64Data(long)	movie	subsdk0		-
+_ZN5movie6Buffer13SetUint32DataEj	movie::Buffer::SetUint32Data(unsigned int)	movie	subsdk0		-
+_ZN5movie6Buffer18SetDataAndCapacityEPvm	movie::Buffer::SetDataAndCapacity(void*, unsigned long)	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie6Buffer8SetRangeEii	movie::Buffer::SetRange(int, int)	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie6BufferC1EPvm	movie::Buffer::Buffer(void*, unsigned long)	movie	subsdk0		-
+_ZN5movie6BufferC1ERKS0_	movie::Buffer::Buffer(movie::Buffer const&)	movie	subsdk0		-
+_ZN5movie6BufferC1Em	movie::Buffer::Buffer(unsigned long)	movie	subsdk0		-
+_ZN5movie6BufferC1Ev	movie::Buffer::Buffer()	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie6BufferD1Ev	movie::Buffer::~Buffer()	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie6BufferaSERKS0_	movie::Buffer::operator=(movie::Buffer const&)	movie	subsdk0		-
+_ZN5movie7DecoderC1ENS_11DecoderTypeENS_19DecoderOutputFormatENS_11DecoderModeEi	movie::Decoder::Decoder(movie::DecoderType, movie::DecoderOutputFormat, movie::DecoderMode, int)	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie9ExtractorC1ENS_13ContainerTypeE	movie::Extractor::Extractor(movie::ContainerType)	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie9MediaData5ClearEv	movie::MediaData::Clear()	movie	subsdk0		-
+_ZN5movie9MediaDataC1Ev	movie::MediaData::MediaData()	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZN5movie9MediaDataD1Ev	movie::MediaData::~MediaData()	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZNK2nn3hid18SixAxisSensorState13GetQuaternionEPNS_4util4neon12Vector4fTypeE	nn::hid::SixAxisSensorState::GetQuaternion(nn::util::neon::Vector4fType*) const	nn::hid	sdk		-
+_ZNK2nn3mem17StandardAllocator4DumpEv	nn::mem::StandardAllocator::Dump() const	nn::mem	sdk		-
+_ZNK2nn3mem19NumberLineAllocator9GetSizeOfEi	nn::mem::NumberLineAllocator::GetSizeOf(int) const	nn::mem	sdk		-
+_ZNK2nn3web26OfflineHtmlPageReturnValue10GetLastUrlEv	nn::web::OfflineHtmlPageReturnValue::GetLastUrl() const	nn::web	sdk		-
+_ZNK2nn3web26OfflineHtmlPageReturnValue20GetOfflineExitReasonEv	nn::web::OfflineHtmlPageReturnValue::GetOfflineExitReason() const	nn::web	sdk		-
+_ZNK2nn4bcat21DeliveryCacheProgress9GetResultEv	nn::bcat::DeliveryCacheProgress::GetResult() const	nn::bcat	sdk		-
+_ZNK2nn4bcat21DeliveryCacheProgress9GetStatusEv	nn::bcat::DeliveryCacheProgress::GetStatus() const	nn::bcat	sdk		-
+_ZNK2nn4time13ClockSnapshot41GetStandardNetworkSystemClockCalendarTimeEv	nn::time::ClockSnapshot::GetStandardNetworkSystemClockCalendarTime() const	nn::time	sdk		-
+_ZNK2nn4util16BinaryFileHeader11IsRelocatedEv	nn::util::BinaryFileHeader::IsRelocated() const	nn::util	sdk		-
+_ZNK2nn4util16BinaryFileHeader12GetAlignmentEv	nn::util::BinaryFileHeader::GetAlignment() const	nn::util	sdk		-
+_ZNK2nn4util16BinaryFileHeader13GetFirstBlockEv	nn::util::BinaryFileHeader::GetFirstBlock() const	nn::util	sdk		-
+_ZNK2nn4util16BinaryFileHeader15IsEndianReverseEv	nn::util::BinaryFileHeader::IsEndianReverse() const	nn::util	sdk		-
+_ZNK2nn4util16BinaryFileHeader16IsAlignmentValidEv	nn::util::BinaryFileHeader::IsAlignmentValid() const	nn::util	sdk		-
+_ZNK2nn4util16BinaryFileHeader16IsSignatureValidEl	nn::util::BinaryFileHeader::IsSignatureValid(long) const	nn::util	sdk		-
+_ZNK2nn4util17BinaryBlockHeader12GetBlockSizeEv	nn::util::BinaryBlockHeader::GetBlockSize() const	nn::util	sdk		-
+_ZNK2nn4util17BinaryBlockHeader12GetNextBlockEv	nn::util::BinaryBlockHeader::GetNextBlock() const	nn::util	sdk		-
+_ZNK2nn5audio15PerformanceInfo10GetEntriesEPi	nn::audio::PerformanceInfo::GetEntries(int*) const	nn::audio	sdk		-
+_ZNK2nn5audio15PerformanceInfo22GetTotalProcessingTimeEv	nn::audio::PerformanceInfo::GetTotalProcessingTime() const	nn::audio	sdk		-
+_ZNK2nn5prepo10PlayReport8GetCountEv	nn::prepo::PlayReport::GetCount() const	nn::prepo	sdk		-
+_ZNK5movie6Buffer12GetInt64DataEv	movie::Buffer::GetInt64Data() const	movie	subsdk0		-
+_ZNK5movie6Buffer13GetUint32DataEv	movie::Buffer::GetUint32Data() const	movie	subsdk0		-
+_ZNK5movie6Buffer4BaseEv	movie::Buffer::Base() const	movie	subsdk0		-
+_ZNK5movie6Buffer4SizeEv	movie::Buffer::Size() const	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZNK5movie6Buffer6OffsetEv	movie::Buffer::Offset() const	movie	subsdk0	HLE_FORCE	dm/host/hle_movie.c
+_ZNK5movie6Buffer8CapacityEv	movie::Buffer::Capacity() const	movie	subsdk0		-
+_ZNK5movie9MediaData10FindStringEPKcPS2_	movie::MediaData::FindString(char const*, char const**) const	movie	subsdk0		-
+_ZNK5movie9MediaData9FindInt32EPKcPi	movie::MediaData::FindInt32(char const*, int*) const	movie	subsdk0		-
+_ZNK5movie9MediaData9FindInt64EPKcPl	movie::MediaData::FindInt64(char const*, long*) const	movie	subsdk0		-
+_ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv	std::__1::__vector_base_common<true>::__throw_length_error() const	std::__1	sdk		-
+_ZNKSt3__120__vector_base_commonILb1EE20__throw_out_of_rangeEv	std::__1::__vector_base_common<true>::__throw_out_of_range() const	std::__1	sdk		-
+_ZNKSt3__121__basic_string_commonILb1EE20__throw_length_errorEv	std::__1::__basic_string_common<true>::__throw_length_error() const	std::__1	sdk		-
+_ZNSt3__112__next_primeEm	std::__1::__next_prime(unsigned long)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::assign(char const*, unsigned long)	std::__1	sdk		-
+_ZNSt3__113random_deviceC1ERKNS_12basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE	std::__1::random_device::random_device(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&)	std::__1	sdk		-
+_ZNSt3__113random_deviceD1Ev	std::__1::random_device::~random_device()	std::__1	sdk		-
+_ZNSt3__113random_deviceclEv	std::__1::random_device::operator()()	std::__1	sdk		-
+_ZNSt3__15alignEmmRPvRm	std::__1::align(unsigned long, unsigned long, void*&, unsigned long&)	std::__1	sdk		-
+_ZSt7nothrow	std::nothrow	std	sdk		-
+_ZSt9terminatev	std::terminate()	std	sdk		-
+_ZTVN10__cxxabiv117__class_type_infoE	vtable for __cxxabiv1::__class_type_info	__cxxabiv1	sdk		-
+_ZTVN10__cxxabiv120__si_class_type_infoE	vtable for __cxxabiv1::__si_class_type_info	__cxxabiv1	sdk		-
+_ZTVN10__cxxabiv121__vmi_class_type_infoE	vtable for __cxxabiv1::__vmi_class_type_info	__cxxabiv1	sdk		-
+__cxa_begin_catch	__cxa_begin_catch	libc	sdk		-
+__cxa_guard_acquire	__cxa_guard_acquire	libc	sdk		-
+__cxa_guard_release	__cxa_guard_release	libc	sdk		-
+__cxa_pure_virtual	__cxa_pure_virtual	libc	sdk		-
+__errno_location	__errno_location	libc	sdk		-
+__gxx_personality_v0	__gxx_personality_v0	libc	sdk		-
+__nnmusl_init_dso	__nnmusl_init_dso	libc	sdk		-
+__rel_dyn_end	__rel_dyn_end	libc	none		-
+__rel_dyn_start	__rel_dyn_start	libc	none		-
+__rel_plt_end	__rel_plt_end	libc	none		-
+__rel_plt_start	__rel_plt_start	libc	none		-
+abort	abort	libc	sdk		-
+abs	abs	libc	sdk		-
+acosf	acosf	libc	sdk		-
+asinf	asinf	libc	sdk		-
+atan2f	atan2f	libc	sdk		-
+atof	atof	libc	sdk		-
+atoi	atoi	libc	sdk		-
+ceilf	ceilf	libc	sdk		-
+cosf	cosf	libc	sdk		-
+exp2	exp2	libc	sdk		-
+exp2f	exp2f	libc	sdk		-
+expf	expf	libc	sdk		-
+fabsf	fabsf	libc	sdk		-
+fegetenv	fegetenv	libc	sdk		-
+fesetenv	fesetenv	libc	sdk		-
+fesetround	fesetround	libc	sdk		-
+floorf	floorf	libc	sdk		-
+fmodf	fmodf	libc	sdk		-
+getenv	getenv	libc	sdk		-
+gettimeofday	gettimeofday	libc	sdk		-
+glslcCompile	glslcCompile	libc	none		-
+glslcCompilePreSpecialized	glslcCompilePreSpecialized	libc	none		-
+glslcCompileSpecialized	glslcCompileSpecialized	libc	none		-
+glslcFinalize	glslcFinalize	libc	none		-
+glslcGetDefaultOptions	glslcGetDefaultOptions	libc	none		-
+glslcGetVersion	glslcGetVersion	libc	none		-
+glslcInitialize	glslcInitialize	libc	none		-
+glslcSetAllocator	glslcSetAllocator	libc	none		-
+gmtime	gmtime	libc	sdk		-
+isspace	isspace	libc	sdk		-
+logf	logf	libc	sdk		-
+memchr	memchr	libc	sdk		-
+memcmp	memcmp	libc	sdk		-
+memcpy	memcpy	libc	sdk		-
+memmove	memmove	libc	sdk		-
+memset	memset	libc	sdk		-
+nnResultGetDescription	nnResultGetDescription	libc	sdk		-
+nnResultGetModule	nnResultGetModule	libc	sdk		-
+nnResultIsFailure	nnResultIsFailure	libc	sdk		-
+nnResultIsSuccess	nnResultIsSuccess	libc	sdk		-
+nndetailDiagAbortFormatImpl	nndetailDiagAbortFormatImpl	libc	sdk		-
+nnosCreateThread	nnosCreateThread	libc	sdk		-
+nnosDestroyThread	nnosDestroyThread	libc	sdk		-
+nnosFinalizeEvent	nnosFinalizeEvent	libc	sdk		-
+nnosFinalizeMutex	nnosFinalizeMutex	libc	sdk		-
+nnosGetCurrentThread	nnosGetCurrentThread	libc	sdk		-
+nnosGetSystemTick	nnosGetSystemTick	libc	sdk		-
+nnosGetSystemTickFrequency	nnosGetSystemTickFrequency	libc	sdk		-
+nnosGetThreadCoreMask	nnosGetThreadCoreMask	libc	sdk		-
+nnosGetThreadPriority	nnosGetThreadPriority	libc	sdk		-
+nnosInitializeEvent	nnosInitializeEvent	libc	sdk		-
+nnosInitializeMutex	nnosInitializeMutex	libc	sdk		-
+nnosLockMutex	nnosLockMutex	libc	sdk		-
+nnosSetThreadCoreMask	nnosSetThreadCoreMask	libc	sdk		-
+nnosSetThreadNamePointer	nnosSetThreadNamePointer	libc	sdk		-
+nnosSignalEvent	nnosSignalEvent	libc	sdk		-
+nnosSleepThread	nnosSleepThread	libc	sdk		-
+nnosStartThread	nnosStartThread	libc	sdk		-
+nnosUnlockMutex	nnosUnlockMutex	libc	sdk		-
+nnosWaitEvent	nnosWaitEvent	libc	sdk		-
+nnosWaitThread	nnosWaitThread	libc	sdk		-
+nnsocketBind	nnsocketBind	libc	sdk		-
+nnsocketClose	nnsocketClose	libc	sdk		-
+nnsocketConnect	nnsocketConnect	libc	sdk		-
+nnsocketFcntl	nnsocketFcntl	libc	sdk		-
+nnsocketGetHostByNameWithOptions	nnsocketGetHostByNameWithOptions	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nnsocketGetLastErrno	nnsocketGetLastErrno	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nnsocketGetPeerName	nnsocketGetPeerName	libc	sdk		-
+nnsocketGetSockName	nnsocketGetSockName	libc	sdk		-
+nnsocketGetSockOpt	nnsocketGetSockOpt	libc	sdk		-
+nnsocketInetHtonl	nnsocketInetHtonl	libc	sdk		-
+nnsocketInetHtons	nnsocketInetHtons	libc	sdk		-
+nnsocketInetNtohl	nnsocketInetNtohl	libc	sdk		-
+nnsocketInetNtohs	nnsocketInetNtohs	libc	sdk		-
+nnsocketPoll	nnsocketPoll	libc	sdk		-
+nnsocketRecv	nnsocketRecv	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nnsocketResolverGetOption	nnsocketResolverGetOption	libc	sdk		-
+nnsocketResolverSetOption	nnsocketResolverSetOption	libc	sdk		-
+nnsocketSend	nnsocketSend	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nnsocketSetLastErrno	nnsocketSetLastErrno	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nnsocketSetSockOpt	nnsocketSetSockOpt	libc	sdk		-
+nnsocketSocket	nnsocketSocket	libc	sdk		-
+nnsslConnectionCreate	nnsslConnectionCreate	libc	sdk		-
+nnsslConnectionDestroy	nnsslConnectionDestroy	libc	sdk		-
+nnsslConnectionDoHandshakeWithCertBuffer	nnsslConnectionDoHandshakeWithCertBuffer	libc	sdk		-
+nnsslConnectionGetConnectionId	nnsslConnectionGetConnectionId	libc	sdk		-
+nnsslConnectionGetNextAlpnProto	nnsslConnectionGetNextAlpnProto	libc	sdk		-
+nnsslConnectionGetVerifyCertError	nnsslConnectionGetVerifyCertError	libc	sdk		-
+nnsslConnectionPeek	nnsslConnectionPeek	libc	sdk		-
+nnsslConnectionPending	nnsslConnectionPending	libc	sdk		-
+nnsslConnectionRead	nnsslConnectionRead	libc	sdk		-
+nnsslConnectionSetHostName	nnsslConnectionSetHostName	libc	sdk		-
+nnsslConnectionSetIoMode	nnsslConnectionSetIoMode	libc	sdk		-
+nnsslConnectionSetNextAlpnProto	nnsslConnectionSetNextAlpnProto	libc	sdk		-
+nnsslConnectionSetOption	nnsslConnectionSetOption	libc	sdk		-
+nnsslConnectionSetSessionCacheMode	nnsslConnectionSetSessionCacheMode	libc	sdk		-
+nnsslConnectionSetSocketDescriptor	nnsslConnectionSetSocketDescriptor	libc	sdk		-
+nnsslConnectionSetVerifyOption	nnsslConnectionSetVerifyOption	libc	sdk		-
+nnsslConnectionWrite	nnsslConnectionWrite	libc	sdk		-
+nnsslContextDestroy	nnsslContextDestroy	libc	sdk		-
+nnsslContextGetContextId	nnsslContextGetContextId	libc	sdk		-
+nnsslFinalize	nnsslFinalize	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nnsslInitialize	nnsslInitialize	libc	sdk	HLE_FORCE	dm/host/hle_net.c
+nvnBootstrapLoader	nvnBootstrapLoader	libc	sdk	HLE_FORCE	dm/gfx/nvn/hle_nvn.c
+powf	powf	libc	sdk		-
+pthread_once	pthread_once	libc	sdk		-
+qsort	qsort	libc	sdk		-
+setvbuf	setvbuf	libc	sdk		-
+sin	sin	libc	sdk		-
+sinf	sinf	libc	sdk		-
+snprintf	snprintf	libc	sdk		-
+sprintf	sprintf	libc	sdk		-
+sqrtf	sqrtf	libc	sdk		-
+sscanf	sscanf	libc	sdk		-
+stderr	stderr	libc	sdk		-
+stdin	stdin	libc	sdk		-
+stdout	stdout	libc	sdk		-
+strcasecmp	strcasecmp	libc	sdk		-
+strcat	strcat	libc	sdk		-
+strchr	strchr	libc	sdk		-
+strcmp	strcmp	libc	sdk		-
+strcpy	strcpy	libc	sdk		-
+strcspn	strcspn	libc	sdk		-
+strdup	strdup	libc	sdk		-
+strerror	strerror	libc	sdk		-
+strlen	strlen	libc	sdk		-
+strncasecmp	strncasecmp	libc	sdk		-
+strncat	strncat	libc	sdk		-
+strncmp	strncmp	libc	sdk		-
+strncpy	strncpy	libc	sdk		-
+strnlen	strnlen	libc	sdk		-
+strrchr	strrchr	libc	sdk		-
+strspn	strspn	libc	sdk		-
+strstr	strstr	libc	sdk		-
+strtod	strtod	libc	sdk		-
+strtok	strtok	libc	sdk		-
+strtol	strtol	libc	sdk		-
+strtoul	strtoul	libc	sdk		-
+strtoull	strtoull	libc	sdk		-
+tanf	tanf	libc	sdk		-
+tolower	tolower	libc	sdk		-
+toupper	toupper	libc	sdk		-
+vsnprintf	vsnprintf	libc	sdk		-
