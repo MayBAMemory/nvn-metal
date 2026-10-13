@@ -46,4 +46,5 @@
 4. 每个任务做完，在 `kirby/reports/<任务号>.md` 写报告：做了什么、怎么复现（命令）、结果数字、没解决的问题、对后续任务的建议。在 `TASKS.md` 里**只改自己那一行的状态**。
 5. 提交到 `kirby` 分支，提交信息以任务号开头（如 `K01: ...`）。**不要 push**。
 6. 碰到任务描述没覆盖到的设计决定，不要自己拍板：写进报告里的「待决定」，状态标成「卡住」。
-7. 环境：Windows 11，x86-64（**跑不了** aarch64 代码），Python 3.14（已装 pycryptodomex），git 和 cmake 用 scoop 装的，.NET 已装。缺的 Python 包用 `python -m pip install` 装；访问 GitHub 或 PyPI 不通时，可以加代理 `http://127.0.0.1:7897`。
+7. **改了 C 代码就跑一遍** `python -I kirby/tools/syntax_check.py`：在 Windows 上对卡比宿主要编译的 C 文件做 arm64 苹果目标的语法和类型检查（用 `kirby/tools/applestub/` 里的最小系统头替身）。只因替身缺声明而报错时，去补替身，不要改源码迁就替身。
+8. 环境：Windows 11，x86-64（**跑不了** aarch64 代码），Python 3.14（已装 pycryptodomex），git 和 cmake 用 scoop 装的，.NET 已装。缺的 Python 包用 `python -m pip install` 装；访问 GitHub 或 PyPI 不通时，可以加代理 `http://127.0.0.1:7897`。
