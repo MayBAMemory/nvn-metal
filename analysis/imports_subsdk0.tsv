@@ -1,0 +1,658 @@
+mangled	demangled	ns	defined_in	d2r	d2r_file
+HMI_gralloc	HMI_gralloc	libc	sdk		-
+NvBlit	NvBlit	libc	sdk		-
+NvBlitClose	NvBlitClose	libc	sdk		-
+NvBlitOpen	NvBlitOpen	libc	sdk		-
+NvColorFormatToString	NvColorFormatToString	libc	sdk		-
+NvDdkVicApplyClipAndTransform	NvDdkVicApplyClipAndTransform	libc	sdk		-
+NvDdkVicConfigure	NvDdkVicConfigure	libc	sdk		-
+NvDdkVicConfigureBlending	NvDdkVicConfigureBlending	libc	sdk		-
+NvDdkVicConfigureTransform	NvDdkVicConfigureTransform	libc	sdk		-
+NvDdkVicCreateSession	NvDdkVicCreateSession	libc	sdk		-
+NvDdkVicExecute	NvDdkVicExecute	libc	sdk		-
+NvDdkVicFreeSession	NvDdkVicFreeSession	libc	sdk		-
+NvDdkVicGetColorSpace	NvDdkVicGetColorSpace	libc	sdk		-
+NvDdkVicGetSurfaceInfo	NvDdkVicGetSurfaceInfo	libc	sdk		-
+NvDdkVicReadCrc	NvDdkVicReadCrc	libc	sdk		-
+NvOsAtomicCompareExchangePtr	NvOsAtomicCompareExchangePtr	libc	sdk		-
+NvOsFclose	NvOsFclose	libc	sdk		-
+NvOsFopen	NvOsFopen	libc	sdk		-
+NvOsFprintf	NvOsFprintf	libc	sdk		-
+NvOsFread	NvOsFread	libc	sdk		-
+NvOsFseek	NvOsFseek	libc	sdk		-
+NvOsFtell	NvOsFtell	libc	sdk		-
+NvOsFwrite	NvOsFwrite	libc	sdk		-
+NvOsGetConfigString	NvOsGetConfigString	libc	sdk		-
+NvOsGetConfigU32	NvOsGetConfigU32	libc	sdk		-
+NvOsGetCurrentAllocator	NvOsGetCurrentAllocator	libc	sdk		-
+NvOsGetSysConfigString	NvOsGetSysConfigString	libc	sdk		-
+NvOsGetTimeMS	NvOsGetTimeMS	libc	sdk		-
+NvOsGetTimeUS	NvOsGetTimeUS	libc	sdk		-
+NvOsHeapAllocatorSetCallbacks	NvOsHeapAllocatorSetCallbacks	libc	sdk		-
+NvOsMemcpy	NvOsMemcpy	libc	sdk		-
+NvOsMemset	NvOsMemset	libc	sdk		-
+NvOsMutexCreate	NvOsMutexCreate	libc	sdk		-
+NvOsMutexDestroy	NvOsMutexDestroy	libc	sdk		-
+NvOsMutexLock	NvOsMutexLock	libc	sdk		-
+NvOsMutexUnlock	NvOsMutexUnlock	libc	sdk		-
+NvOsRegisterExitHandler	NvOsRegisterExitHandler	libc	sdk		-
+NvOsSemaphoreCreate	NvOsSemaphoreCreate	libc	sdk		-
+NvOsSemaphoreDestroy	NvOsSemaphoreDestroy	libc	sdk		-
+NvOsSemaphoreSignal	NvOsSemaphoreSignal	libc	sdk		-
+NvOsSemaphoreWait	NvOsSemaphoreWait	libc	sdk		-
+NvOsSemaphoreWaitTimeout	NvOsSemaphoreWaitTimeout	libc	sdk		-
+NvOsSleepMS	NvOsSleepMS	libc	sdk		-
+NvOsSnprintf	NvOsSnprintf	libc	sdk		-
+NvOsStat	NvOsStat	libc	sdk		-
+NvOsStrlen	NvOsStrlen	libc	sdk		-
+NvOsStrncpy	NvOsStrncpy	libc	sdk		-
+NvOsTelemetrySubmitData	NvOsTelemetrySubmitData	libc	sdk		-
+NvOsThreadCreate	NvOsThreadCreate	libc	sdk		-
+NvOsThreadCreateWithAttr	NvOsThreadCreateWithAttr	libc	sdk		-
+NvOsThreadJoin	NvOsThreadJoin	libc	sdk		-
+NvOsThreadYield	NvOsThreadYield	libc	sdk		-
+NvOsVsnprintf	NvOsVsnprintf	libc	sdk		-
+NvRmChannelClose	NvRmChannelClose	libc	sdk		-
+NvRmChannelFreeClientManagedSyncPoint	NvRmChannelFreeClientManagedSyncPoint	libc	sdk		-
+NvRmChannelGetClientManagedSyncPoint	NvRmChannelGetClientManagedSyncPoint	libc	sdk		-
+NvRmChannelGetModuleClockRate	NvRmChannelGetModuleClockRate	libc	sdk		-
+NvRmChannelGetModuleSyncPoint	NvRmChannelGetModuleSyncPoint	libc	sdk		-
+NvRmChannelOpen	NvRmChannelOpen	libc	sdk		-
+NvRmChannelSetModuleClockRate	NvRmChannelSetModuleClockRate	libc	sdk		-
+NvRmChannelSetSubmitTimeout	NvRmChannelSetSubmitTimeout	libc	sdk		-
+NvRmChannelSyncPointFree	NvRmChannelSyncPointFree	libc	sdk		-
+NvRmChannelSyncPointRead	NvRmChannelSyncPointRead	libc	sdk		-
+NvRmChannelSyncPointWaitTimeout	NvRmChannelSyncPointWaitTimeout	libc	sdk		-
+NvRmChipGetCapabilityU32	NvRmChipGetCapabilityU32	libc	sdk		-
+NvRmChipGetPlatform	NvRmChipGetPlatform	libc	sdk		-
+NvRmFenceGetFromFile	NvRmFenceGetFromFile	libc	sdk		-
+NvRmFencePutToFile	NvRmFencePutToFile	libc	sdk		-
+NvRmFenceWait	NvRmFenceWait	libc	sdk		-
+NvRmMemCacheSyncForCpu	NvRmMemCacheSyncForCpu	libc	sdk		-
+NvRmMemCacheSyncForDevice	NvRmMemCacheSyncForDevice	libc	sdk		-
+NvRmMemGetFd	NvRmMemGetFd	libc	sdk		-
+NvRmMemGetSize	NvRmMemGetSize	libc	sdk		-
+NvRmMemHandleAllocAttr	NvRmMemHandleAllocAttr	libc	sdk		-
+NvRmMemHandleFree	NvRmMemHandleFree	libc	sdk		-
+NvRmMemHandleFromFd	NvRmMemHandleFromFd	libc	sdk		-
+NvRmMemMap	NvRmMemMap	libc	sdk		-
+NvRmMemPin	NvRmMemPin	libc	sdk		-
+NvRmMemRead	NvRmMemRead	libc	sdk		-
+NvRmMemSetVprFloor	NvRmMemSetVprFloor	libc	sdk		-
+NvRmMemUnmap	NvRmMemUnmap	libc	sdk		-
+NvRmMemUnpin	NvRmMemUnpin	libc	sdk		-
+NvRmMemWrite	NvRmMemWrite	libc	sdk		-
+NvRmMultiplanarSurfaceSetup	NvRmMultiplanarSurfaceSetup	libc	sdk		-
+NvRmStreamBegin	NvRmStreamBegin	libc	sdk		-
+NvRmStreamEnd	NvRmStreamEnd	libc	sdk		-
+NvRmStreamFlush	NvRmStreamFlush	libc	sdk		-
+NvRmStreamFree	NvRmStreamFree	libc	sdk		-
+NvRmStreamInit	NvRmStreamInit	libc	sdk		-
+NvRmStreamPush	NvRmStreamPush	libc	sdk		-
+NvRmStreamPushFalconMethod	NvRmStreamPushFalconMethod	libc	sdk		-
+NvRmStreamPushFalconMethodReloc	NvRmStreamPushFalconMethodReloc	libc	sdk		-
+NvRmStreamPushFalconMethodRelocType	NvRmStreamPushFalconMethodRelocType	libc	sdk		-
+NvRmStreamPushRelocType	NvRmStreamPushRelocType	libc	sdk		-
+NvRmStreamPushSetClass	NvRmStreamPushSetClass	libc	sdk		-
+NvRmStreamPushWait	NvRmStreamPushWait	libc	sdk		-
+NvRmStreamPushWaits	NvRmStreamPushWaits	libc	sdk		-
+NvRmSurfaceComputeAlignment	NvRmSurfaceComputeAlignment	libc	sdk		-
+NvRmSurfaceComputeOffset	NvRmSurfaceComputeOffset	libc	sdk		-
+NvRmSurfaceComputePitch	NvRmSurfaceComputePitch	libc	sdk		-
+NvRmSurfaceComputeSecondFieldOffset	NvRmSurfaceComputeSecondFieldOffset	libc	sdk		-
+NvRmSurfaceComputeSize	NvRmSurfaceComputeSize	libc	sdk		-
+NvRmSurfaceDumpJson	NvRmSurfaceDumpJson	libc	sdk		-
+NvRmSurfaceGetDefaultLayout	NvRmSurfaceGetDefaultLayout	libc	sdk		-
+NvRmSurfaceRead	NvRmSurfaceRead	libc	sdk		-
+NvRmSurfaceSetup	NvRmSurfaceSetup	libc	sdk		-
+NvRmSurfaceWrite	NvRmSurfaceWrite	libc	sdk		-
+NvRmSyncClose	NvRmSyncClose	libc	sdk		-
+NvRmSyncCreateFromFd	NvRmSyncCreateFromFd	libc	sdk		-
+NvRmSyncGetFd	NvRmSyncGetFd	libc	sdk		-
+NvTegraSysDeInit	NvTegraSysDeInit	libc	sdk		-
+NvTegraSysGetChipId	NvTegraSysGetChipId	libc	sdk		-
+NvTegraSysGetPlatform	NvTegraSysGetPlatform	libc	sdk		-
+NvTegraSysInit	NvTegraSysInit	libc	sdk		-
+NvUStrtoul	NvUStrtoul	libc	sdk		-
+NvUStrtoull	NvUStrtoull	libc	sdk		-
+_ZN2nn2fs11GetFileSizeEPlNS0_10FileHandleE	nn::fs::GetFileSize(long*, nn::fs::FileHandle)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs8OpenFileEPNS0_10FileHandleEPKci	nn::fs::OpenFile(nn::fs::FileHandle*, char const*, int)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs8ReadFileEPmNS0_10FileHandleElPvm	nn::fs::ReadFile(unsigned long*, nn::fs::FileHandle, long, void*, unsigned long)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2fs9CloseFileENS0_10FileHandleE	nn::fs::CloseFile(nn::fs::FileHandle)	nn::fs	sdk	HLE_FORCE	dm/host/hle_fs.c
+_ZN2nn2os10WaitThreadEPNS0_10ThreadTypeE	nn::os::WaitThread(nn::os::ThreadType*)	nn::os	sdk		-
+_ZN2nn2os11SignalEventEPNS0_9EventTypeE	nn::os::SignalEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os11SleepThreadENS_8TimeSpanE	nn::os::SleepThread(nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os11StartThreadEPNS0_10ThreadTypeE	nn::os::StartThread(nn::os::ThreadType*)	nn::os	sdk		-
+_ZN2nn2os11UnlockMutexEPNS0_9MutexTypeE	nn::os::UnlockMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os12CreateThreadEPNS0_10ThreadTypeEPFvPvES3_S3_mi	nn::os::CreateThread(nn::os::ThreadType*, void (*)(void*), void*, void*, unsigned long, int)	nn::os	sdk		-
+_ZN2nn2os12TryLockMutexEPNS0_9MutexTypeE	nn::os::TryLockMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os13DestroyThreadEPNS0_10ThreadTypeE	nn::os::DestroyThread(nn::os::ThreadType*)	nn::os	sdk		-
+_ZN2nn2os13FinalizeEventEPNS0_9EventTypeE	nn::os::FinalizeEvent(nn::os::EventType*)	nn::os	sdk		-
+_ZN2nn2os13FinalizeMutexEPNS0_9MutexTypeE	nn::os::FinalizeMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os13SetThreadNameEPNS0_10ThreadTypeEPKc	nn::os::SetThreadName(nn::os::ThreadType*, char const*)	nn::os	sdk		-
+_ZN2nn2os14TimedWaitEventEPNS0_9EventTypeENS_8TimeSpanE	nn::os::TimedWaitEvent(nn::os::EventType*, nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os15InitializeEventEPNS0_9EventTypeEbNS0_14EventClearModeE	nn::os::InitializeEvent(nn::os::EventType*, bool, nn::os::EventClearMode)	nn::os	sdk		-
+_ZN2nn2os15InitializeMutexEPNS0_9MutexTypeEbi	nn::os::InitializeMutex(nn::os::MutexType*, bool, int)	nn::os	sdk		-
+_ZN2nn2os15WaitSystemEventEPNS0_15SystemEventTypeE	nn::os::WaitSystemEvent(nn::os::SystemEventType*)	nn::os	sdk		-
+_ZN2nn2os17GetThreadCoreMaskEPiPmPKNS0_10ThreadTypeE	nn::os::GetThreadCoreMask(int*, unsigned long*, nn::os::ThreadType const*)	nn::os	sdk		-
+_ZN2nn2os17GetThreadPriorityEPKNS0_10ThreadTypeE	nn::os::GetThreadPriority(nn::os::ThreadType const*)	nn::os	sdk		-
+_ZN2nn2os17SetThreadCoreMaskEPNS0_10ThreadTypeEim	nn::os::SetThreadCoreMask(nn::os::ThreadType*, int, unsigned long)	nn::os	sdk		-
+_ZN2nn2os18DestroySystemEventEPNS0_15SystemEventTypeE	nn::os::DestroySystemEvent(nn::os::SystemEventType*)	nn::os	sdk		-
+_ZN2nn2os20ChangeThreadPriorityEPNS0_10ThreadTypeEi	nn::os::ChangeThreadPriority(nn::os::ThreadType*, int)	nn::os	sdk		-
+_ZN2nn2os21WaitConditionVariableEPNS0_21ConditionVariableTypeEPNS0_9MutexTypeE	nn::os::WaitConditionVariable(nn::os::ConditionVariableType*, nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2os23SignalConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::SignalConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os25FinalizeConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::FinalizeConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os26BroadcastConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::BroadcastConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os26TimedWaitConditionVariableEPNS0_21ConditionVariableTypeEPNS0_9MutexTypeENS_8TimeSpanE	nn::os::TimedWaitConditionVariable(nn::os::ConditionVariableType*, nn::os::MutexType*, nn::TimeSpan)	nn::os	sdk		-
+_ZN2nn2os27InitializeConditionVariableEPNS0_21ConditionVariableTypeE	nn::os::InitializeConditionVariable(nn::os::ConditionVariableType*)	nn::os	sdk		-
+_ZN2nn2os33AttachReadableHandleToSystemEventEPNS0_15SystemEventTypeEjbNS0_14EventClearModeE	nn::os::AttachReadableHandleToSystemEvent(nn::os::SystemEventType*, unsigned int, bool, nn::os::EventClearMode)	nn::os	sdk		-
+_ZN2nn2os9LockMutexEPNS0_9MutexTypeE	nn::os::LockMutex(nn::os::MutexType*)	nn::os	sdk		-
+_ZN2nn2sf4cmif16GetInlineContextEv	nn::sf::cmif::GetInlineContext()	nn::sf	sdk		-
+_ZN2nn2sf4hipc15SendSyncRequestENS_3svc6HandleEPvm	nn::sf::hipc::SendSyncRequest(nn::svc::Handle, void*, unsigned long)	nn::sf	sdk		-
+_ZN2nn2sf4hipc20ConnectToHipcServiceEPNS_3svc6HandleEPKc	nn::sf::hipc::ConnectToHipcService(nn::svc::Handle*, char const*)	nn::sf	sdk		-
+_ZN2nn2sf4hipc21GetMessageBufferOnTlsEv	nn::sf::hipc::GetMessageBufferOnTls()	nn::sf	sdk		-
+_ZN2nn2sf4hipc24CloseClientSessionHandleENS_3svc6HandleE	nn::sf::hipc::CloseClientSessionHandle(nn::svc::Handle)	nn::sf	sdk		-
+_ZN2nn2sf4hipc29FinalizeHipcServiceResolutionEv	nn::sf::hipc::FinalizeHipcServiceResolution()	nn::sf	sdk		-
+_ZN2nn2sf4hipc31InitializeHipcServiceResolutionEv	nn::sf::hipc::InitializeHipcServiceResolution()	nn::sf	sdk		-
+_ZN2nn2sf4hipc6detail23HandleHipcErrorOnClientENS_6ResultE	nn::sf::hipc::detail::HandleHipcErrorOnClient(nn::Result)	nn::sf	sdk		-
+_ZN2nn2sf4hipc6detail25HipcMessageBufferAccessor11SetupHeaderEPvmRKNS2_21HipcMessageHeaderInfoE	nn::sf::hipc::detail::HipcMessageBufferAccessor::SetupHeader(void*, unsigned long, nn::sf::hipc::detail::HipcMessageHeaderInfo const&)	nn::sf	sdk		-
+_ZN2nn2sf4hipc6detail25HipcMessageBufferAccessor6SetTagEt	nn::sf::hipc::detail::HipcMessageBufferAccessor::SetTag(unsigned short)	nn::sf	sdk		-
+_ZN2nn2sf4impl6detail22ServiceObjectImplBase211ReleaseImplEv	nn::sf::impl::detail::ServiceObjectImplBase2::ReleaseImpl()	nn::sf	sdk		-
+_ZN2nn2sf4impl6detail22ServiceObjectImplBase216AddReferenceImplEv	nn::sf::impl::detail::ServiceObjectImplBase2::AddReferenceImpl()	nn::sf	sdk		-
+_ZN2nn3err21ReportMultimediaErrorENS_6ResultERKN5movie25MultimediaTelemetryReportE	nn::err::ReportMultimediaError(nn::Result, movie::MultimediaTelemetryReport const&)	nn::err	sdk		-
+_ZN2nn4diag6detail9AbortImplEPKcS3_S3_i	nn::diag::detail::AbortImpl(char const*, char const*, char const*, int)	nn::diag::detail	sdk		-
+_ZN2nn4lmem13CreateExpHeapEPvmi	nn::lmem::CreateExpHeap(void*, unsigned long, int)	nn::lmem	sdk		-
+_ZN2nn4lmem13FreeToExpHeapEPNS0_6detail8HeapHeadEPv	nn::lmem::FreeToExpHeap(nn::lmem::detail::HeapHead*, void*)	nn::lmem	sdk		-
+_ZN2nn4lmem19AllocateFromExpHeapEPNS0_6detail8HeapHeadEm	nn::lmem::AllocateFromExpHeap(nn::lmem::detail::HeapHead*, unsigned long)	nn::lmem	sdk		-
+_ZN2nn4time23StandardUserSystemClock14GetCurrentTimeEPNS0_9PosixTimeE	nn::time::StandardUserSystemClock::GetCurrentTime(nn::time::PosixTime*)	nn::time	sdk	HLE_FORCE	dm/host/hle_time.c
+_ZN2nn4util11ReferSymbolEPKv	nn::util::ReferSymbol(void const*)	nn::util	sdk		-
+_ZN2nn5audio12StopAudioOutEPNS0_8AudioOutE	nn::audio::StopAudioOut(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio13CloseAudioOutEPNS0_8AudioOutE	nn::audio::CloseAudioOut(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio13StartAudioOutEPNS0_8AudioOutE	nn::audio::StartAudioOut(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio17GetSampleByteSizeENS0_12SampleFormatE	nn::audio::GetSampleByteSize(nn::audio::SampleFormat)	nn::audio	sdk		-
+_ZN2nn5audio19OpenDefaultAudioOutEPNS0_8AudioOutERKNS0_17AudioOutParameterE	nn::audio::OpenDefaultAudioOut(nn::audio::AudioOut*, nn::audio::AudioOutParameter const&)	nn::audio	sdk		-
+_ZN2nn5audio20AppendAudioOutBufferEPNS0_8AudioOutEPNS0_14AudioOutBufferE	nn::audio::AppendAudioOutBuffer(nn::audio::AudioOut*, nn::audio::AudioOutBuffer*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio21GetAudioOutSampleRateEPKNS0_8AudioOutE	nn::audio::GetAudioOutSampleRate(nn::audio::AudioOut const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio21SetAudioOutBufferInfoEPNS0_14AudioOutBufferEPvmm	nn::audio::SetAudioOutBufferInfo(nn::audio::AudioOutBuffer*, void*, unsigned long, unsigned long)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio23GetAudioOutChannelCountEPKNS0_8AudioOutE	nn::audio::GetAudioOutChannelCount(nn::audio::AudioOut const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio23GetAudioOutSampleFormatEPKNS0_8AudioOutE	nn::audio::GetAudioOutSampleFormat(nn::audio::AudioOut const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio25GetAudioOutBufferDataSizeEPKNS0_14AudioOutBufferE	nn::audio::GetAudioOutBufferDataSize(nn::audio::AudioOutBuffer const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio25GetReleasedAudioOutBufferEPNS0_8AudioOutE	nn::audio::GetReleasedAudioOutBuffer(nn::audio::AudioOut*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio27InitializeAudioOutParameterEPNS0_17AudioOutParameterE	nn::audio::InitializeAudioOutParameter(nn::audio::AudioOutParameter*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio28GetAudioOutBufferDataPointerEPKNS0_14AudioOutBufferE	nn::audio::GetAudioOutBufferDataPointer(nn::audio::AudioOutBuffer const*)	nn::audio	sdk	HLE_FORCE	dm/host/hle_audio.c
+_ZN2nn5audio28GetAudioOutPlayedSampleCountEPKNS0_8AudioOutE	nn::audio::GetAudioOutPlayedSampleCount(nn::audio::AudioOut const*)	nn::audio	sdk		-
+_ZN2nn5audio28InitializePolyphaseResamplerEPNS0_22PolyphaseResamplerTypeEPvmiiibf	nn::audio::InitializePolyphaseResampler(nn::audio::PolyphaseResamplerType*, void*, unsigned long, int, int, int, bool, float)	nn::audio	sdk		-
+_ZN2nn5audio31ProcessPolyphaseResamplerBufferEPNS0_22PolyphaseResamplerTypeEPiPsmPKsi	nn::audio::ProcessPolyphaseResamplerBuffer(nn::audio::PolyphaseResamplerType*, int*, short*, unsigned long, short const*, int)	nn::audio	sdk		-
+_ZN2nn5audio42GetRequiredBufferSizeForPolyphaseResamplerEiiib	nn::audio::GetRequiredBufferSizeForPolyphaseResampler(int, int, int, bool)	nn::audio	sdk		-
+_ZN2nn5audio49CalculatePolyphaseResamplerActualOutputSampleRateEii	nn::audio::CalculatePolyphaseResamplerActualOutputSampleRate(int, int)	nn::audio	sdk		-
+_ZN7android10HeapObjectdlEPv	android::HeapObject::operator delete(void*)	android	sdk		-
+_ZN7android10HeapObjectnwEm	android::HeapObject::operator new(unsigned long)	android	sdk		-
+_ZN7android10IInterface8asBinderEv	android::IInterface::asBinder()	android	sdk		-
+_ZN7android10IInterfaceC2Ev	android::IInterface::IInterface()	android	sdk		-
+_ZN7android10IInterfaceD0Ev	android::IInterface::~IInterface()	android	sdk		-
+_ZN7android10IInterfaceD1Ev	android::IInterface::~IInterface()	android	sdk		-
+_ZN7android10IInterfaceD2Ev	android::IInterface::~IInterface()	android	sdk		-
+_ZN7android10MemoryBaseC1ERKNS_2spINS_11IMemoryHeapEEElm	android::MemoryBase::MemoryBase(android::sp<android::IMemoryHeap> const&, long, unsigned long)	android	sdk		-
+_ZN7android10VectorImpl11setCapacityEm	android::VectorImpl::setCapacity(unsigned long)	android	sdk		-
+_ZN7android10VectorImpl12appendVectorERKS0_	android::VectorImpl::appendVector(android::VectorImpl const&)	android	sdk		-
+_ZN7android10VectorImpl13editArrayImplEv	android::VectorImpl::editArrayImpl()	android	sdk		-
+_ZN7android10VectorImpl13finish_vectorEv	android::VectorImpl::finish_vector()	android	sdk		-
+_ZN7android10VectorImpl13removeItemsAtEmm	android::VectorImpl::removeItemsAt(unsigned long, unsigned long)	android	sdk		-
+_ZN7android10VectorImpl16editItemLocationEm	android::VectorImpl::editItemLocation(unsigned long)	android	sdk		-
+_ZN7android10VectorImpl3addEPKv	android::VectorImpl::add(void const*)	android	sdk		-
+_ZN7android10VectorImpl3popEv	android::VectorImpl::pop()	android	sdk		-
+_ZN7android10VectorImpl4pushEPKv	android::VectorImpl::push(void const*)	android	sdk		-
+_ZN7android10VectorImpl4pushEv	android::VectorImpl::push()	android	sdk		-
+_ZN7android10VectorImpl4sortEPFiPKvS2_E	android::VectorImpl::sort(int (*)(void const*, void const*))	android	sdk		-
+_ZN7android10VectorImpl5clearEv	android::VectorImpl::clear()	android	sdk		-
+_ZN7android10VectorImpl6resizeEm	android::VectorImpl::resize(unsigned long)	android	sdk		-
+_ZN7android10VectorImpl8insertAtEPKvmm	android::VectorImpl::insertAt(void const*, unsigned long, unsigned long)	android	sdk		-
+_ZN7android10VectorImplC2ERKS0_	android::VectorImpl::VectorImpl(android::VectorImpl const&)	android	sdk		-
+_ZN7android10VectorImplC2Emj	android::VectorImpl::VectorImpl(unsigned long, unsigned int)	android	sdk		-
+_ZN7android10VectorImplD2Ev	android::VectorImpl::~VectorImpl()	android	sdk		-
+_ZN7android10VectorImplaSERKS0_	android::VectorImpl::operator=(android::VectorImpl const&)	android	sdk		-
+_ZN7android11BufferQueue17createBufferQueueEPNS_2spINS_22IGraphicBufferProducerEEEPNS1_INS_22IGraphicBufferConsumerEEERKNS1_INS_19IGraphicBufferAllocEEE	android::BufferQueue::createBufferQueue(android::sp<android::IGraphicBufferProducer>*, android::sp<android::IGraphicBufferConsumer>*, android::sp<android::IGraphicBufferAlloc> const&)	android	sdk		-
+_ZN7android11BufferQueue21ProxyConsumerListenerC1ERKNS_2wpINS_16ConsumerListenerEEE	android::BufferQueue::ProxyConsumerListener::ProxyConsumerListener(android::wp<android::ConsumerListener> const&)	android	sdk		-
+_ZN7android11BufferQueue23createBufferQueueForAppEPNS_2spINS_22IGraphicBufferProducerEEEPNS1_INS_22IGraphicBufferConsumerEEERKNS1_INS_19IGraphicBufferAllocEEEi	android::BufferQueue::createBufferQueueForApp(android::sp<android::IGraphicBufferProducer>*, android::sp<android::IGraphicBufferConsumer>*, android::sp<android::IGraphicBufferAlloc> const&, int)	android	sdk		-
+_ZN7android11IMemoryHeap10descriptorE	android::IMemoryHeap::descriptor	android	sdk		-
+_ZN7android11IMemoryHeapD0Ev	android::IMemoryHeap::~IMemoryHeap()	android	sdk		-
+_ZN7android11IMemoryHeapD1Ev	android::IMemoryHeap::~IMemoryHeap()	android	sdk		-
+_ZN7android12BnMemoryHeap10onTransactEjRKNS_6ParcelEPS1_j	android::BnMemoryHeap::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)	android	sdk		-
+_ZN7android12BnMemoryHeapC2Ev	android::BnMemoryHeap::BnMemoryHeap()	android	sdk		-
+_ZN7android12BnMemoryHeapD0Ev	android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZN7android12BnMemoryHeapD1Ev	android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZN7android12BnMemoryHeapD2Ev	android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZN7android12ConsumerBase13abandonLockedEv	android::ConsumerBase::abandonLocked()	android	sdk		-
+_ZN7android12ConsumerBase15onLastStrongRefEPKv	android::ConsumerBase::onLastStrongRef(void const*)	android	sdk		-
+_ZN7android12ConsumerBase16freeBufferLockedEi	android::ConsumerBase::freeBufferLocked(int)	android	sdk		-
+_ZN7android12ConsumerBase16onFrameAvailableERKNS_10BufferItemE	android::ConsumerBase::onFrameAvailable(android::BufferItem const&)	android	sdk		-
+_ZN7android12ConsumerBase17onBuffersReleasedEv	android::ConsumerBase::onBuffersReleased()	android	sdk		-
+_ZN7android12ConsumerBase19acquireBufferLockedEPNS_22IGraphicBufferConsumer10BufferItemEl	android::ConsumerBase::acquireBufferLocked(android::IGraphicBufferConsumer::BufferItem*, long)	android	sdk		-
+_ZN7android12ConsumerBase19releaseBufferLockedEiNS_2spINS_13GraphicBufferEEEPvS4_	android::ConsumerBase::releaseBufferLocked(int, android::sp<android::GraphicBuffer>, void*, void*)	android	sdk		-
+_ZN7android12ConsumerBase23onSidebandStreamChangedEv	android::ConsumerBase::onSidebandStreamChanged()	android	sdk		-
+_ZN7android12ConsumerBaseC2ERKNS_2spINS_22IGraphicBufferConsumerEEEb	android::ConsumerBase::ConsumerBase(android::sp<android::IGraphicBufferConsumer> const&, bool)	android	sdk		-
+_ZN7android12ConsumerBaseD0Ev	android::ConsumerBase::~ConsumerBase()	android	sdk		-
+_ZN7android12ConsumerBaseD1Ev	android::ConsumerBase::~ConsumerBase()	android	sdk		-
+_ZN7android12ConsumerBaseD2Ev	android::ConsumerBase::~ConsumerBase()	android	sdk		-
+_ZN7android12MemoryDealerC1EmPKcj	android::MemoryDealer::MemoryDealer(unsigned long, char const*, unsigned int)	android	sdk		-
+_ZN7android13GraphicBuffer4lockEjPPv	android::GraphicBuffer::lock(unsigned int, void**)	android	sdk		-
+_ZN7android13GraphicBuffer6unlockEv	android::GraphicBuffer::unlock()	android	sdk		-
+_ZN7android13GraphicBufferC1EP19ANativeWindowBufferb	android::GraphicBuffer::GraphicBuffer(ANativeWindowBuffer*, bool)	android	sdk		-
+_ZN7android13GraphicBufferC1EjjijjP13native_handleb	android::GraphicBuffer::GraphicBuffer(unsigned int, unsigned int, int, unsigned int, unsigned int, native_handle*, bool)	android	sdk		-
+_ZN7android14SurfaceControl4showEv	android::SurfaceControl::show()	android	sdk		-
+_ZN7android14SurfaceControl5clearEv	android::SurfaceControl::clear()	android	sdk		-
+_ZN7android14SurfaceControl7setSizeEjj	android::SurfaceControl::setSize(unsigned int, unsigned int)	android	sdk		-
+_ZN7android14SurfaceControl8setLayerEi	android::SurfaceControl::setLayer(int)	android	sdk		-
+_ZN7android16SortedVectorImpl3addEPKv	android::SortedVectorImpl::add(void const*)	android	sdk		-
+_ZN7android16SortedVectorImpl6removeEPKv	android::SortedVectorImpl::remove(void const*)	android	sdk		-
+_ZN7android16SortedVectorImplC2Emj	android::SortedVectorImpl::SortedVectorImpl(unsigned long, unsigned int)	android	sdk		-
+_ZN7android16SortedVectorImplD2Ev	android::SortedVectorImpl::~SortedVectorImpl()	android	sdk		-
+_ZN7android16SortedVectorImplaSERKS0_	android::SortedVectorImpl::operator=(android::SortedVectorImpl const&)	android	sdk		-
+_ZN7android18GraphicBufferAlloc19createGraphicBufferEjjijPi	android::GraphicBufferAlloc::createGraphicBuffer(unsigned int, unsigned int, int, unsigned int, int*)	android	sdk		-
+_ZN7android18GraphicBufferAllocC2Ev	android::GraphicBufferAlloc::GraphicBufferAlloc()	android	sdk		-
+_ZN7android18GraphicBufferAllocD0Ev	android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZN7android18GraphicBufferAllocD1Ev	android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZN7android18GraphicBufferAllocD2Ev	android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZN7android19GraphicBufferMapper4lockEPK13native_handleiRKNS_4RectEPPv	android::GraphicBufferMapper::lock(native_handle const*, int, android::Rect const&, void**)	android	sdk		-
+_ZN7android19GraphicBufferMapper6unlockEPK13native_handle	android::GraphicBufferMapper::unlock(native_handle const*)	android	sdk		-
+_ZN7android19GraphicBufferMapperC1Ev	android::GraphicBufferMapper::GraphicBufferMapper()	android	sdk		-
+_ZN7android19IGraphicBufferAlloc10descriptorE	android::IGraphicBufferAlloc::descriptor	android	sdk		-
+_ZN7android19IGraphicBufferAllocD0Ev	android::IGraphicBufferAlloc::~IGraphicBufferAlloc()	android	sdk		-
+_ZN7android19IGraphicBufferAllocD1Ev	android::IGraphicBufferAlloc::~IGraphicBufferAlloc()	android	sdk		-
+_ZN7android20BnGraphicBufferAlloc10onTransactEjRKNS_6ParcelEPS1_j	android::BnGraphicBufferAlloc::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)	android	sdk		-
+_ZN7android21SurfaceComposerClient13createDisplayERKNS_7String8Eb	android::SurfaceComposerClient::createDisplay(android::String8 const&, bool)	android	sdk		-
+_ZN7android21SurfaceComposerClient13createSurfaceERKNS_7String8Ejjij	android::SurfaceComposerClient::createSurface(android::String8 const&, unsigned int, unsigned int, int, unsigned int)	android	sdk		-
+_ZN7android21SurfaceComposerClient14getDisplayInfoERKNS_2spINS_7IBinderEEEPNS_11DisplayInfoE	android::SurfaceComposerClient::getDisplayInfo(android::sp<android::IBinder> const&, android::DisplayInfo*)	android	sdk		-
+_ZN7android21SurfaceComposerClient14setDisplaySizeERKNS_2spINS_7IBinderEEEjj	android::SurfaceComposerClient::setDisplaySize(android::sp<android::IBinder> const&, unsigned int, unsigned int)	android	sdk		-
+_ZN7android21SurfaceComposerClient17getBuiltInDisplayEi	android::SurfaceComposerClient::getBuiltInDisplay(int)	android	sdk		-
+_ZN7android21SurfaceComposerClient17getDisplaySurfaceERKNS_2spINS_7IBinderEEERNS1_INS_22IGraphicBufferProducerEEERNS1_INS_22IGraphicBufferConsumerEEE	android::SurfaceComposerClient::getDisplaySurface(android::sp<android::IBinder> const&, android::sp<android::IGraphicBufferProducer>&, android::sp<android::IGraphicBufferConsumer>&)	android	sdk		-
+_ZN7android21SurfaceComposerClient21openGlobalTransactionEv	android::SurfaceComposerClient::openGlobalTransaction()	android	sdk		-
+_ZN7android21SurfaceComposerClient22closeGlobalTransactionEb	android::SurfaceComposerClient::closeGlobalTransaction(bool)	android	sdk		-
+_ZN7android21SurfaceComposerClient7disposeEv	android::SurfaceComposerClient::dispose()	android	sdk		-
+_ZN7android21SurfaceComposerClientC1Ev	android::SurfaceComposerClient::SurfaceComposerClient()	android	sdk		-
+_ZN7android21defaultServiceManagerEv	android::defaultServiceManager()	android	sdk		-
+_ZN7android22IGraphicBufferConsumer10BufferItemC1Ev	android::IGraphicBufferConsumer::BufferItem::BufferItem()	android	sdk		-
+_ZN7android5Fence11waitForeverEPKc	android::Fence::waitForever(char const*)	android	sdk		-
+_ZN7android5Fence8NO_FENCEE	android::Fence::NO_FENCE	android	sdk		-
+_ZN7android5FenceD1Ev	android::Fence::~Fence()	android	sdk		-
+_ZN7android6Parcel10appendFromEPKS0_mm	android::Parcel::appendFrom(android::Parcel const*, unsigned long, unsigned long)	android	sdk		-
+_ZN7android6Parcel10writeFloatEf	android::Parcel::writeFloat(float)	android	sdk		-
+_ZN7android6Parcel10writeInt32Ei	android::Parcel::writeInt32(int)	android	sdk		-
+_ZN7android6Parcel10writeInt64El	android::Parcel::writeInt64(long)	android	sdk		-
+_ZN7android6Parcel11writeDoubleEd	android::Parcel::writeDouble(double)	android	sdk		-
+_ZN7android6Parcel12writeCStringEPKc	android::Parcel::writeCString(char const*)	android	sdk		-
+_ZN7android6Parcel12writeString8ERKNS_7String8E	android::Parcel::writeString8(android::String8 const&)	android	sdk		-
+_ZN7android6Parcel13writeString16ERKNS_8String16E	android::Parcel::writeString16(android::String16 const&)	android	sdk		-
+_ZN7android6Parcel17writeStrongBinderERKNS_2spINS_7IBinderEEE	android::Parcel::writeStrongBinder(android::sp<android::IBinder> const&)	android	sdk		-
+_ZN7android6Parcel5writeEPKvm	android::Parcel::write(void const*, unsigned long)	android	sdk		-
+_ZN7android6Parcel8freeDataEv	android::Parcel::freeData()	android	sdk		-
+_ZN7android6ParcelC1Ev	android::Parcel::Parcel()	android	sdk		-
+_ZN7android6ParcelD1Ev	android::Parcel::~Parcel()	android	sdk		-
+_ZN7android6Thread10readyToRunEv	android::Thread::readyToRun()	android	sdk		-
+_ZN7android6Thread11requestExitEv	android::Thread::requestExit()	android	sdk		-
+_ZN7android6Thread18requestExitAndWaitEv	android::Thread::requestExitAndWait()	android	sdk		-
+_ZN7android6Thread3runEPKcim	android::Thread::run(char const*, int, unsigned long)	android	sdk		-
+_ZN7android6ThreadC2Eb	android::Thread::Thread(bool)	android	sdk		-
+_ZN7android6ThreadD0Ev	android::Thread::~Thread()	android	sdk		-
+_ZN7android6ThreadD1Ev	android::Thread::~Thread()	android	sdk		-
+_ZN7android6ThreadD2Ev	android::Thread::~Thread()	android	sdk		-
+_ZN7android7BBinder10onTransactEjRKNS_6ParcelEPS1_j	android::BBinder::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)	android	sdk		-
+_ZN7android7BBinder10pingBinderEv	android::BBinder::pingBinder()	android	sdk		-
+_ZN7android7BBinder11linkToDeathERKNS_2spINS_7IBinder14DeathRecipientEEEPvj	android::BBinder::linkToDeath(android::sp<android::IBinder::DeathRecipient> const&, void*, unsigned int)	android	sdk		-
+_ZN7android7BBinder11localBinderEv	android::BBinder::localBinder()	android	sdk		-
+_ZN7android7BBinder12attachObjectEPKvPvS3_PFvS2_S3_S3_E	android::BBinder::attachObject(void const*, void*, void*, void (*)(void const*, void*, void*))	android	sdk		-
+_ZN7android7BBinder12detachObjectEPKv	android::BBinder::detachObject(void const*)	android	sdk		-
+_ZN7android7BBinder13unlinkToDeathERKNS_2wpINS_7IBinder14DeathRecipientEEEPvjPS4_	android::BBinder::unlinkToDeath(android::wp<android::IBinder::DeathRecipient> const&, void*, unsigned int, android::wp<android::IBinder::DeathRecipient>*)	android	sdk		-
+_ZN7android7BBinder15getNativeHandleEjRjRb	android::BBinder::getNativeHandle(unsigned int, unsigned int&, bool&)	android	sdk		-
+_ZN7android7BBinder17onGetNativeHandleEjRjRb	android::BBinder::onGetNativeHandle(unsigned int, unsigned int&, bool&)	android	sdk		-
+_ZN7android7BBinder4dumpEiRKNS_6VectorINS_8String16EEE	android::BBinder::dump(int, android::Vector<android::String16> const&)	android	sdk		-
+_ZN7android7BBinder8transactEjRKNS_6ParcelEPS1_j	android::BBinder::transact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)	android	sdk		-
+_ZN7android7BBinderC2Ev	android::BBinder::BBinder()	android	sdk		-
+_ZN7android7BBinderD0Ev	android::BBinder::~BBinder()	android	sdk		-
+_ZN7android7BBinderD1Ev	android::BBinder::~BBinder()	android	sdk		-
+_ZN7android7BBinderD2Ev	android::BBinder::~BBinder()	android	sdk		-
+_ZN7android7IBinder11localBinderEv	android::IBinder::localBinder()	android	sdk		-
+_ZN7android7IBinder12remoteBinderEv	android::IBinder::remoteBinder()	android	sdk		-
+_ZN7android7IBinder19queryLocalInterfaceERKNS_8String16E	android::IBinder::queryLocalInterface(android::String16 const&)	android	sdk		-
+_ZN7android7IBinderD0Ev	android::IBinder::~IBinder()	android	sdk		-
+_ZN7android7IBinderD1Ev	android::IBinder::~IBinder()	android	sdk		-
+_ZN7android7IMemory11asInterfaceERKNS_2spINS_7IBinderEEE	android::IMemory::asInterface(android::sp<android::IBinder> const&)	android	sdk		-
+_ZN7android7RefBase10onFirstRefEv	android::RefBase::onFirstRef()	android	sdk		-
+_ZN7android7RefBase10renameRefsEmRKNS_16ReferenceRenamerE	android::RefBase::renameRefs(unsigned long, android::ReferenceRenamer const&)	android	sdk		-
+_ZN7android7RefBase11renameRefIdEPNS0_12weakref_typeEPKvS4_	android::RefBase::renameRefId(android::RefBase::weakref_type*, void const*, void const*)	android	sdk		-
+_ZN7android7RefBase11renameRefIdEPS0_PKvS3_	android::RefBase::renameRefId(android::RefBase*, void const*, void const*)	android	sdk		-
+_ZN7android7RefBase12weakref_type16attemptIncStrongEPKv	android::RefBase::weakref_type::attemptIncStrong(void const*)	android	sdk		-
+_ZN7android7RefBase12weakref_type7decWeakEPKv	android::RefBase::weakref_type::decWeak(void const*)	android	sdk		-
+_ZN7android7RefBase12weakref_type7incWeakEPKv	android::RefBase::weakref_type::incWeak(void const*)	android	sdk		-
+_ZN7android7RefBase13onLastWeakRefEPKv	android::RefBase::onLastWeakRef(void const*)	android	sdk		-
+_ZN7android7RefBase15onLastStrongRefEPKv	android::RefBase::onLastStrongRef(void const*)	android	sdk		-
+_ZN7android7RefBase20onIncStrongAttemptedEjPKv	android::RefBase::onIncStrongAttempted(unsigned int, void const*)	android	sdk		-
+_ZN7android7RefBaseC2Ev	android::RefBase::RefBase()	android	sdk		-
+_ZN7android7RefBaseD2Ev	android::RefBase::~RefBase()	android	sdk		-
+_ZN7android7String85clearEv	android::String8::clear()	android	sdk		-
+_ZN7android7String85setToEPKDsm	android::String8::setTo(char16_t const*, unsigned long)	android	sdk		-
+_ZN7android7String85setToEPKc	android::String8::setTo(char const*)	android	sdk		-
+_ZN7android7String85setToEPKcm	android::String8::setTo(char const*, unsigned long)	android	sdk		-
+_ZN7android7String85setToERKS0_	android::String8::setTo(android::String8 const&)	android	sdk		-
+_ZN7android7String86appendEPKc	android::String8::append(char const*)	android	sdk		-
+_ZN7android7String86appendERKS0_	android::String8::append(android::String8 const&)	android	sdk		-
+_ZN7android7String86formatEPKcz	android::String8::format(char const*, ...)	android	sdk		-
+_ZN7android7String8C1EPKDsm	android::String8::String8(char16_t const*, unsigned long)	android	sdk		-
+_ZN7android7String8C1EPKc	android::String8::String8(char const*)	android	sdk		-
+_ZN7android7String8C1EPKcm	android::String8::String8(char const*, unsigned long)	android	sdk		-
+_ZN7android7String8C1ERKNS_8String16E	android::String8::String8(android::String16 const&)	android	sdk		-
+_ZN7android7String8C1ERKS0_	android::String8::String8(android::String8 const&)	android	sdk		-
+_ZN7android7String8C1Ev	android::String8::String8()	android	sdk		-
+_ZN7android7String8D1Ev	android::String8::~String8()	android	sdk		-
+_ZN7android7SurfaceC1ERKNS_2spINS_22IGraphicBufferProducerEEEb	android::Surface::Surface(android::sp<android::IGraphicBufferProducer> const&, bool)	android	sdk		-
+_ZN7android8String16C1EPKc	android::String16::String16(char const*)	android	sdk		-
+_ZN7android8String16D1Ev	android::String16::~String16()	android	sdk		-
+_ZN7android9BpRefBase10onFirstRefEv	android::BpRefBase::onFirstRef()	android	sdk		-
+_ZN7android9BpRefBase15onLastStrongRefEPKv	android::BpRefBase::onLastStrongRef(void const*)	android	sdk		-
+_ZN7android9BpRefBase20onIncStrongAttemptedEjPKv	android::BpRefBase::onIncStrongAttempted(unsigned int, void const*)	android	sdk		-
+_ZN7android9BpRefBaseC2ERKNS_2spINS_7IBinderEEE	android::BpRefBase::BpRefBase(android::sp<android::IBinder> const&)	android	sdk		-
+_ZN7android9BpRefBaseD0Ev	android::BpRefBase::~BpRefBase()	android	sdk		-
+_ZN7android9BpRefBaseD1Ev	android::BpRefBase::~BpRefBase()	android	sdk		-
+_ZN7android9BpRefBaseD2Ev	android::BpRefBase::~BpRefBase()	android	sdk		-
+_ZN7android9SingletonINS_19GraphicBufferMapperEE5sLockE	android::Singleton<android::GraphicBufferMapper>::sLock	android	sdk		-
+_ZN7android9SingletonINS_19GraphicBufferMapperEE9sInstanceE	android::Singleton<android::GraphicBufferMapper>::sInstance	android	sdk		-
+_ZNK7android10VectorImpl8itemSizeEv	android::VectorImpl::itemSize() const	android	sdk		-
+_ZNK7android11IMemoryHeap22getInterfaceDescriptorEv	android::IMemoryHeap::getInterfaceDescriptor() const	android	sdk		-
+_ZNK7android12ConsumerBase10dumpLockedERNS_7String8EPKc	android::ConsumerBase::dumpLocked(android::String8&, char const*) const	android	sdk		-
+_ZNK7android13GraphicBuffer15getNativeBufferEv	android::GraphicBuffer::getNativeBuffer() const	android	sdk		-
+_ZNK7android14SurfaceControl10getSurfaceEv	android::SurfaceControl::getSurface() const	android	sdk		-
+_ZNK7android16SortedVectorImpl7indexOfEPKv	android::SortedVectorImpl::indexOf(void const*) const	android	sdk		-
+_ZNK7android19IGraphicBufferAlloc22getInterfaceDescriptorEv	android::IGraphicBufferAlloc::getInterfaceDescriptor() const	android	sdk		-
+_ZNK7android21SurfaceComposerClient9initCheckEv	android::SurfaceComposerClient::initCheck() const	android	sdk		-
+_ZNK7android5Fence3dupEv	android::Fence::dup() const	android	sdk		-
+_ZNK7android6Parcel10readDoubleEv	android::Parcel::readDouble() const	android	sdk		-
+_ZNK7android6Parcel11readCStringEv	android::Parcel::readCString() const	android	sdk		-
+_ZNK7android6Parcel11readInplaceEm	android::Parcel::readInplace(unsigned long) const	android	sdk		-
+_ZNK7android6Parcel11readString8Ev	android::Parcel::readString8() const	android	sdk		-
+_ZNK7android6Parcel12dataPositionEv	android::Parcel::dataPosition() const	android	sdk		-
+_ZNK7android6Parcel12readString16Ev	android::Parcel::readString16() const	android	sdk		-
+_ZNK7android6Parcel14checkInterfaceEPNS_7IBinderE	android::Parcel::checkInterface(android::IBinder*) const	android	sdk		-
+_ZNK7android6Parcel15setDataPositionEm	android::Parcel::setDataPosition(unsigned long) const	android	sdk		-
+_ZNK7android6Parcel16readStrongBinderEv	android::Parcel::readStrongBinder() const	android	sdk		-
+_ZNK7android6Parcel18readFileDescriptorEv	android::Parcel::readFileDescriptor() const	android	sdk		-
+_ZNK7android6Parcel4readEPvm	android::Parcel::read(void*, unsigned long) const	android	sdk		-
+_ZNK7android6Parcel8dataSizeEv	android::Parcel::dataSize() const	android	sdk		-
+_ZNK7android6Parcel9dataAvailEv	android::Parcel::dataAvail() const	android	sdk		-
+_ZNK7android6Parcel9readFloatEv	android::Parcel::readFloat() const	android	sdk		-
+_ZNK7android6Parcel9readInt32EPi	android::Parcel::readInt32(int*) const	android	sdk		-
+_ZNK7android6Parcel9readInt32Ev	android::Parcel::readInt32() const	android	sdk		-
+_ZNK7android6Parcel9readInt64Ev	android::Parcel::readInt64() const	android	sdk		-
+_ZNK7android6Thread11exitPendingEv	android::Thread::exitPending() const	android	sdk		-
+_ZNK7android7BBinder10findObjectEPKv	android::BBinder::findObject(void const*) const	android	sdk		-
+_ZNK7android7BBinder13isBinderAliveEv	android::BBinder::isBinderAlive() const	android	sdk		-
+_ZNK7android7BBinder22getInterfaceDescriptorEv	android::BBinder::getInterfaceDescriptor() const	android	sdk		-
+_ZNK7android7IBinder13checkSubclassEPKv	android::IBinder::checkSubclass(void const*) const	android	sdk		-
+_ZNK7android7IMemory4sizeEv	android::IMemory::size() const	android	sdk		-
+_ZNK7android7IMemory7pointerEv	android::IMemory::pointer() const	android	sdk		-
+_ZNK7android7RefBase10createWeakEPKv	android::RefBase::createWeak(void const*) const	android	sdk		-
+_ZNK7android7RefBase14getStrongCountEv	android::RefBase::getStrongCount() const	android	sdk		-
+_ZNK7android7RefBase9decStrongEPKv	android::RefBase::decStrong(void const*) const	android	sdk		-
+_ZNK7android7RefBase9incStrongEPKv	android::RefBase::incStrong(void const*) const	android	sdk		-
+_ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv	std::__1::__vector_base_common<true>::__throw_length_error() const	std::__1	sdk		-
+_ZNKSt3__120__vector_base_commonILb1EE20__throw_out_of_rangeEv	std::__1::__vector_base_common<true>::__throw_out_of_range() const	std::__1	sdk		-
+_ZNKSt3__121__basic_string_commonILb1EE20__throw_length_errorEv	std::__1::__basic_string_common<true>::__throw_length_error() const	std::__1	sdk		-
+_ZNKSt3__16locale9use_facetERNS0_2idE	std::__1::locale::use_facet(std::__1::locale::id&) const	std::__1	sdk		-
+_ZNKSt3__18ios_base6getlocEv	std::__1::ios_base::getloc() const	std::__1	sdk		-
+_ZNSt3__111__call_onceERVmPvPFvS2_E	std::__1::__call_once(unsigned long volatile&, void*, void (*)(void*))	std::__1	sdk		-
+_ZNSt3__111this_thread9sleep_forERKNS_6chrono8durationIxNS_5ratioILl1ELl1000000000EEEEE	std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&)	std::__1	sdk		-
+_ZNSt3__112__next_primeEm	std::__1::__next_prime(unsigned long)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKc	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::append(char const*)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::append(char const*, unsigned long)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKc	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::assign(char const*)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6resizeEmc	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::resize(unsigned long, char)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::push_back(char)	std::__1	sdk		-
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEC1ERKS5_	std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>>::basic_string(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&)	std::__1	sdk		-
+_ZNSt3__113basic_istreamIcNS_11char_traitsIcEEED0Ev	std::__1::basic_istream<char, std::__1::char_traits<char>>::~basic_istream()	std::__1	sdk		-
+_ZNSt3__113basic_istreamIcNS_11char_traitsIcEEED1Ev	std::__1::basic_istream<char, std::__1::char_traits<char>>::~basic_istream()	std::__1	sdk		-
+_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryC1ERS3_	std::__1::basic_ostream<char, std::__1::char_traits<char>>::sentry::sentry(std::__1::basic_ostream<char, std::__1::char_traits<char>>&)	std::__1	sdk		-
+_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev	std::__1::basic_ostream<char, std::__1::char_traits<char>>::sentry::~sentry()	std::__1	sdk		-
+_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEED0Ev	std::__1::basic_ostream<char, std::__1::char_traits<char>>::~basic_ostream()	std::__1	sdk		-
+_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEED1Ev	std::__1::basic_ostream<char, std::__1::char_traits<char>>::~basic_ostream()	std::__1	sdk		-
+_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi	std::__1::basic_ostream<char, std::__1::char_traits<char>>::operator<<(int)	std::__1	sdk		-
+_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEl	std::__1::basic_ostream<char, std::__1::char_traits<char>>::operator<<(long)	std::__1	sdk		-
+_ZNSt3__114basic_iostreamIcNS_11char_traitsIcEEED0Ev	std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZNSt3__114basic_iostreamIcNS_11char_traitsIcEEED1Ev	std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZNSt3__114basic_iostreamIcNS_11char_traitsIcEEED2Ev	std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE4syncEv	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::sync()	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE5imbueERKNS_6localeE	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::imbue(std::__1::locale const&)	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE5uflowEv	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::uflow()	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE6setbufEPcl	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::setbuf(char*, long)	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE6xsgetnEPcl	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::xsgetn(char*, long)	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE6xsputnEPKcl	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::xsputn(char const*, long)	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEE9showmanycEv	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::showmanyc()	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEEC2Ev	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::basic_streambuf()	std::__1	sdk		-
+_ZNSt3__115basic_streambufIcNS_11char_traitsIcEEED2Ev	std::__1::basic_streambuf<char, std::__1::char_traits<char>>::~basic_streambuf()	std::__1	sdk		-
+_ZNSt3__15ctypeIcE2idE	std::__1::ctype<char>::id	std::__1	sdk		-
+_ZNSt3__15mutex4lockEv	std::__1::mutex::lock()	std::__1	sdk		-
+_ZNSt3__15mutex6unlockEv	std::__1::mutex::unlock()	std::__1	sdk		-
+_ZNSt3__15mutexD1Ev	std::__1::mutex::~mutex()	std::__1	sdk		-
+_ZNSt3__16chrono12steady_clock3nowEv	std::__1::chrono::steady_clock::now()	std::__1	sdk		-
+_ZNSt3__16localeD1Ev	std::__1::locale::~locale()	std::__1	sdk		-
+_ZNSt3__18ios_base4initEPv	std::__1::ios_base::init(void*)	std::__1	sdk		-
+_ZNSt3__18ios_base5clearEj	std::__1::ios_base::clear(unsigned int)	std::__1	sdk		-
+_ZNSt3__19basic_iosIcNS_11char_traitsIcEEED2Ev	std::__1::basic_ios<char, std::__1::char_traits<char>>::~basic_ios()	std::__1	sdk		-
+_ZNSt3__19to_stringEm	std::__1::to_string(unsigned long)	std::__1	sdk		-
+_ZSt7nothrow	std::nothrow	std	sdk		-
+_ZTIN7android10IInterfaceE	typeinfo for android::IInterface	android	sdk		-
+_ZTIN7android10VectorImplE	typeinfo for android::VectorImpl	android	sdk		-
+_ZTIN7android11IMemoryHeapE	typeinfo for android::IMemoryHeap	android	sdk		-
+_ZTIN7android12BnMemoryHeapE	typeinfo for android::BnMemoryHeap	android	sdk		-
+_ZTIN7android16SortedVectorImplE	typeinfo for android::SortedVectorImpl	android	sdk		-
+_ZTIN7android6ThreadE	typeinfo for android::Thread	android	sdk		-
+_ZTIN7android7BBinderE	typeinfo for android::BBinder	android	sdk		-
+_ZTIN7android7IBinderE	typeinfo for android::IBinder	android	sdk		-
+_ZTIN7android7RefBaseE	typeinfo for android::RefBase	android	sdk		-
+_ZTIN7android9BpRefBaseE	typeinfo for android::BpRefBase	android	sdk		-
+_ZTVN10__cxxabiv117__class_type_infoE	vtable for __cxxabiv1::__class_type_info	__cxxabiv1	sdk		-
+_ZTVN10__cxxabiv120__si_class_type_infoE	vtable for __cxxabiv1::__si_class_type_info	__cxxabiv1	sdk		-
+_ZTVN10__cxxabiv121__vmi_class_type_infoE	vtable for __cxxabiv1::__vmi_class_type_info	__cxxabiv1	sdk		-
+_ZThn16_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED0Ev	non-virtual thunk to std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZThn16_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED1Ev	non-virtual thunk to std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZThn8_N7android12BnMemoryHeap10onTransactEjRKNS_6ParcelEPS1_j	non-virtual thunk to android::BnMemoryHeap::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)	android	sdk		-
+_ZThn8_N7android12BnMemoryHeapD0Ev	non-virtual thunk to android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZThn8_N7android12BnMemoryHeapD1Ev	non-virtual thunk to android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZThn8_N7android18GraphicBufferAllocD0Ev	non-virtual thunk to android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZThn8_N7android18GraphicBufferAllocD1Ev	non-virtual thunk to android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZThn8_N7android20BnGraphicBufferAlloc10onTransactEjRKNS_6ParcelEPS1_j	non-virtual thunk to android::BnGraphicBufferAlloc::onTransact(unsigned int, android::Parcel const&, android::Parcel*, unsigned int)	android	sdk		-
+_ZTv0_n24_N7android10IInterfaceD0Ev	virtual thunk to android::IInterface::~IInterface()	android	sdk		-
+_ZTv0_n24_N7android10IInterfaceD1Ev	virtual thunk to android::IInterface::~IInterface()	android	sdk		-
+_ZTv0_n24_N7android11IMemoryHeapD0Ev	virtual thunk to android::IMemoryHeap::~IMemoryHeap()	android	sdk		-
+_ZTv0_n24_N7android11IMemoryHeapD1Ev	virtual thunk to android::IMemoryHeap::~IMemoryHeap()	android	sdk		-
+_ZTv0_n24_N7android12BnMemoryHeapD0Ev	virtual thunk to android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZTv0_n24_N7android12BnMemoryHeapD1Ev	virtual thunk to android::BnMemoryHeap::~BnMemoryHeap()	android	sdk		-
+_ZTv0_n24_N7android12ConsumerBaseD0Ev	virtual thunk to android::ConsumerBase::~ConsumerBase()	android	sdk		-
+_ZTv0_n24_N7android12ConsumerBaseD1Ev	virtual thunk to android::ConsumerBase::~ConsumerBase()	android	sdk		-
+_ZTv0_n24_N7android18GraphicBufferAllocD0Ev	virtual thunk to android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZTv0_n24_N7android18GraphicBufferAllocD1Ev	virtual thunk to android::GraphicBufferAlloc::~GraphicBufferAlloc()	android	sdk		-
+_ZTv0_n24_N7android19IGraphicBufferAllocD0Ev	virtual thunk to android::IGraphicBufferAlloc::~IGraphicBufferAlloc()	android	sdk		-
+_ZTv0_n24_N7android19IGraphicBufferAllocD1Ev	virtual thunk to android::IGraphicBufferAlloc::~IGraphicBufferAlloc()	android	sdk		-
+_ZTv0_n24_N7android6ThreadD0Ev	virtual thunk to android::Thread::~Thread()	android	sdk		-
+_ZTv0_n24_N7android6ThreadD1Ev	virtual thunk to android::Thread::~Thread()	android	sdk		-
+_ZTv0_n24_N7android7BBinderD0Ev	virtual thunk to android::BBinder::~BBinder()	android	sdk		-
+_ZTv0_n24_N7android7BBinderD1Ev	virtual thunk to android::BBinder::~BBinder()	android	sdk		-
+_ZTv0_n24_N7android7IBinderD0Ev	virtual thunk to android::IBinder::~IBinder()	android	sdk		-
+_ZTv0_n24_N7android7IBinderD1Ev	virtual thunk to android::IBinder::~IBinder()	android	sdk		-
+_ZTv0_n24_N7android9BpRefBaseD0Ev	virtual thunk to android::BpRefBase::~BpRefBase()	android	sdk		-
+_ZTv0_n24_N7android9BpRefBaseD1Ev	virtual thunk to android::BpRefBase::~BpRefBase()	android	sdk		-
+_ZTv0_n24_NSt3__113basic_istreamIcNS_11char_traitsIcEEED0Ev	virtual thunk to std::__1::basic_istream<char, std::__1::char_traits<char>>::~basic_istream()	std::__1	sdk		-
+_ZTv0_n24_NSt3__113basic_istreamIcNS_11char_traitsIcEEED1Ev	virtual thunk to std::__1::basic_istream<char, std::__1::char_traits<char>>::~basic_istream()	std::__1	sdk		-
+_ZTv0_n24_NSt3__113basic_ostreamIcNS_11char_traitsIcEEED0Ev	virtual thunk to std::__1::basic_ostream<char, std::__1::char_traits<char>>::~basic_ostream()	std::__1	sdk		-
+_ZTv0_n24_NSt3__113basic_ostreamIcNS_11char_traitsIcEEED1Ev	virtual thunk to std::__1::basic_ostream<char, std::__1::char_traits<char>>::~basic_ostream()	std::__1	sdk		-
+_ZTv0_n24_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED0Ev	virtual thunk to std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZTv0_n24_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED1Ev	virtual thunk to std::__1::basic_iostream<char, std::__1::char_traits<char>>::~basic_iostream()	std::__1	sdk		-
+_ZTv0_n32_N7android9BpRefBase10onFirstRefEv	virtual thunk to android::BpRefBase::onFirstRef()	android	sdk		-
+_ZTv0_n40_N7android12ConsumerBase15onLastStrongRefEPKv	virtual thunk to android::ConsumerBase::onLastStrongRef(void const*)	android	sdk		-
+_ZTv0_n40_N7android9BpRefBase15onLastStrongRefEPKv	virtual thunk to android::BpRefBase::onLastStrongRef(void const*)	android	sdk		-
+_ZTv0_n48_N7android9BpRefBase20onIncStrongAttemptedEjPKv	virtual thunk to android::BpRefBase::onIncStrongAttempted(unsigned int, void const*)	android	sdk		-
+_ZdaPv	operator delete[](void*)	libc	main;sdk		-
+_ZdlPv	operator delete(void*)	libc	main;sdk		-
+_Znam	operator new[](unsigned long)	libc	main;sdk		-
+_ZnamRKSt9nothrow_t	operator new[](unsigned long, std::nothrow_t const&)	libc	main;sdk		-
+_Znwm	operator new(unsigned long)	libc	main;sdk		-
+_ZnwmRKSt9nothrow_t	operator new(unsigned long, std::nothrow_t const&)	libc	main;sdk		-
+__android_log_assert	__android_log_assert	libc	sdk		-
+__cxa_guard_acquire	__cxa_guard_acquire	libc	sdk		-
+__cxa_guard_release	__cxa_guard_release	libc	sdk		-
+__cxa_pure_virtual	__cxa_pure_virtual	libc	sdk		-
+__errno_location	__errno_location	libc	sdk		-
+__nnDetailNintendoSdkRuntimeObjectFile	__nnDetailNintendoSdkRuntimeObjectFile	libc	main		-
+__nnmusl_init_dso	__nnmusl_init_dso	libc	sdk		-
+__rel_dyn_end	__rel_dyn_end	libc	none		-
+__rel_dyn_start	__rel_dyn_start	libc	none		-
+__rel_plt_end	__rel_plt_end	libc	none		-
+__rel_plt_start	__rel_plt_start	libc	none		-
+_nnmusl_socket_TranslateNnmuslFileDescriptorOrPassThrough	_nnmusl_socket_TranslateNnmuslFileDescriptorOrPassThrough	libc	sdk		-
+abort	abort	libc	sdk		-
+acos	acos	libc	sdk		-
+androidGetThreadId	androidGetThreadId	libc	sdk		-
+androidGetTid	androidGetTid	libc	sdk		-
+android_atomic_acquire_load	android_atomic_acquire_load	libc	sdk		-
+android_atomic_and	android_atomic_and	libc	sdk		-
+android_atomic_dec	android_atomic_dec	libc	sdk		-
+android_atomic_inc	android_atomic_inc	libc	sdk		-
+android_atomic_or	android_atomic_or	libc	sdk		-
+android_atomic_release_store	android_atomic_release_store	libc	sdk		-
+atan	atan	libc	sdk		-
+atan2	atan2	libc	sdk		-
+atof	atof	libc	sdk		-
+atoi	atoi	libc	sdk		-
+atol	atol	libc	sdk		-
+ceilf	ceilf	libc	sdk		-
+clock_gettime	clock_gettime	libc	sdk		-
+close	close	libc	sdk		-
+cos	cos	libc	sdk		-
+cosf	cosf	libc	sdk		-
+exit	exit	libc	sdk		-
+exp	exp	libc	sdk		-
+expf	expf	libc	sdk		-
+fabsf	fabsf	libc	sdk		-
+fclose	fclose	libc	sdk		-
+fdopen	fdopen	libc	sdk		-
+feof	feof	libc	sdk		-
+fflush	fflush	libc	sdk		-
+fgets	fgets	libc	sdk		-
+fopen	fopen	libc	sdk		-
+fprintf	fprintf	libc	sdk		-
+fread	fread	libc	sdk		-
+free	free	libc	main		-
+frexpf	frexpf	libc	sdk		-
+fscanf	fscanf	libc	sdk		-
+fseek	fseek	libc	sdk		-
+ftell	ftell	libc	sdk		-
+fwrite	fwrite	libc	sdk		-
+getpid	getpid	libc	sdk		-
+gmtime	gmtime	libc	sdk		-
+htonl	htonl	libc	sdk		-
+htons	htons	libc	sdk		-
+isalpha	isalpha	libc	sdk	HLE_FORCE	dm/host/hle_charname.c
+isprint	isprint	libc	sdk		-
+isspace	isspace	libc	sdk		-
+ldexpf	ldexpf	libc	sdk		-
+log	log	libc	sdk		-
+log10	log10	libc	sdk		-
+logf	logf	libc	sdk		-
+lrint	lrint	libc	sdk		-
+lseek	lseek	libc	sdk		-
+malloc	malloc	libc	main		-
+memcmp	memcmp	libc	sdk		-
+memcpy	memcpy	libc	sdk		-
+memmove	memmove	libc	sdk		-
+memset	memset	libc	sdk		-
+multimedia_Alloc	multimedia_Alloc	libc	sdk		-
+multimedia_AllocAlign	multimedia_AllocAlign	libc	sdk		-
+multimedia_Free	multimedia_Free	libc	sdk		-
+multimedia_GetAllocator	multimedia_GetAllocator	libc	sdk		-
+multimedia_Realloc	multimedia_Realloc	libc	sdk		-
+ntohl	ntohl	libc	sdk		-
+ntohs	ntohs	libc	sdk		-
+nvgr_alloc_ext	nvgr_alloc_ext	libc	sdk		-
+nvgr_decompress	nvgr_decompress	libc	sdk		-
+nvgr_get_fence	nvgr_get_fence	libc	sdk		-
+nvgr_get_stereo_info	nvgr_get_stereo_info	libc	sdk		-
+nvgr_get_stride	nvgr_get_stride	libc	sdk		-
+nvgr_get_surfaces	nvgr_get_surfaces	libc	sdk		-
+nvgr_get_usage	nvgr_get_usage	libc	sdk		-
+nvgr_import_nvrmsurface	nvgr_import_nvrmsurface	libc	sdk		-
+nvgr_inc_write_count	nvgr_inc_write_count	libc	sdk		-
+nvgr_is_valid	nvgr_is_valid	libc	sdk		-
+nvgr_is_yuv	nvgr_is_yuv	libc	sdk		-
+nvgr_put_read_fence	nvgr_put_read_fence	libc	sdk		-
+nvgr_put_write_nvfence	nvgr_put_write_nvfence	libc	sdk		-
+nvgr_set_shadow_memory	nvgr_set_shadow_memory	libc	sdk		-
+nvgr_set_stereo_info	nvgr_set_stereo_info	libc	sdk		-
+nvgr_set_video_metadata	nvgr_set_video_metadata	libc	sdk		-
+nvgr_set_video_timestamp	nvgr_set_video_timestamp	libc	sdk		-
+nvnBootstrapLoader	nvnBootstrapLoader	libc	sdk	HLE_FORCE	dm/gfx/nvn/hle_nvn.c
+open	open	libc	sdk		-
+pow	pow	libc	sdk		-
+printf	printf	libc	sdk		-
+property_get	property_get	libc	sdk		-
+pthread_attr_destroy	pthread_attr_destroy	libc	sdk		-
+pthread_attr_init	pthread_attr_init	libc	sdk		-
+pthread_attr_setdetachstate	pthread_attr_setdetachstate	libc	sdk		-
+pthread_attr_setschedparam	pthread_attr_setschedparam	libc	sdk		-
+pthread_create	pthread_create	libc	sdk		-
+pthread_join	pthread_join	libc	sdk		-
+putchar	putchar	libc	sdk		-
+puts	puts	libc	sdk		-
+qsort	qsort	libc	sdk		-
+rand	rand	libc	sdk		-
+rand_r	rand_r	libc	sdk		-
+round	round	libc	sdk		-
+sched_yield	sched_yield	libc	sdk		-
+set_sched_policy	set_sched_policy	libc	sdk		-
+sin	sin	libc	sdk		-
+sinf	sinf	libc	sdk		-
+snprintf	snprintf	libc	sdk		-
+sprintf	sprintf	libc	sdk		-
+sqrt	sqrt	libc	sdk		-
+sqrtf	sqrtf	libc	sdk		-
+srand	srand	libc	sdk		-
+sscanf	sscanf	libc	sdk		-
+stderr	stderr	libc	sdk		-
+stdout	stdout	libc	sdk		-
+strcasecmp	strcasecmp	libc	sdk		-
+strcasestr	strcasestr	libc	sdk		-
+strcat	strcat	libc	sdk		-
+strchr	strchr	libc	sdk		-
+strcmp	strcmp	libc	sdk		-
+strcpy	strcpy	libc	sdk		-
+strcspn	strcspn	libc	sdk		-
+strerror	strerror	libc	sdk		-
+strftime	strftime	libc	sdk		-
+strlcpy	strlcpy	libc	sdk		-
+strlen	strlen	libc	sdk		-
+strncasecmp	strncasecmp	libc	sdk		-
+strncmp	strncmp	libc	sdk		-
+strncpy	strncpy	libc	sdk		-
+strnlen	strnlen	libc	sdk		-
+strrchr	strrchr	libc	sdk		-
+strstr	strstr	libc	sdk		-
+strtod	strtod	libc	sdk		-
+strtof	strtof	libc	sdk		-
+strtok	strtok	libc	sdk		-
+strtok_r	strtok_r	libc	sdk		-
+strtol	strtol	libc	sdk		-
+strtoul	strtoul	libc	sdk		-
+strtoull	strtoull	libc	sdk		-
+strzcmp16	strzcmp16	libc	sdk		-
+sync_close	sync_close	libc	sdk		-
+sync_fence_info	sync_fence_info	libc	sdk		-
+sync_fence_info_free	sync_fence_info_free	libc	sdk		-
+sync_wait	sync_wait	libc	sdk		-
+systemTime	systemTime	libc	sdk		-
+tan	tan	libc	sdk		-
+time	time	libc	sdk	HLE_FORCE	dm/host/hle_time.c
+tolower	tolower	libc	sdk		-
+toupper	toupper	libc	sdk		-
+usleep	usleep	libc	sdk		-
+vfprintf	vfprintf	libc	sdk		-
+vprintf	vprintf	libc	sdk		-
+vsnprintf	vsnprintf	libc	sdk		-
+vsprintf	vsprintf	libc	sdk		-
+write	write	libc	sdk		-

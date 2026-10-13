@@ -1,8 +1,11 @@
 """Minimal XCI -> secure HFS0 -> NCA -> ExeFS/RomFS extractor (pure Python + pycryptodomex).
 
-usage: python -I xci_extract.py <xci> <prod.keys> <outdir> [--romfs]
+usage: python -I xci_extract.py <xci> <prod.keys> <outdir> [--romfs-out <directory>]
 """
-import os, struct, sys
+import argparse, os, struct, sys
+from pathlib import Path
+
+CHUNK_SIZE = 8 * 1024 * 1024
 from Cryptodome.Cipher import AES
 from Cryptodome.Util import Counter
 
@@ -102,7 +105,7 @@ def pfs0_in_section(fsh, sec):
         files[strs[no:strs.index(b'\0', no)].decode()] = (data_base + o, sz)
     return files
 
-def romfs_list(fsh, sec):
+def romfs_entries(fsh, sec):
     # IVFC: level 6 (data) region at hash-data offset 0x8 + 0x10 + 5*0x18
     lvl_off, lvl_size = struct.unpack_from('<QQ', fsh, 0x8 + 0x10 + 5 * 0x18)
     h = sec.read(lvl_off, 0x50)
@@ -119,7 +122,10 @@ def romfs_list(fsh, sec):
         while fo != 0xFFFFFFFF:
             fpar, fsib, fdoff, fsz, fhn, fnlen = struct.unpack_from('<IIQQII', fmeta, fo)
             fname = fmeta[fo + 0x20:fo + 0x20 + fnlen].decode('utf-8', 'replace')
-            out.append((p + '/' + fname, fsz))
+            offset = lvl_off + data_off + fdoff
+            if data_off + fdoff + fsz > lvl_size:
+                raise ValueError('RomFS file exceeds data region')
+            out.append((p + '/' + fname, fsz, offset))
             fo = fsib
         c = child
         while c != 0xFFFFFFFF:
@@ -128,9 +134,55 @@ def romfs_list(fsh, sec):
     walk_dir(0, '')
     return out
 
+
+def romfs_list(fsh, sec):
+    return [(name, size) for name, size, offset in romfs_entries(fsh, sec)]
+
+
+def extract_romfs(sec, entries, outdir):
+    root = Path(outdir).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    written = skipped = total = 0
+    for index, (name, size, offset) in enumerate(entries, 1):
+        parts = name.lstrip('/').split('/')
+        if any(part in ('', '.', '..') or ':' in part or '\\' in part for part in parts):
+            raise ValueError('Invalid RomFS path')
+        target = root.joinpath(*parts)
+        if not target.resolve().is_relative_to(root):
+            raise ValueError('RomFS path escapes output directory')
+        if target.is_file() and target.stat().st_size == size:
+            skipped += 1
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # Publish only complete files; interrupted writes cannot qualify for skipping.
+            partial = target.with_name(target.name + '.kirby-partial')
+            with partial.open('wb') as output:
+                done = 0
+                while done < size:
+                    count = min(CHUNK_SIZE, size - done)
+                    chunk = sec.read(offset + done, count)
+                    if len(chunk) != count:
+                        raise EOFError('Short RomFS read')
+                    output.write(chunk)
+                    done += count
+            os.replace(partial, target)
+            written += 1
+        total += size
+        if index % 100 == 0 or index == len(entries):
+            print('     RomFS %d/%d bytes=%d written=%d skipped=%d' %
+                  (index, len(entries), total, written, skipped), flush=True)
+    return written, skipped, total
+
+
 def main():
-    xci, keyfile, outdir = sys.argv[1:4]
-    do_romfs = '--romfs' in sys.argv
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('xci')
+    parser.add_argument('keyfile')
+    parser.add_argument('outdir')
+    parser.add_argument('--romfs', action='store_true', help='legacy option; listing is always written')
+    parser.add_argument('--romfs-out', help='extract all RomFS files to this directory')
+    args = parser.parse_args()
+    xci, keyfile, outdir = args.xci, args.keyfile, args.outdir
     keys = load_keys(keyfile)
     os.makedirs(outdir, exist_ok=True)
     with open(xci, 'rb') as f:
@@ -162,10 +214,14 @@ def main():
                     w.write(sec.read(o, sz))
             if nca['sections'][1]:
                 fsh1, sec1 = nca['sections'][1]
-                lst = romfs_list(fsh1, sec1)
+                entries = romfs_entries(fsh1, sec1)
+                lst = [(p, sz) for p, sz, offset in entries]
                 with open(os.path.join(outdir, 'romfs_list.txt'), 'w', encoding='utf-8') as w:
                     for p, sz in lst:
                         w.write('%d\t%s\n' % (sz, p))
                 print('     romfs files:', len(lst), 'total', sum(s for _, s in lst))
+                if args.romfs_out:
+                    extract_romfs(sec1, entries, args.romfs_out)
 
-main()
+if __name__ == '__main__':
+    main()
