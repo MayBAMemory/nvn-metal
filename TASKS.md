@@ -21,12 +21,12 @@
 | K06 | 定位并提取着色器 | 中 | K01, K03 | 待做 |
 | K07 | 在 Windows 上搭着色器翻译链并试翻译 | 中 | K06 | 待做 |
 | K08 | 离线服务桩：联网、amiibo、商城等接口的清单与桩代码草稿 | 低 | K02 | 待做 |
-| K09 | AudioRenderer 资料盘点与接口清单 | 中 | K02 | 待做 |
-| K10a | AudioRenderer DSP 移植：解码与重采样 | 中 | K09 | 待做 |
-| K10b | AudioRenderer DSP 移植：混音、音量渐变、双二阶滤波 | 中 | K09 | 待做 |
-| K10c | AudioRenderer DSP 移植：效果器（延迟、混响、I3DL2、Aux） | 中 | K09 | 待做 |
+| K09 | AudioRenderer 资料盘点与接口清单 | 中 | K02 | 取消：主线程查明不需要（docs/audio.md） |
+| K10a | AudioRenderer DSP 移植：解码与重采样 | 中 | K09 | 取消：不需要（docs/audio.md） |
+| K10b | AudioRenderer DSP 移植：混音、音量渐变、双二阶滤波 | 中 | K09 | 取消：不需要（docs/audio.md） |
+| K10c | AudioRenderer DSP 移植：效果器（延迟、混响、I3DL2、Aux） | 中 | K09 | 取消：不需要（docs/audio.md） |
 | H1 | 宿主拆分：通用部分 / D2R 专属部分，加卡比的构建配置 | 高 | — | 代码已写完，待 Mac 编译（见 docs/host_split.md） |
-| H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 主线程 |
+| H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 完成：改为补 6 个入口（kirby/host/hle_audio_kirby.c），待 Mac 编译 |
 | H3 | 着色器作答表（facts）方案 | 高 | K07 | 主线程 |
 | H4 | Mac / iOS 上启动调试，直到出第一帧 | 高 | H1, K04 | 主线程（要 Mac） |
 | U1 | 决定开发设备（Apple 芯片 Mac，或 Intel Mac 加 iPhone） | — | — | 用户 |
