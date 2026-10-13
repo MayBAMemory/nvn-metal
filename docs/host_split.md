@@ -16,6 +16,7 @@
 | `hle_hid_kirby.c` | `dm/host/hle_hid.c` | 手柄、体感、触屏。D2R 那份和触屏界面、按键脚本缠在一起；卡比导入了 36 个 hid 函数，D2R 只接了 13 个 |
 | `kirby_glue.c` | `diag.c`、`dm_*.c`、`hle_tact.c`、`touch_mac.c` 等 | 共用文件会调到这些 D2R 文件里的函数，这里给出中性的垫片（不碰游戏内存） |
 | `hle_audio_kirby.c` | （补充 `hle_audio.c`，不取代） | 卡比走的 AudioOut 和音频设备入口，D2R 没有覆盖，见 `docs/audio.md` |
+| `hle_misc_kirby.c` | （补充，不取代） | 卡比用到、D2R 没覆盖、会连系统服务的零散接口：文件系统 5 个、运行环境 6 个、显示 3 个、时间 3 个、Opus 2 个、设置 1 个、账号 4 个。由 `kirby/tools/svc_reach.py` 静态筛出；只在游戏进程里算的接口不接 |
 | `hle_movie_kirby.c` | `dm/host/hle_movie.c` | 卡比的播放器协议和 D2R 不同（槽 2 打开，再按轨道选取）。第一版报 0 条轨道，其余虚槽被调用就报名中止；`Buffer` 和 `MediaData` 全部改用宿主布局 |
 
 **不编的 D2R 专属文件**：`main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c hle_movie.c touch_mac.c romfs_validate.c`，以及 `dm/host/dm_*.c` 全部（共约 1.3 万行）。
