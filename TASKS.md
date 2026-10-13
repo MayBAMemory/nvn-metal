@@ -25,7 +25,7 @@
 | K10a | AudioRenderer DSP 移植：解码与重采样 | 中 | K09 | 待做 |
 | K10b | AudioRenderer DSP 移植：混音、音量渐变、双二阶滤波 | 中 | K09 | 待做 |
 | K10c | AudioRenderer DSP 移植：效果器（延迟、混响、I3DL2、Aux） | 中 | K09 | 待做 |
-| H1 | 宿主拆分：通用部分 / D2R 专属部分，加卡比的构建配置 | 高 | — | 主线程 |
+| H1 | 宿主拆分：通用部分 / D2R 专属部分，加卡比的构建配置 | 高 | — | 代码已写完，待 Mac 编译（见 docs/host_split.md） |
 | H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 主线程 |
 | H3 | 着色器作答表（facts）方案 | 高 | K07 | 主线程 |
 | H4 | Mac / iOS 上启动调试，直到出第一帧 | 高 | H1, K04 | 主线程（要 Mac） |
@@ -175,7 +175,7 @@
    - 不要返回会让游戏 abort 的错误码；
    - 每条都要写依据。
 3. 输出 `docs/offline_stubs.tsv`（函数、demangle 后的名字、行为、依据）。
-4. 按 `dm/host/hle.h` 里 `HLE` 宏的写法起草 `kirby/host/hle_offline.c`。这个文件暂时编译不了（要 Mac），所以写完要对照 D2R 现有文件逐行核对宏的用法和类型。
+4. 按 `dm/host/hle.h` 里 `HLE` 宏的写法起草 `kirby/host/hle_offline.c`。**卡比宿主会同时编入 D2R 的 `hle_net.c`、`hle_friends.c`、`hle_misc.c`、`hle_account.c`（见 `docs/host_split.md`）**，这几个文件已经接管的名字一律不能再写，否则强制接管表重名，装载时会中止。写之前先用 `analysis/d2r_hle_in_kirby.tsv` 把它们排除掉；判断某个强制接管会不会命中，以 `D:\kirby-work\reloc_refs.txt` 为准（生成方法见 `docs/host_split.md`）（被重定位引用的才会命中）。这个文件暂时编译不了（要 Mac），所以写完要对照 D2R 现有文件逐行核对宏的用法和类型。
 
 **验收**：清单覆盖到上面所有命名空间的全部导入；C 草稿每个函数都有依据注释。
 
