@@ -8,7 +8,7 @@
 DM=../../dm
 CFLAGS?=-O1 -g -Wall -Wno-unused-function
 ARCH?=
-HOST_EXCL=main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c touch_mac.c romfs_validate.c
+HOST_EXCL=main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c hle_movie.c touch_mac.c romfs_validate.c
 HOST=$(DM)/host/loader.c $(DM)/host/hle.c $(DM)/host/crash.c $(DM)/host/thread.c $(DM)/host/memstat.m $(DM)/host/entry.S \
      $(DM)/host/front_mac.m $(DM)/host/app_mac.m $(DM)/ios/Sources/dm_gamepad.m \
      $(filter-out $(addprefix $(DM)/host/,$(HOST_EXCL)),$(sort $(wildcard $(DM)/host/hle_*.c)))
