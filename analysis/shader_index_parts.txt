@@ -1,3 +1,4 @@
 kirby_shaders.tsv
 kirby_shaders.part02.tsv
 kirby_shaders.part03.tsv
+kirby_shaders.main.tsv

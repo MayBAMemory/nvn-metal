@@ -27,7 +27,7 @@
 | K10c | AudioRenderer DSP 移植：效果器（延迟、混响、I3DL2、Aux） | 中 | K09 | 取消：不需要（docs/audio.md） |
 | H1 | 宿主拆分：通用部分 / D2R 专属部分，加卡比的构建配置 | 高 | — | 代码已写完，待 Mac 编译（见 docs/host_split.md） |
 | H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 完成：改为补 6 个入口（kirby/host/hle_audio_kirby.c），待 Mac 编译 |
-| H3 | 着色器作答表（facts）方案 | 高 | K07 | 主线程 |
+| H3 | 着色器作答表（facts）方案 | 高 | K07 | 完成：按机器码定键出库 16985 份，不需要作答表（docs/shaders.md）；alpha 测试与几何着色器留 H4 |
 | H4 | Mac / iOS 上启动调试，直到出第一帧 | 高 | H1, K04 | 主线程（要 Mac） |
 | U1 | 决定开发设备（Apple 芯片 Mac，或 Intel Mac 加 iPhone） | — | — | 用户 |
 | U2 | 决定游戏版本：是否从主机导出最新更新包 | — | — | 用户（越早越好） |
