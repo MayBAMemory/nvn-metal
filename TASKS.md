@@ -1,0 +1,216 @@
+# 卡比移植：任务清单
+
+先读 [README.md](README.md)（路径、已知事实、规矩）。
+
+**难度和建议的模型**
+- 低：Haiku / Sonnet 都行。
+- 中：建议 Sonnet。
+- 高：留给 Opus（主线程）。
+
+**状态**：待做 / 进行中 / 完成 / 卡住（原因写进报告）。
+
+## 总表
+
+| 号 | 任务 | 难度 | 依赖 | 状态 |
+|---|---|---|---|---|
+| K01 | 完整解出 RomFS | 低 | — | 待做 |
+| K02 | 导入符号表格化，对照 D2R 已接管的接口 | 低 | — | 待做 |
+| K03 | RomFS 文件格式摸底（重点是 `.cmp`） | 低 | K01 | 待做 |
+| K04 | 用改写器改写卡比的三个模块，在 Windows 上跑等价核对 | 中 | — | 待做 |
+| K05 | NVN 调用面：卡比实际用到哪些 NVN 函数 | 中 | — | 待做 |
+| K06 | 定位并提取着色器 | 中 | K01, K03 | 待做 |
+| K07 | 在 Windows 上搭着色器翻译链并试翻译 | 中 | K06 | 待做 |
+| K08 | 离线服务桩：联网、amiibo、商城等接口的清单与桩代码草稿 | 低 | K02 | 待做 |
+| K09 | AudioRenderer 资料盘点与接口清单 | 中 | K02 | 待做 |
+| K10a | AudioRenderer DSP 移植：解码与重采样 | 中 | K09 | 待做 |
+| K10b | AudioRenderer DSP 移植：混音、音量渐变、双二阶滤波 | 中 | K09 | 待做 |
+| K10c | AudioRenderer DSP 移植：效果器（延迟、混响、I3DL2、Aux） | 中 | K09 | 待做 |
+| H1 | 宿主拆分：通用部分 / D2R 专属部分，加卡比的构建配置 | 高 | — | 主线程 |
+| H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 主线程 |
+| H3 | 着色器作答表（facts）方案 | 高 | K07 | 主线程 |
+| H4 | Mac / iOS 上启动调试，直到出第一帧 | 高 | H1, K04 | 主线程（要 Mac） |
+| U1 | 决定开发设备（Apple 芯片 Mac，或 Intel Mac 加 iPhone） | — | — | 用户 |
+| U2 | 决定游戏版本：是否从主机导出最新更新包 | — | — | 用户（越早越好） |
+
+可以并行的组：K01、K02、K04、K05 互不依赖，可以同时开四个会话。
+
+---
+
+## K01 完整解出 RomFS ｜ 低
+
+**背景**：`kirby/tools/xci_extract.py` 已经能解 XCI、解出 ExeFS、列出 RomFS 清单，但还不能解出 RomFS 文件本身。
+
+**要做**
+1. 给 `xci_extract.py` 加 `--romfs-out <目录>` 参数，把程序 NCA（type=0）第 1 段 RomFS 的全部文件按原路径写出来。
+2. 文件最大有几百 MB，要**分块流式读写**（比如每次 8 MB），不能整个读进内存。`NcaSection.read` 已经支持任意偏移读取（AES-CTR）。
+3. 文件内容的位置：RomFS 头里的 `data_off` 加上文件条目里的偏移，都相对于 IVFC 第 6 级数据区（`romfs_list` 里的 `lvl_off`）。现有代码解析了这个偏移，但没有用上。
+4. 打印进度。重跑时，已存在且大小相同的文件跳过。
+
+**产出**：`D:\kirby-work\RomFS\...`；更新后的 `xci_extract.py`；报告 `reports/K01.md`。
+
+**验收**
+- 文件数是 9373，总字节数是 6,140,261,775。
+- 抽查：`shader/` 下 `.bfsha` 的前 4 字节应为 `FSHA`；`mov/` 下 `.webm` 的前 4 字节应为 `1A 45 DF A3`；`msg/` 下 `.msbt` 应以 `MsgStdBn` 开头。
+- 选做：校验 IVFC 哈希树（参考 `D:\swtich\脚本\bktr_extract.py` 的写法）。
+
+---
+
+## K02 导入符号表格化，对照 D2R 已接管的接口 ｜ 低
+
+**背景**：`analysis/main.imports.txt` 和 `analysis/subsdk0.imports.txt` 是改编过的（mangled）符号名。D2R 宿主用 `HLE("名字", ...)` 和 `HLE_FORCE("名字", ...)` 登记它接管的接口（`dm/host/*.c`、`dm/gfx/**/*.c`，共约 200 个）。
+
+**要做**
+1. 装 LLVM（`scoop install llvm`），用 `llvm-cxxfilt` 还原符号名。
+2. 用 `kirby/tools/imports.py` 出 `sdk` 和 `subsdk0` 的导出表（映像在 `D:\kirby-work\img\`）。
+3. 生成 `analysis/imports_main.tsv` 和 `analysis/imports_subsdk0.tsv`，每个导入一行，列为：
+   - `mangled`、`demangled`
+   - `ns`：命名空间，取到二级，如 `nn::audio`、`nn::os::detail`；C 函数记为 `libc`
+   - `defined_in`：在哪个模块的导出里能找到（`sdk` / `subsdk0` / `main` / `none`）
+   - `d2r`：D2R 是否接管了它（`HLE` / `HLE_FORCE` / 空），以及在哪个文件
+4. 反过来也查一遍：D2R 接管的每个名字，在卡比的 `sdk` 导出或 `main` 导入里存不存在。生成 `analysis/d2r_hle_in_kirby.tsv`，列为：名字、D2R 文件、卡比里存在与否。
+5. 报告里写汇总：按 `ns` 统计数量；`defined_in=none` 的完整列表（这些导入没有任何模块提供，宿主必须给）；D2R 的接管能直接沿用多少个。
+
+**验收**：所有 TSV 行数和导入数一致（main 707，subsdk0 657）；`defined_in=none` 的每一项都在报告里列出。
+
+---
+
+## K03 RomFS 文件格式摸底 ｜ 低
+
+**背景**：游戏运行时自己会解压资源，所以搞清格式**不是**运行的前提。这一步是给 K06（找着色器）和以后的分析用的。
+
+**要做**
+1. 每种扩展名抽 3 到 5 个文件，记下开头 32 字节和可以认出的魔数。
+2. 重点是 `.cmp`（7201 个，4.5 GB）和 `.cmpbin`（430 个）：判断压缩格式。依次试 zstd（魔数 `28 B5 2F FD`）、zlib、raw deflate、LZ4 block 和 frame、Yaz0、LZ77 变体；也看看头部有没有「解压后大小」字段。可以搜一下社区对这款游戏的资料（HAL 研究所的文件格式）。
+3. 认出来以后，写 `kirby/tools/cmp_unpack.py <输入> <输出>`，并解几个样本，看里面是什么容器（`BFRES`、`SARC`、`BNTX`、`FSHA`、`BNSH`……）。
+4. 统计全部 `.cmp` 解压后的内层魔数分布。只读头部，不用把文件全解到盘上。
+
+**产出**：`docs/romfs_formats.md`（每种扩展名：用途猜测、魔数、压缩、内层格式）；`tools/cmp_unpack.py`；报告。
+
+**验收**：`.cmp` 的格式确定下来，并说清楚哪些 `.cmp` 里面装着着色器（`FSHA` / `BNSH`）。
+
+---
+
+## K04 用改写器改写卡比的三个模块 ｜ 中
+
+**背景**：`dm/tools/patch_nso.py` 是通用的改写器，要点见文件开头的注释。`DM_RULESET=native`（缺省）不带任何 D2R 专属的剪口（CUTS）和观测门（OBS）。等价核对工具在 `dm/verify/`：`structck.py` 做结构核对，`equiv.py` 用 Unicorn 逐处试验改写前后是否等价；用法见 `dm/verify/README.zh-CN.md`。`regress.sh` 是 bash 脚本，在 Windows 上照着它的内容直接调 Python 就行。
+
+**要做**
+1. `python -m pip install lz4 capstone unicorn`
+2. 新建一个 `kirby/out/`（加进 `.gitignore`）或者用 `D:\kirby-work\patched\`，对 `main`、`sdk`、`subsdk0` 分别运行：
+   `python dm/tools/patch_nso.py D:\kirby-work\exefs\<模块> <输出目录> <模块>`
+   出错时，先确认是不是 D2R 的构建号断言或硬编码地址造成的。**不许改 `dm/tools/patch_nso.py`**：复制成 `kirby/tools/patch_nso_kirby.py`，只去掉 D2R 专属的部分，并在报告里逐条说明改了什么、为什么。
+3. 对三个模块跑 `structck.py` 和 `equiv.py`。
+4. 报告里写：每个模块各类改写点（x18、tpidr_el0、tpidrro_el0、svc 按编号、cntpct_el0）的数量，以及卡比用到了哪些 D2R 没用过的 svc 编号（D2R 的列表见 `dm/host/hle_svc.c` 和 `dm/host/hle_thread.c` 里的分派）。
+
+**验收**：三个模块都改写成功，`structck` 和 `equiv` 全部通过。没通过的项逐条列出原因。
+
+---
+
+## K05 NVN 调用面 ｜ 中
+
+**背景**：`dm/gfx/tools/nvn_slots.py` 用来找游戏主程序的 NVN 加载函数（按名字取地址，存进全局槽），再扫全部 .text，统计每个槽有多少调用点。D2R 实现了 216 个（`dm/gfx/nvn/nvn_slots.tsv`），其中 13 个是空实现（`dm/gfx/nvn/hle_nvn.c` 里的 `g_nops`）。卡比的 `main` 里有 524 个 `nvn*` 名字串。
+
+**要做**
+1. 复制成 `kirby/tools/nvn_slots_kirby.py`，把 `LOADER` 和 `TEXT_END` 改成参数。
+2. 在卡比的 `main` 映像（`D:\kirby-work\img\main.img`）里定位加载函数：先找 `nvnDeviceInitialize` 这类名字串的地址，再找用 `adrp` + `add` 引用这些名字的那个大函数。
+   注意：卡比走的是 nn::gfx 的 NVN 后端，取址的写法可能和 D2R 不同，比如存进结构体而不是全局槽，或者分成多个加载函数。要是模式对不上，就如实描述实际的代码形态（附反汇编片段），不要硬套。
+3. 输出 `analysis/nvn_slots_kirby.tsv`（名字、槽、调用点数、首个调用点）。
+4. 和 D2R 对比，输出 `analysis/nvn_new_needed.tsv`：卡比有调用点、D2R 没实现（或只是空实现）的函数，按调用点数排序，并按对象分组（Device、Queue、CommandBuffer、Texture、Sampler、Program、Memory、Sync……）。
+
+**验收**：报告给出「卡比要用的 NVN 函数总数 / D2R 已实现 / 需新增」三个数，外加需新增的完整清单。
+
+---
+
+## K06 定位并提取着色器 ｜ 中
+
+**背景**：D2R 的着色器翻译链（`dm/gfx/tools/dmsh_build.py`）以「控制段（0x880 字节）的 sha256 前 16 位十六进制」作为每个着色器的键，输入是 NVN 的控制段加机器码。卡比的着色器装在 nn::g3d 的 `.bfsha`（ResShaderArchive）里，里面嵌着 nn::gfx 的 `BNSH`（ResShaderFile），BNSH 的每个变体里才是 NVN 的控制段和机器码。
+
+**要做**
+1. 先读懂 `dmsh_build.py`、`shader_map.py`、`maxwell_refs.py`，弄清 D2R 是从什么样的输入里取控制段和机器码的。报告里写清楚输入格式。
+2. 找出 RomFS 里所有着色器：`shader/*.bfsha`，以及 K03 查到的 `.cmp` 里的着色器。
+3. 写 `kirby/tools/bnsh_extract.py`：解析 BFSHA 和 BNSH，把每个着色器变体的控制段和机器码写到 `D:\kirby-work\shaders\<键>.ctrl` 和 `<键>.code`。键的算法和 D2R 一致。
+   格式资料：社区 Switch-Toolbox 的 BfshaLibrary 和 BNSH 解析代码、各类 nn::gfx 逆向资料。参考可以，**不要整段复制有许可证限制的代码**。
+4. 输出 `analysis/kirby_shaders.tsv`，列为：键、阶段（顶点 / 片元 / 计算 / 几何 / 曲面细分）、来源文件、程序名或变体号、机器码大小。
+
+**验收**：报告给出着色器总数、按阶段的分布、去重后的数量。**特别要说明有没有几何着色器和曲面细分着色器**：Metal 没有几何着色器，有的话得另想办法。
+
+---
+
+## K07 在 Windows 上搭着色器翻译链并试翻译 ｜ 中
+
+**背景**：翻译链是 `dmsh_xlate`（C#，引用 `dm/third_party/ryujinx`）→ spirv-cross 1.4.357.0 → MSL。Windows 上没有苹果的 Metal 编译器，只做到 MSL 这一步。工具的安装和编译见 `docs/NO_XCODE.zh-CN.md`，干转工具是 `dm/gfx/tools/dmsh_dryrun.py`。
+
+**要做**
+1. 按 `docs/NO_XCODE.zh-CN.md` 编出 `dmsh_xlate` 和 spirv-cross 1.4.357.0。
+2. 对 K06 提取出的着色器做干转（只看能不能翻）。D2R 的作答表 `shader_facts.tsv` 里没有卡比的键，翻译器问到这些事实时，先用合理的缺省值顶上（比如贴图一律按 2D、分量一律按 float），并把被问到的每一项都记下来。
+3. 统计成功率；失败的按原因分类，每类给 1 到 2 个样本键。
+
+**产出**：`analysis/xlate_dryrun.tsv`（键、阶段、成败、原因）；报告里写清楚作答表要回答哪些问题、各有多少项（交给主线程 H3 定方案）。
+
+**验收**：全量干转跑完，有成败统计和失败原因分类。
+
+---
+
+## K08 离线服务桩 ｜ 低
+
+**背景**：游戏完全离线运行。D2R 的做法见 `dm/host/hle_net.c`、`hle_friends.c`、`hle_misc.c`：联网类接口统一回「不可用」，让游戏走离线分支。卡比还导入了 `nn::bcat`（20 个）、`nn::prepo`（14）、`nn::nfp`（amiibo，11）、`nn::web`（9）、`nn::ssl`（2）、`nn::socket`（28，D2R 接管了 1 个），以及 NEX（静态链接在 `main` 里，底层走 socket）。
+
+**要做**（依赖 K02 的表）
+1. 列出上面这些命名空间里卡比导入的全部函数，加上 `nn::nifm`、`nn::nsd`、`nn::err`、`nn::pdm` 里 D2R 没覆盖的。
+2. 对每个函数，按 SDK 语义和 Switchbrew / Ryujinx 的资料，决定桩的行为：返回什么 Result 码、输出参数怎么填、是否需要假句柄。原则：
+   - 让游戏认为「没联网 / 没有 amiibo / 功能不可用」；
+   - 不要返回会让游戏 abort 的错误码；
+   - 每条都要写依据。
+3. 输出 `docs/offline_stubs.tsv`（函数、demangle 后的名字、行为、依据）。
+4. 按 `dm/host/hle.h` 里 `HLE` 宏的写法起草 `kirby/host/hle_offline.c`。这个文件暂时编译不了（要 Mac），所以写完要对照 D2R 现有文件逐行核对宏的用法和类型。
+
+**验收**：清单覆盖到上面所有命名空间的全部导入；C 草稿每个函数都有依据注释。
+
+---
+
+## K09 AudioRenderer 资料盘点 ｜ 中
+
+**背景**：卡比用 NintendoWare Atk2 → nn::audio AudioRenderer。真机上，游戏每帧把一大块「参数更新」交给系统里的音频渲染服务，由服务按命令混音输出。宿主没有这个服务，得自己实现，参考 Ryujinx 的 `Ryujinx.Audio`（MIT 许可，Ryubing 维护的版本，和 `dm/third_party/ryujinx` 同为 1.3.2 版本线）。
+
+**要做**
+1. 取得 Ryujinx 1.3.2 的 `src/Ryujinx.Audio` 源码，原样放进 `dm/third_party/ryujinx/src/Ryujinx.Audio/`（仅此一处允许改 `dm/`：新增第三方目录），README 里注明来源和版本。
+2. 用 K02 的表列出卡比导入的全部 `nn::audio` 函数（约 128 个），逐个对应到 Ryujinx 里的实现位置，或说明是纯客户端逻辑（SDK 自己算，不经服务）。
+3. 确定卡比用的 AudioRenderer 修订版本：在 `sdk` 映像里找 `REV` 魔数（形如 `52 45 56 3x`），对照 Ryujinx 的 `BehaviourContext` 修订表，列出这个修订打开了哪些功能。
+4. 写 `docs/audio_renderer.md`，内容包括：
+   - 参数更新的数据布局（头部和各段：内存池、语音、混音、效果器、Sink、Splitter、性能）；
+   - 卡比可能用到的 DSP 命令列表；
+   - 按 K10a、K10b、K10c 拆好的移植范围，每块对应 Ryujinx 的哪些文件。
+
+**验收**：K10 的三个任务能直接按这份文档开工。
+
+---
+
+## K10a、K10b、K10c AudioRenderer DSP 移植 ｜ 中
+
+**背景**：把 Ryujinx 的 DSP 部分（`Ryujinx.Audio/Renderer/Dsp/`）移植成纯 C 放进 `kirby/audio/`。纯 C 不依赖苹果，Windows 上用 scoop 装的 gcc 就能编译和测试。
+
+**分工**（具体范围以 K09 的文档为准）
+- **a**：PCM16 / PCM float / ADPCM 解码，重采样器（ResamplerHelper），数据源命令。
+- **b**：混音（Mix、MixRamp）、音量与渐变、双二阶滤波（Biquad）、Upsample、Depop。
+- **c**：效果器（Delay、Reverb、Reverb3d / I3DL2、Aux、Limiter、Compressor），只做 K09 判定卡比会用到的。
+
+**做法（金标准对拍）**
+1. 先在 `kirby/audio/golden/` 写一个小 C# 控制台程序，直接引用 Ryujinx 的 DSP 类，用固定的随机输入生成参考输出，存成二进制文件。生成的数据放进 `D:\kirby-work\audio_golden\`，不进 git。
+2. C 实现读同样的输入，输出必须和参考**逐样本一致**。浮点路径允许 1e-6 以内的误差，并在报告里说明。
+3. 风格：C11，不用全局可变状态，每个命令一个函数，状态结构体由调用方持有。文件开头注明「移植自 Ryujinx（MIT），对应哪个源文件」。
+
+**验收**：`make -C kirby/audio test`（或一个 `test.ps1`）全部通过；报告列出已移植的命令和对拍的样本数。
+
+---
+
+## 主线程任务（不要领）
+
+- **H1**：把 `dm/host` 拆成通用宿主和 D2R 专属功能（`dm_*.c`、`hle_tact.c`、`hle_granny.c`、触屏界面），给卡比单独做构建配置。
+- **H2**：AudioRenderer 的参数更新解析和命令生成，接到宿主的 CoreAudio 输出上。
+- **H3**：着色器作答表的方案。D2R 的表是按键人工和半自动维护的，卡比的着色器多得多，可能要改成在运行时记录事实、再离线回填。
+- **H4**：在 Mac 上启动调试：装载、SDK 初始化、`nnMain`、逐个补未实现的接口、第一帧。
+
+## 用户的待办
+
+- **U1**：开发设备。Apple 芯片的 Mac（M1 起，能装 macOS 26）可以本机跑、挂调试器，迭代最快；只有 Intel Mac 的话，每一轮都要装到 iPhone 上测。
+- **U2**：版本。现在只有 v1.0.0；如果打算玩更新后的版本，尽早从主机导出更新包，因为 K04、K05 的结论都和构建号绑定。
