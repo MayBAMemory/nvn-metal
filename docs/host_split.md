@@ -15,8 +15,10 @@
 | `kirby_main.c` | `dm/host/main.c` | 入口和 SDK 启动顺序。去掉了存档节流、固定种子、TACT 预取、选怪、触屏布局；缺省装 `main sdk subsdk0` 三个模块 |
 | `hle_hid_kirby.c` | `dm/host/hle_hid.c` | 手柄、体感、触屏。D2R 那份和触屏界面、按键脚本缠在一起；卡比导入了 36 个 hid 函数，D2R 只接了 13 个 |
 | `kirby_glue.c` | `diag.c`、`dm_*.c`、`hle_tact.c`、`touch_mac.c` 等 | 共用文件会调到这些 D2R 文件里的函数，这里给出中性的垫片（不碰游戏内存） |
+| `hle_audio_kirby.c` | （补充 `hle_audio.c`，不取代） | 卡比走的 AudioOut 和音频设备入口，D2R 没有覆盖，见 `docs/audio.md` |
+| `hle_movie_kirby.c` | `dm/host/hle_movie.c` | 卡比的播放器协议和 D2R 不同（槽 2 打开，再按轨道选取）。第一版报 0 条轨道，其余虚槽被调用就报名中止；`Buffer` 和 `MediaData` 全部改用宿主布局 |
 
-**不编的 D2R 专属文件**：`main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c touch_mac.c romfs_validate.c`，以及 `dm/host/dm_*.c` 全部（共约 1.3 万行）。
+**不编的 D2R 专属文件**：`main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c hle_movie.c touch_mac.c romfs_validate.c`，以及 `dm/host/dm_*.c` 全部（共约 1.3 万行）。
 
 ## 对 D2R 代码的改动（都只加了判断，D2R 行为不变）
 
@@ -42,7 +44,7 @@
 
 - **依赖扫描是用正则做的**，不是编译器。宏展开出来的引用可能漏掉；如果链接时报缺符号，就补进 `kirby_glue.c`，并在本文记一笔。
 - **K08 会新增 `kirby/host/hle_offline.c`**，它会被 Makefile 的通配自动编进来。里面的名字不能和 D2R 的 `hle_net.c`、`hle_friends.c`、`hle_misc.c`、`hle_account.c` 重复：强制接管表重名的话，装载时会中止。验收 K08 时要逐个对照。
-- `hle_movie.c` 只接管了卡比 28 个 movie 导入中的 12 个。剩下的会走 subsdk0 自己的实现，可能会碰到进程间通信。H4 时处理。
+- 过场动画（`hle_movie_kirby.c`）：报 0 条轨道之后，播放器会不会体面地收尾，要运行时确认。如果它一直等着，就改成报一条假的视频轨，并照 D2R 的方式按时长发「播完」。
 - `hle_audio.c` 是 AudioOut；卡比用 AudioRenderer，这部分接口目前全部没有接管，由 H2 负责。
 - 真机上，SDK 函数一旦走到进程间通信（svc 0x21 SendSyncRequest），宿主就没有分派。K04 列出了 27 个 D2R 没处理的 svc 号。H4 运行时逐个暴露，逐个接管。
 
