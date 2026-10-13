@@ -6,9 +6,11 @@
 
 1. `nn::audio::OpenAudioRenderer`（sdk+0x4bf20）和 `GetAudioRendererWorkBufferSize`（sdk+0x4be00）按 `AudioRendererParameter+0x2c`（渲染设备）选路：等于 1（CPU）走 `CreateAudioRendererManagerByDfc`，即本进程直接调用 SDK 自带的服务端实现（`nn::audio::server::*` 共 642 个函数）；否则走 `ByHipc`，连系统的 audren 服务。`+0x30`（执行方式）等于 1 时，是手动执行模式。
 2. 卡比在 `main+0x4596cc` 一条 `str` 把这两个字段同时写成 1（`0x100000001`），然后在 `main+0x459704` 打开渲染器。
-3. `main` 自己调用 `ExecuteAudioRendererRendering`（`main+0x4593a4`、`+0x459490`）和 `ReadCircularBufferSink`，然后在 5 处调用 `AppendAudioOutBuffer`。也就是说，游戏自己驱动混音器出一帧、读出 PCM、再交给 AudioOut。
+3. `main` 自己调用 `ExecuteAudioRendererRendering`（`main+0x4593a4`、`+0x459490`）。SDK 的实现（`AudioRendererImpl::ExecuteAudioRendererRendering`，sdk+0x5a55c）是：生成命令，再交给 `dsp::CommandListProcessor::Process` 在 CPU 上执行。`Process` 把各类命令都处理掉，却**不调用任何声音输出函数**，所以 DeviceSink 在这种模式下不会自己出声。
+4. 游戏另外挂了一个循环缓冲输出（`AddCircularBufferSink`，`main+0x458ff4`）。读取函数（`main+0x458f20` 起）在 `[对象+0x7a0] == 1`、并且挂了回调 `[对象+0x7d0]` 时，调用 `ReadCircularBufferSink` 取出 PCM，再尾调用这个回调。
+5. 整个 `main` 里，调用 AudioOut 的只有 `main+0x76a000` 到 `+0x771000` 这一个模块（`OpenDefaultAudioOut` 在 `+0x770314`，`StartAudioOut` 在 `+0x76ac14`，`AppendAudioOutBuffer` 有 5 处）。它先用 `ProcessResamplerBuffer` 重采样，再交给 AudioOut；同一模块也处理视频伴音（`movie::Buffer`）。可以推断，第 4 条里的回调就是这个模块，**有待运行时核实**：开 `DM_AUDIO_DUMP` 看游戏音乐有没有写出来。
 
-**所以混音完全由 SDK 在游戏进程里完成，真机上也是这样。** 宿主只需要提供：
+**所以混音完全由 SDK 在游戏进程里完成，声音最后经游戏自己的 AudioOut 输出，真机上也是这样。** 除了 AudioOut，游戏没有别的出声途径。宿主只需要提供：
 - **AudioOut**：D2R 的 `dm/host/hle_audio.c` 已经接到 CoreAudio，直接共用。
 - **几个会连系统服务的入口**：写在 `kirby/host/hle_audio_kirby.c`。包括 `OpenDefaultAudioOut`、不带事件的 `OpenAudioOut`、`SetAudioOutVolume`、`GetAudioOutPlayedSampleCount`、`ListAudioDeviceName`、`SetAudioDeviceOutputVolume`。这 6 个名字都已核对，在卡比里有重定位引用。
 
