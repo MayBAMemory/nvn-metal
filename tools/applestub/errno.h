@@ -1,0 +1,21 @@
+#pragma once
+/* 最小替身（syntax_check.py） */
+extern int *__error(void);
+#define errno (*__error())
+#define EPERM 1
+#define EBADF 9
+#define ENOMEM 12
+#define EBUSY 16
+#define EINVAL 22
+#define ENOTDIR 20
+#define EISDIR 21
+#define ENOATTR 93
+#define ENAMETOOLONG 63
+#define EINTR 4
+#define EIO 5
+#define EFAULT 14
+#define EEXIST 17
+#define ENOENT 2
+#define EACCES 13
+#define ENOSPC 28
+#define ENOTEMPTY 66
