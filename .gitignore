@@ -3,3 +3,7 @@ out/
 
 __pycache__/
 *.py[cod]
+
+# 卡比宿主的构建产物
+host/kirbyhost
+host/*.dSYM/
