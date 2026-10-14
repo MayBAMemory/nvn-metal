@@ -89,7 +89,10 @@ run|log)
   pull(){ xcrun devicectl device copy from --device "$D" --domain-type appDataContainer --domain-identifier "$B" --source Documents/boot.txt --destination "$O" >/dev/null 2>&1; }
   [ "$1" = log ] && { pull && cat "$O"; exit; }
   CAP=${2:-120}; rm -f "$O"
-  xcrun devicectl device process launch --device "$D" --terminate-existing "$B" > "$R/launch.log" 2>&1 || { t "🔴 启动失败"; tail -8 "$R/launch.log"; exit 1; }
+  # 手机锁着时系统拒绝启动（Locked）：每 5 秒再试，最多等 5 分钟 | the system refuses to launch while the phone is locked: retry every 5 s for up to 5 minutes
+  w=0; until xcrun devicectl device process launch --device "$D" --terminate-existing "$B" > "$R/launch.log" 2>&1; do
+    grep -q 'Locked' "$R/launch.log" && [ $w -lt 300 ] || { t "🔴 启动失败"; tail -8 "$R/launch.log"; exit 1; }
+    [ $w = 0 ] && t "手机锁着，请解锁（每 5 秒重试，最多等 5 分钟）"; sleep 5; w=$((w + 5)); done
   t "已启动，日志拉回到 ${O}（上限 ${CAP}s）"
   s=$SECONDS; n=0; sleep 3
   while :; do

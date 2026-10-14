@@ -102,3 +102,13 @@ HLE_FORCE("_ZN2nn7account12AsyncContext7HasDoneEPb", "account 服务；宿主异
 HLE_FORCE("_ZN2nn7account12AsyncContext6CancelEv", "account 服务；无可取消", Result, kacc_Cancel, void *self) { (void)self; return RES_OK; }
 HLE_FORCE("_ZN2nn7account12AsyncContextD1Ev", "account 服务；宿主异步上下文无资源", void, kacc_AsyncDtor, void *self) { (void)self; }
 HLE_FORCE("_ZN2nn7account9CloseUserERKNS0_10UserHandleE", "account 服务；宿主单用户常开", void, kacc_CloseUser, const void *h) { (void)h; }
+
+// ---- 缓存维护：SDK 的实现先 `mrs ctr_el0` 读缓存行大小，iOS 不许应用读这个寄存器（真机 SIGILL，2026-10-14：
+//      AddI3dl2Reverb → EffectManager::Add → FlushDataCache，sdk+0x345ad0）。三个模块里读它的只有这两个函数和 nn::jit（卡比不用）。
+//      苹果给用户态的同类接口：sys_dcache_flush 清写回 + 作废到一致点，sys_icache_invalidate 作废指令缓存。苹果的 GPU 与 CPU 缓存一致，flush 多半可省，照做以保语义。
+// ---- Cache maintenance: the SDK implementation first reads the cache line size with `mrs ctr_el0`, which iOS does not allow apps to read (SIGILL on device, 2026-10-14:
+//      AddI3dl2Reverb → EffectManager::Add → FlushDataCache, sdk+0x345ad0). In all three modules only these two functions and nn::jit (unused by Kirby) read it.
+//      Apple's user-space equivalents: sys_dcache_flush cleans + invalidates to the point of coherency, sys_icache_invalidate invalidates the instruction cache. Apple's GPU is cache-coherent with the CPU, so the flush is mostly redundant; done anyway to keep the semantics.
+#include <libkern/OSCacheControl.h>
+HLE_FORCE("_ZN2nn2os14FlushDataCacheEPKvm", "SDK 实现读 ctr_el0，iOS 上 SIGILL；换成 sys_dcache_flush", void, kos_FlushDataCache, const void *p, size_t n) { if (n) sys_dcache_flush((void *)p, n); }
+HLE_FORCE("__clear_cache", "SDK 实现读 ctr_el0，iOS 上 SIGILL；换成 sys_icache_invalidate", void, kos_ClearCache, char *b, char *e) { if (e > b) { sys_dcache_flush(b, (size_t)(e - b)); sys_icache_invalidate(b, (size_t)(e - b)); } }
