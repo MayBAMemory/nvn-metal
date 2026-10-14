@@ -18,6 +18,7 @@ import ios_metal   # noqa: E402  METAL / METALLIB / RECORD
 
 ap = argparse.ArgumentParser()
 ap.add_argument('shlib'); ap.add_argument('out'); ap.add_argument('-j', type=int, default=os.cpu_count() or 4)
+ap.add_argument('--masks', default=os.path.expanduser('~/kirby-work/uint_masks.tsv'), help='真机记下的「键 \\t 掩码」（Documents/uint_masks.tsv 拉回来合并到这里）')
 a = ap.parse_args()
 chain = open(os.path.join(REPO, 'dm/gfx/nvn/dmsh_chain.h'), encoding='utf-8').read().split('#define DMSH_CHAIN "', 1)[1].split('"', 1)[0]
 src_dir, dst_dir = os.path.join(a.shlib, f'b-{chain}'), os.path.join(a.out, f'b-{chain}')
@@ -27,6 +28,14 @@ if not os.path.isdir(src_dir):
 os.makedirs(dst_dir, exist_ok=True)
 shutil.copy2(os.path.join(a.shlib, 'shader_map.tsv'), os.path.join(a.out, 'shader_map.tsv'))
 keys = sorted(f[:-len('_b.metal')] for f in os.listdir(src_dir) if f.endswith('_b.metal'))
+# 部分整数输出变体 <键>_b_um<掩码>：G-buffer 的附件 5 是 R8Uint（掩码 32，真机实测），写了 color(5) 的片元着色器一律预编；另加真机记下的组合
+# Partial integer-output variants <key>_b_um<mask>: the G-buffer's attachment 5 is R8Uint (mask 32, measured on device), so every fragment shader writing color(5) gets it; plus the combinations recorded on device
+UMASK_DEFAULT = 32
+need_masks = {}
+if os.path.exists(a.masks):
+    for line in open(a.masks, encoding='utf-8'):
+        p = line.split()
+        if len(p) == 2 and p[0].endswith('_b'): need_masks.setdefault(p[0][:-2], set()).add(int(p[1]))
 if not keys: sys.exit(f'🔴 {src_dir} 里没有 *_b.metal')
 
 # 顶点着色器补齐插值输出（FIX 变了就重编所有顶点着色器）。真机（2026-10-14）：2640 次建管线失败，全是
@@ -44,7 +53,26 @@ if not keys: sys.exit(f'🔴 {src_dir} 里没有 *_b.metal')
 # (dmsh_xlate) hard-codes D2R's upper-left / 0..1, so the vertex output is patched: y negated (memory row 0 of the rendering = image bottom, as in GL; viewport / scissor /
 # FragCoord values need no change), z <- (z + w) / 2. The replay layer swaps the winding and flips at present (nvn_mtl.m g_nvn_gl_origin). On device without it, text
 # was upside down and the 3D post-processing chain flipped at every render-to-texture
-FIX = 'pad-locn-v1+gl-origin-v1'
+# v3：整数顶点属性。Switch 上整数格式的属性（骨骼编号）按原始位进寄存器，翻译出的着色器一律声明 float4、再 as_type<int> 按位还原；
+# Metal 却先把整数转成浮点值（3 → 3.0），还原出来的编号就错了——真机上卡比和敌人被拉成长条（2317 个顶点着色器，几乎全是属性 2、3）。
+# 凡是被按位还原成整数的属性，声明成 uint4、每处读取包 as_type<float>（恢复「寄存器里是原始位」），json 的 vertex_inputs 同步改 uint4
+# v3: integer vertex attributes. On the Switch integer-format attributes (bone indices) enter registers as raw bits; the translated shaders declare float4 and as_type<int> the bits back.
+# Metal converts integers to float values first (3 -> 3.0), so the recovered indices are wrong -- on device Kirby and enemies were stretched into long strips (2317 vertex shaders, almost all attributes 2, 3).
+# Any attribute bit-cast to an integer is declared uint4 with every read wrapped in as_type<float> (restoring "raw bits in the register"); the json vertex_inputs follow as uint4
+FIX = 'pad-locn-v1+gl-origin-v1+int-attr-v1'
+def int_attrs(src):
+    m = re.search(r'struct main0_in\n\{\n(.*?)\n\};', src, re.S)
+    if not m: return src, {}
+    attr = {n: int(l) for n, l in re.findall(r'float4 (m_\d+) \[\[attribute\((\d+)\)\]\]', m.group(1))}
+    tmp = {t: a for t, a in re.findall(r'float (_\d+) = in\.(m_\d+)\.[xyzw];', src) if a in attr}
+    names = sorted({tmp[t] for t in re.findall(r'as_type<u?int>\((_\d+)\)', src) if t in tmp})
+    if not names: return src, {}
+    alt = '|'.join(names)
+    body = re.sub(r'float4 (' + alt + r') (\[\[attribute\(\d+\)\]\])', r'uint4 \1 \2', m.group(1))
+    out = src[:m.start(1)] + body + src[m.end(1):]
+    out = re.sub(r'\bin\.(' + alt + r')\.([xyzw])\b', r'as_type<float>(in.\1.\2)', out)
+    out = re.sub(r'\bin\.(' + alt + r')\b(?!\.)', r'as_type<float4>(in.\1)', out)
+    return out, {attr[n] for n in names}
 def gl_clip(src):
     if not re.search(r'struct main0_out\n\{\n[^}]*\bgl_Position\b', src): return src
     return re.sub(r'\n(\s*)return out;', r'\n\1out.gl_Position.y = -out.gl_Position.y;\n\1out.gl_Position.z = (out.gl_Position.z + out.gl_Position.w) * 0.5;\n\1return out;', src)
@@ -65,17 +93,21 @@ def fix_vs(src):
 # "output of type float4 is not compatible with a MTLPixelFormatR8Uint color attachment" -- NVN integer render targets store the raw bits of the output registers, while the
 # translated outputs are all float4. The variant makes colour outputs uint4 with every assignment bit-reinterpreted (as_type); the replay layer uses it for integer attachments.
 UFIX = 'uint-out-v1'
-def make_uint(src):
+def make_uint(src, mask=None):   # mask=None：全部颜色输出；否则只改颜色号在掩码里的 | mask=None: all colour outputs; otherwise only those whose colour index is in the mask
     m = re.search(r'struct main0_out\n\{\n(.*?)\n\};', src, re.S)
     if not m: return None
-    names = re.findall(r'float4 (m_\d+) \[\[color\(\d\)\]\]', m.group(1))
+    names = [n for n, c in re.findall(r'float4 (m_\d+) \[\[color\((\d)\)\]\]', m.group(1)) if mask is None or mask >> int(c) & 1]
     if not names: return None
-    body = re.sub(r'float4 (m_\d+) (\[\[color\(\d\)\]\])', r'uint4 \1 \2', m.group(1))
+    body = re.sub(r'float4 (' + '|'.join(names) + r') (\[\[color\(\d\)\]\])', r'uint4 \1 \2', m.group(1))
     out = src[:m.start(1)] + body + src[m.end(1):]
     alt = '|'.join(names)
     out = re.sub(r'out\.(' + alt + r')\.([xyzw]) = (.*);', r'out.\1.\2 = as_type<uint>(float(\3));', out)
     out = re.sub(r'out\.(' + alt + r') = (.*);', r'out.\1 = as_type<uint4>(float4(\2));', out)
     return out
+def umasks_of(k, src):
+    m = set(need_masks.get(k, ()))
+    if re.search(r'float4 m_\d+ \[\[color\(5\)\]\]', src): m.add(UMASK_DEFAULT)
+    return m
 tmp = tempfile.mkdtemp(prefix='kirby_air_')
 
 def one(k):
@@ -86,11 +118,21 @@ def one(k):
     if os.path.exists(lib) and os.path.exists(jout) and os.path.getmtime(lib) >= os.path.getmtime(src):
         jo = json.load(open(jout, encoding='utf-8'))
         fsx = j.get('msl_entry_kind') == 'fragment' or j.get('stage') == 'fs'
-        if (not vs or jo.get('kirby_ios_fix') == FIX) and (not fsx or jo.get('kirby_ios_ufix') in (UFIX, 'failed')): return k, 'skip', ''
+        want = umasks_of(k, open(src, encoding='utf-8').read()) if fsx else set()
+        if (not vs or jo.get('kirby_ios_fix') == FIX) and (not fsx or jo.get('kirby_ios_ufix') in (UFIX, 'failed')) and want <= set(jo.get('kirby_ios_umasks', [])): return k, 'skip', ''
     air, msl = os.path.join(tmp, f'{k}.air'), src
     if vs:
         text, npad = fix_vs(open(src, encoding='utf-8').read())
         text = gl_clip(text)
+        text, ilocs = int_attrs(text)
+        if ilocs and isinstance(j.get('vertex_inputs'), list):
+            for vi in j['vertex_inputs']:
+                if vi.get('location') in ilocs: vi['msl_type'] = 'uint4'
+        elif ilocs and isinstance(j.get('vertex_inputs'), str):
+            vis = eval(j['vertex_inputs'])   # 出库脚本把列表存成了 repr 字符串 | the library script stored the list as a repr string
+            for vi in vis:
+                if vi.get('location') in ilocs: vi['msl_type'] = 'uint4'
+            j['vertex_inputs'] = str(vis)
         msl = os.path.join(tmp, f'{k}_b.metal'); open(msl, 'w', encoding='utf-8').write(text)
         j['kirby_ios_fix'] = FIX
     r = subprocess.run([*ios_metal.METAL, msl, '-o', air], capture_output=True, text=True)
@@ -112,7 +154,20 @@ def one(k):
             for x in (um, ua):
                 if os.path.exists(x): os.remove(x)
             j['kirby_ios_ufix'] = UFIX if ru.returncode == 0 else 'failed'
-            if ru.returncode: print(f'  整数输出变体编不过 {k}：' + next((l for l in ru.stderr.splitlines() if 'error' in l), '')[:160], flush=True)   # 记录 == 实际编译参数 | record == the actual compile flags
+            if ru.returncode: print(f'  整数输出变体编不过 {k}：' + next((l for l in ru.stderr.splitlines() if 'error' in l), '')[:160], flush=True)
+        done = []
+        for mk in sorted(umasks_of(k, open(src, encoding='utf-8').read())):
+            u = make_uint(open(src, encoding='utf-8').read(), mk)
+            if not u: done.append(mk); continue
+            um, ua, ul = os.path.join(tmp, f'{k}_bm.metal'), os.path.join(tmp, f'{k}_bm.air'), os.path.join(dst_dir, f'{k}_b_um{mk}.metallib')
+            open(um, 'w', encoding='utf-8').write(u)
+            ru = subprocess.run([*ios_metal.METAL, um, '-o', ua], capture_output=True, text=True)
+            if ru.returncode == 0: ru = subprocess.run([*ios_metal.METALLIB, ua, '-o', ul], capture_output=True, text=True)
+            for x in (um, ua):
+                if os.path.exists(x): os.remove(x)
+            if ru.returncode == 0: done.append(mk)
+            else: print(f'  部分整数输出变体编不过 {k} 掩码 {mk}：' + next((l for l in ru.stderr.splitlines() if 'error' in l), '')[:160], flush=True)
+        j['kirby_ios_umasks'] = done   # 记录 == 实际编译参数 | record == the actual compile flags
     json.dump(j, open(jout, 'w', encoding='utf-8'), ensure_ascii=False)
     return k, 'ok', ''
 

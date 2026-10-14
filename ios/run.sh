@@ -87,6 +87,10 @@ run|log)
   need KIRBY_DEVICE KIRBY_BUNDLE_ID
   O=$R/boot.txt
   pull(){ xcrun devicectl device copy from --device "$D" --domain-type appDataContainer --domain-identifier "$B" --source Documents/boot.txt --destination "$O" >/dev/null 2>&1; }
+  # 真机记下的「缺部分整数输出变体」（nvn_mtl.m fs_umask_fn）合并进 Mac 端清单，下次 run.sh shaders 补编 | merge the device's missing partial-integer-output variants into the Mac list for the next run.sh shaders
+  masks(){ xcrun devicectl device copy from --device "$D" --domain-type appDataContainer --domain-identifier "$B" --source Documents/uint_masks.tsv --destination "$R/uint_masks.tsv" >/dev/null 2>&1 || return 0
+    cat "$R/uint_masks.tsv" "$W/uint_masks.tsv" 2>/dev/null | sort -u > "$W/uint_masks.tsv.new" && mv "$W/uint_masks.tsv.new" "$W/uint_masks.tsv"
+    t "部分整数输出变体清单：$(wc -l < "$W/uint_masks.tsv" | tr -d ' ') 条（$W/uint_masks.tsv；有新的就再跑 run.sh shaders）"; }
   [ "$1" = log ] && { pull && cat "$O"; exit; }
   CAP=${2:-120}; rm -f "$O"
   # 手机锁着时系统拒绝启动（Locked）：每 5 秒再试，最多等 5 分钟 | the system refuses to launch while the phone is locked: retry every 5 s for up to 5 minutes
@@ -96,9 +100,9 @@ run|log)
   t "已启动，日志拉回到 ${O}（上限 ${CAP}s）"
   s=$SECONDS; n=0; sleep 3
   while :; do
-    pull; if [ -f "$O" ]; then c=$(wc -l < "$O"); [ "$c" -gt "$n" ] && { sed -n "$((n + 1)),${c}p" "$O"; n=$c; }; grep -q '^\[kirby\] DONE' "$O" && { t "宿主已退出（DONE）"; exit 0; }; fi
-    xcrun devicectl device info processes --device "$D" 2>/dev/null | grep -q "KirbyIOS.app/KirbyIOS" || { sleep 1; pull; [ -f "$O" ] && sed -n "$((n + 1)),\$p" "$O"; t "进程已退出"; exit 0; }
-    [ $((SECONDS - s)) -gt "$CAP" ] && { t "到上限 ${CAP}s，App 仍在运行"; exit 0; }
+    pull; if [ -f "$O" ]; then c=$(wc -l < "$O"); [ "$c" -gt "$n" ] && { sed -n "$((n + 1)),${c}p" "$O"; n=$c; }; grep -q '^\[kirby\] DONE' "$O" && { t "宿主已退出（DONE）"; masks; exit 0; }; fi
+    xcrun devicectl device info processes --device "$D" 2>/dev/null | grep -q "KirbyIOS.app/KirbyIOS" || { sleep 1; pull; [ -f "$O" ] && sed -n "$((n + 1)),\$p" "$O"; t "进程已退出"; masks; exit 0; }
+    [ $((SECONDS - s)) -gt "$CAP" ] && { t "到上限 ${CAP}s，App 仍在运行"; masks; exit 0; }
     sleep 3
   done ;;
 

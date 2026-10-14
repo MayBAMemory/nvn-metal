@@ -79,6 +79,16 @@ static BOOL boot_prepare(void) {
     if (!g_romfs) { plog("boot: 🔴 没找到 RomFS（根目录要有 gfx/ 和 shader/）"); return NO; }
     plog("boot: RomFS %s", g_romfs.fileSystemRepresentation);
     for (NSString *d in @[@"save", @"temp"]) [fm createDirectoryAtPath:[doc stringByAppendingPathComponent:d] withIntermediateDirectories:YES attributes:nil error:nil];
+    // 上一轮的诊断截图 / 转储（DM_NVN_SHOT、DM_NVN_TEXDUMP、DM_NVN_LINDUMP）先清掉，免得拉回旧图当成这一轮的
+    // Clear the previous run's diagnostic screenshots / dumps first, so stale images are never pulled back as this run's
+    for (NSString *n in [fm contentsOfDirectoryAtPath:doc error:nil])
+        if (([n hasPrefix:@"shot_"] || [n hasPrefix:@"td_"]) && [n hasSuffix:@".png"]) [fm removeItemAtPath:[doc stringByAppendingPathComponent:n] error:nil];
+        else if ([n hasPrefix:@"lin_"] && [n hasSuffix:@".raw"]) [fm removeItemAtPath:[doc stringByAppendingPathComponent:n] error:nil];
+    // 运行模式 = 渲染档：掌机（0，游戏按 1280x720 渲染）/ 主机（1，1920x1080）。缺省掌机：省显存、帧数高；玩家可在右上角画质钮切换并记住（front_ios_kirby.m）
+    // Operation mode = render profile: handheld (0, the game renders 1280x720) / docked (1, 1920x1080). Default handheld: less GPU memory, higher frame rate; the top-right quality button switches and remembers it
+    NSInteger om = [NSUserDefaults.standardUserDefaults objectForKey:@"kirby_opmode"] ? [NSUserDefaults.standardUserDefaults integerForKey:@"kirby_opmode"] : 0;
+    setenv("DM_OPMODE", om ? "1" : "0", 0);
+    plog("boot: 运行模式 %s（DM_OPMODE=%s）", getenv("DM_OPMODE")[0] == '1' ? "主机 1080p" : "掌机 720p", getenv("DM_OPMODE"));
     setenv("DM_ROMFS", g_romfs.fileSystemRepresentation, 0);
     setenv("DM_SAVE", [doc stringByAppendingPathComponent:@"save"].fileSystemRepresentation, 0);
     setenv("DM_TEMP", [doc stringByAppendingPathComponent:@"temp"].fileSystemRepresentation, 0);
