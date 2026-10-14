@@ -33,6 +33,7 @@ static void guest_main(void) {
     dm_prof_mark("③ 各模块 init_array");
     ((fnp)req("_ZN2nn2os11SetHostArgcEi"))((void *)(uint64_t)g_argc);
     ((fnp)req("_ZN2nn2os11SetHostArgvEPPc"))(g_argv);
+    { void kirby_prof_start(void); kirby_prof_start(); }   // KIRBY_PROF=毫秒：汇总采样分析器（kirby_prof.c） | KIRBY_PROF=ms: aggregate sampling profiler
     LOG(">>> nnMain"); ((fn0)req("nnMain"))();
     LOG("nnMain returned");
 }

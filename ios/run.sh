@@ -72,7 +72,12 @@ install)
   # 打成单个 .ipa 再装：直接装 .app 目录要逐个传 3.4 万个着色器文件，实测传到一半 CoreDevice 连接就断（「The connection was interrupted」）
   # Install as one .ipa: installing the .app directory transfers 34k shader files one by one, and the CoreDevice connection dropped midway ("The connection was interrupted")
   rm -rf "$BLD/ipa" && mkdir -p "$BLD/ipa/Payload" && cp -cR "$APP" "$BLD/ipa/Payload/" && (cd "$BLD/ipa" && zip -qr -1 KirbyIOS.ipa Payload) || { t "🔴 打包 .ipa 失败"; exit 1; }
-  xcrun devicectl device install app --device "$D" "$BLD/ipa/KirbyIOS.ipa" > "$R/install.log" 2>&1 || { t "🔴 装机失败"; tail -5 "$R/install.log"; exit 1; }
+  # 连接偶尔会断（Connection interrupted / Transport error / RSD device），重试 3 次 | the connection drops now and then; retry 3 times
+  for try in 1 2 3; do
+    xcrun devicectl device install app --device "$D" "$BLD/ipa/KirbyIOS.ipa" > "$R/install.log" 2>&1 && break
+    [ $try = 3 ] && { t "🔴 装机失败"; tail -5 "$R/install.log"; exit 1; }
+    t "装机第 $try 次失败（$(grep -oE 'Connection interrupted|Connection invalid|Transport error|RSD device|timed out' "$R/install.log" | head -1)），重试"; sleep 10
+  done
   t "装机完成" ;;
 
 romfs)
@@ -90,8 +95,11 @@ run|log)
   # 真机记下的「缺部分整数输出变体」（nvn_mtl.m fs_umask_fn）合并进 Mac 端清单，下次 run.sh shaders 补编 | merge the device's missing partial-integer-output variants into the Mac list for the next run.sh shaders
   masks(){ xcrun devicectl device copy from --device "$D" --domain-type appDataContainer --domain-identifier "$B" --source Documents/uint_masks.tsv --destination "$R/uint_masks.tsv" >/dev/null 2>&1 || return 0
     cat "$R/uint_masks.tsv" "$W/uint_masks.tsv" 2>/dev/null | sort -u > "$W/uint_masks.tsv.new" && mv "$W/uint_masks.tsv.new" "$W/uint_masks.tsv"
-    t "部分整数输出变体清单：$(wc -l < "$W/uint_masks.tsv" | tr -d ' ') 条（$W/uint_masks.tsv；有新的就再跑 run.sh shaders）"; }
-  [ "$1" = log ] && { pull && cat "$O"; exit; }
+    t "部分整数输出变体清单：$(wc -l < "$W/uint_masks.tsv" | tr -d ' ') 条（$W/uint_masks.tsv；有新的就再跑 run.sh shaders）"
+    xcrun devicectl device copy from --device "$D" --domain-type appDataContainer --domain-identifier "$B" --source Documents/iattr_masks.tsv --destination "$R/iattr_masks.tsv" >/dev/null 2>&1 || return 0
+    cat "$R/iattr_masks.tsv" "$W/iattr_masks.tsv" 2>/dev/null | sort -u > "$W/iattr_masks.tsv.new" && mv "$W/iattr_masks.tsv.new" "$W/iattr_masks.tsv"
+    t "整数属性变体清单：$(wc -l < "$W/iattr_masks.tsv" | tr -d ' ') 条（$W/iattr_masks.tsv）"; }
+  [ "$1" = log ] && { pull && cat "$O"; masks; exit; }
   CAP=${2:-120}; rm -f "$O"
   # 手机锁着时系统拒绝启动（Locked）：每 5 秒再试，最多等 5 分钟 | the system refuses to launch while the phone is locked: retry every 5 s for up to 5 minutes
   w=0; until xcrun devicectl device process launch --device "$D" --terminate-existing "$B" > "$R/launch.log" 2>&1; do
