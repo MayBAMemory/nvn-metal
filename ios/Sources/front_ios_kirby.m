@@ -81,6 +81,18 @@ static KirbyKey *key_make(NSString *title, uint64_t bit) {
     return b;
 }
 
+// 画质钮：掌机 720p ⇄ 主机 1080p。dm_set_opmode 像 Switch 插拔底座一样通知游戏（hle_oe.c），游戏自己切渲染分辨率；选择存进 NSUserDefaults，下次启动沿用（main.m）
+// Quality button: handheld 720p <-> docked 1080p. dm_set_opmode notifies the game like docking / undocking a Switch (hle_oe.c) and the game switches its render resolution itself; saved in NSUserDefaults for the next launch (main.m)
+@interface KirbyQuality : UIButton
+@end
+@implementation KirbyQuality
+- (void)refresh { [self setTitle:dm_opmode() ? @"1080p" : @"720p" forState:UIControlStateNormal]; }
+- (void)tap {
+    int m = !dm_opmode(); dm_set_opmode(m);
+    [NSUserDefaults.standardUserDefaults setInteger:m forKey:@"kirby_opmode"];
+    LOG("画质：切到 %s", m ? "主机 1080p" : "掌机 720p"); [self refresh];
+}
+@end
 @interface KirbyBox : UIView
 @property (strong) KirbyMetalView *game;
 @property (strong) UIView *keys;
@@ -97,7 +109,7 @@ static KirbyKey *key_make(NSString *title, uint64_t bit) {
     if (!CGSizeEqualToSize(px, g_layer.drawableSize)) { g_layer.drawableSize = px;
         if (self.window) LOG("画面：窗口 %.0fx%.0f 点，游戏视图 %.0fx%.0f 点（16:9 居中），出图 %.0fx%.0f 像素", b.size.width, b.size.height, w, h, px.width, px.height); }
     UIEdgeInsets in = self.safeAreaInsets;
-    self.keys.frame = CGRectMake(b.size.width - in.right - 124, in.top + 12, 112, 44);
+    self.keys.frame = CGRectMake(b.size.width - in.right - 212, in.top + 12, 200, 44);
 }
 @end
 
@@ -109,8 +121,12 @@ UIView *front_ios_view(CGRect frame) {
     g_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     UIView *keys = [[UIView alloc] initWithFrame:CGRectZero]; box.keys = keys;
     KirbyKey *minus = key_make(@"−", DM_BTN_MINUS), *plus = key_make(@"+", DM_BTN_PLUS);
-    minus.frame = CGRectMake(0, 0, 44, 44); plus.frame = CGRectMake(68, 0, 44, 44);
-    [keys addSubview:minus]; [keys addSubview:plus]; [box addSubview:keys];
+    KirbyQuality *q = [KirbyQuality buttonWithType:UIButtonTypeSystem];
+    q.titleLabel.font = [UIFont boldSystemFontOfSize:15]; [q setTitleColor:[UIColor colorWithWhite:1 alpha:0.8] forState:UIControlStateNormal];
+    q.backgroundColor = [UIColor colorWithWhite:0.15 alpha:0.45]; q.layer.cornerRadius = 22; q.frame = CGRectMake(0, 0, 76, 44);
+    [q addTarget:q action:@selector(tap) forControlEvents:UIControlEventTouchUpInside]; [q refresh];
+    minus.frame = CGRectMake(88, 0, 44, 44); plus.frame = CGRectMake(156, 0, 44, 44);
+    [keys addSubview:q]; [keys addSubview:minus]; [keys addSubview:plus]; [box addSubview:keys];
     [box setNeedsLayout]; [box layoutIfNeeded];
     return box;
 }
