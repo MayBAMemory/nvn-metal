@@ -59,20 +59,29 @@ if not keys: sys.exit(f'🔴 {src_dir} 里没有 *_b.metal')
 # v3: integer vertex attributes. On the Switch integer-format attributes (bone indices) enter registers as raw bits; the translated shaders declare float4 and as_type<int> the bits back.
 # Metal converts integers to float values first (3 -> 3.0), so the recovered indices are wrong -- on device Kirby and enemies were stretched into long strips (2317 vertex shaders, almost all attributes 2, 3).
 # Any attribute bit-cast to an integer is declared uint4 with every read wrapped in as_type<float> (restoring "raw bits in the register"); the json vertex_inputs follow as uint4
-FIX = 'pad-locn-v1+gl-origin-v1+int-attr-v1'
-def int_attrs(src):
+# v4：整数还是浮点要看运行时格式——真机上 UI 着色器也按位还原一个属性，但游戏给的是 Float2，一律改 uint4 后 UI 管线建不出来、UI 全空。
+# 所以主库保持原样（float4），json 记下被按位还原的属性（int_attrs）；另出 <键>_b_ia<掩码> 变体只把掩码里的属性改 uint4。
+# 回放层（nvn_mtl.m vs_ia_fn）只在这些属性绑的是整数格式时换用变体；骨骼的属性 2、3 预编，其余组合由真机记进 Documents/iattr_masks.tsv
+# v4: integer vs float depends on the runtime format -- on device a UI shader also bit-casts an attribute but the game binds Float2, so declaring uint4 everywhere broke the UI pipelines (empty UI).
+# So the main library stays as is (float4) and the json records the bit-cast attributes (int_attrs); a <key>_b_ia<mask> variant makes only the masked attributes uint4.
+# The replay layer (nvn_mtl.m vs_ia_fn) switches to it only when those attributes are bound with integer formats; bone attributes 2, 3 are precompiled, other combinations are recorded on device
+FIX = 'pad-locn-v1+gl-origin-v1+int-attr-v2'
+IAFIX = 'ia-v1'
+def bitcast_attrs(src):
     m = re.search(r'struct main0_in\n\{\n(.*?)\n\};', src, re.S)
-    if not m: return src, {}
+    if not m: return {}
     attr = {n: int(l) for n, l in re.findall(r'float4 (m_\d+) \[\[attribute\((\d+)\)\]\]', m.group(1))}
     tmp = {t: a for t, a in re.findall(r'float (_\d+) = in\.(m_\d+)\.[xyzw];', src) if a in attr}
-    names = sorted({tmp[t] for t in re.findall(r'as_type<u?int>\((_\d+)\)', src) if t in tmp})
-    if not names: return src, {}
+    return {attr[tmp[t]]: tmp[t] for t in re.findall(r'as_type<u?int>\((_\d+)\)', src) if t in tmp}
+def int_attrs(src, locs):
+    names = sorted(n for l, n in bitcast_attrs(src).items() if l in locs)
+    if not names: return None
+    m = re.search(r'struct main0_in\n\{\n(.*?)\n\};', src, re.S)
     alt = '|'.join(names)
     body = re.sub(r'float4 (' + alt + r') (\[\[attribute\(\d+\)\]\])', r'uint4 \1 \2', m.group(1))
     out = src[:m.start(1)] + body + src[m.end(1):]
     out = re.sub(r'\bin\.(' + alt + r')\.([xyzw])\b', r'as_type<float>(in.\1.\2)', out)
-    out = re.sub(r'\bin\.(' + alt + r')\b(?!\.)', r'as_type<float4>(in.\1)', out)
-    return out, {attr[n] for n in names}
+    return re.sub(r'\bin\.(' + alt + r')\b(?!\.)', r'as_type<float4>(in.\1)', out)
 def gl_clip(src):
     if not re.search(r'struct main0_out\n\{\n[^}]*\bgl_Position\b', src): return src
     return re.sub(r'\n(\s*)return out;', r'\n\1out.gl_Position.y = -out.gl_Position.y;\n\1out.gl_Position.z = (out.gl_Position.z + out.gl_Position.w) * 0.5;\n\1return out;', src)
@@ -104,6 +113,17 @@ def make_uint(src, mask=None):   # mask=None：全部颜色输出；否则只改
     out = re.sub(r'out\.(' + alt + r')\.([xyzw]) = (.*);', r'out.\1.\2 = as_type<uint>(float(\3));', out)
     out = re.sub(r'out\.(' + alt + r') = (.*);', r'out.\1 = as_type<uint4>(float4(\2));', out)
     return out
+need_ia = {}
+_iap = os.path.expanduser('~/kirby-work/iattr_masks.tsv')
+if os.path.exists(_iap):
+    for line in open(_iap, encoding='utf-8'):
+        p = line.split()
+        if len(p) == 2 and p[0].endswith('_b'): need_ia.setdefault(p[0][:-2], set()).add(int(p[1]))
+def iamasks_of(k, ia):   # 骨骼的属性 2、3（被按位还原的那几个）预编；另加真机记下的 | bone attributes 2, 3 (those bit-cast) precompiled; plus those recorded on device
+    m = set(need_ia.get(k, ()))
+    d = sum(1 << l for l in ia if l in (2, 3))
+    if d: m.add(d)
+    return m
 def umasks_of(k, src):
     m = set(need_masks.get(k, ()))
     if re.search(r'float4 m_\d+ \[\[color\(5\)\]\]', src): m.add(UMASK_DEFAULT)
@@ -119,20 +139,12 @@ def one(k):
         jo = json.load(open(jout, encoding='utf-8'))
         fsx = j.get('msl_entry_kind') == 'fragment' or j.get('stage') == 'fs'
         want = umasks_of(k, open(src, encoding='utf-8').read()) if fsx else set()
-        if (not vs or jo.get('kirby_ios_fix') == FIX) and (not fsx or jo.get('kirby_ios_ufix') in (UFIX, 'failed')) and want <= set(jo.get('kirby_ios_umasks', [])): return k, 'skip', ''
+        if (not vs or (jo.get('kirby_ios_fix') == FIX and jo.get('kirby_ios_iafix') == IAFIX and iamasks_of(k, jo.get('int_attrs', [])) <= set(jo.get('kirby_ios_iamasks', [])))) and (not fsx or jo.get('kirby_ios_ufix') in (UFIX, 'failed')) and want <= set(jo.get('kirby_ios_umasks', [])): return k, 'skip', ''
     air, msl = os.path.join(tmp, f'{k}.air'), src
     if vs:
         text, npad = fix_vs(open(src, encoding='utf-8').read())
         text = gl_clip(text)
-        text, ilocs = int_attrs(text)
-        if ilocs and isinstance(j.get('vertex_inputs'), list):
-            for vi in j['vertex_inputs']:
-                if vi.get('location') in ilocs: vi['msl_type'] = 'uint4'
-        elif ilocs and isinstance(j.get('vertex_inputs'), str):
-            vis = eval(j['vertex_inputs'])   # 出库脚本把列表存成了 repr 字符串 | the library script stored the list as a repr string
-            for vi in vis:
-                if vi.get('location') in ilocs: vi['msl_type'] = 'uint4'
-            j['vertex_inputs'] = str(vis)
+        j['int_attrs'] = sorted(bitcast_attrs(text))
         msl = os.path.join(tmp, f'{k}_b.metal'); open(msl, 'w', encoding='utf-8').write(text)
         j['kirby_ios_fix'] = FIX
     r = subprocess.run([*ios_metal.METAL, msl, '-o', air], capture_output=True, text=True)
@@ -144,6 +156,20 @@ def one(k):
         if os.path.exists(lib): os.remove(lib)
         return k, 'fail', err.replace('\t', ' ')
     j['chain_metal'] = ios_metal.RECORD
+    if vs:
+        base = gl_clip(fix_vs(open(src, encoding='utf-8').read())[0]); done = []
+        for mk in sorted(iamasks_of(k, j.get('int_attrs', []))):
+            v = int_attrs(base, {l for l in range(32) if mk >> l & 1})
+            if not v: continue
+            vm, va, vl = os.path.join(tmp, f'{k}_bi.metal'), os.path.join(tmp, f'{k}_bi.air'), os.path.join(dst_dir, f'{k}_b_ia{mk}.metallib')
+            open(vm, 'w', encoding='utf-8').write(v)
+            rv = subprocess.run([*ios_metal.METAL, vm, '-o', va], capture_output=True, text=True)
+            if rv.returncode == 0: rv = subprocess.run([*ios_metal.METALLIB, va, '-o', vl], capture_output=True, text=True)
+            for x in (vm, va):
+                if os.path.exists(x): os.remove(x)
+            if rv.returncode == 0: done.append(mk)
+            else: print(f'  整数属性变体编不过 {k} 掩码 {mk}：' + next((l for l in rv.stderr.splitlines() if 'error' in l), '')[:160], flush=True)
+        j['kirby_ios_iamasks'] = done; j['kirby_ios_iafix'] = IAFIX
     if j.get('msl_entry_kind') == 'fragment' or j.get('stage') == 'fs':   # 整数输出变体，编不过只记一笔（主库照用） | integer-output variant; a failure is only recorded (the main library is still used)
         u = make_uint(open(src, encoding='utf-8').read())
         if u:
