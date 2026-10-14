@@ -29,6 +29,7 @@
 #define ST_TRY_AGAIN 0x1008  // 暂无输出缓冲 | no output buffer yet
 #define FLAG_EOS 4
 #define MV_SKIP_NS 100000000ll   // 空播时长 0.1 秒 | no-op playback length 0.1 s
+#define MV_OUT_ITEMS 3           // 交出的输出项数（2 帧黑帧 + 流尾），见 dec_AcquireOutputBufferIndex | output items handed over (2 black frames + EOS)
 // MediaData / Buffer 的宿主布局（说明见文件后部）| host layouts of MediaData / Buffer (described further below)
 typedef struct { int n; struct { char key[48]; int kind; int64_t i; const char *s; } e[32]; } kmd;
 typedef struct { void *base; uint64_t cap; int32_t off, size; int64_t i64; int32_t i32; uint32_t u32; uint32_t owned, _r; } kbuf;
@@ -140,17 +141,28 @@ static uint8_t g_inbuf[16];
 static int dec_GetInputBuffer(void *self, int idx, kbuf *b) { (void)self; KMVLOG("GetInputBuffer %d", idx); memset(b, 0, sizeof *b); b->base = g_inbuf; b->cap = sizeof g_inbuf; return ST_OK; }
 static int dec_SendInputBufferForDecode(void *self, int idx, int off, int size, int64_t pts, int flags) {
     (void)idx; (void)off; (void)size; (void)pts; mv_t *m = M(self); KMVLOG("SendInputBufferForDecode 标志 %#x", flags);
-    if (flags & FLAG_EOS) { pthread_mutex_lock(&g_lock); m->eos_out = 1; m->deadline = 0; pthread_mutex_unlock(&g_lock); KMVLOG("播完"); g_signal_event(m->ev_out); }
+    if (flags & FLAG_EOS) { pthread_mutex_lock(&g_lock); m->eos_out = MV_OUT_ITEMS; m->deadline = 0; pthread_mutex_unlock(&g_lock); KMVLOG("播完"); g_signal_event(m->ev_out); }
     return ST_OK;
 }
+// 交出 MV_OUT_ITEMS 个输出项：前面几帧普通黑帧、最后一项带流尾标志。卡比的播放器（main+0x771a78）要帧队列攒到 ≥2 帧才「就绪」开始播放计时，
+// 只给 1 个流尾项时它永远不开始、也就永远不结束（真机灰屏）。每交出一项都用 remaining 报剩余，并再发一次「输出可用」
+// Hand over MV_OUT_ITEMS output items: plain black frames first, the last one flagged end-of-stream. Kirby's player (main+0x771a78) only becomes "ready" and starts its
+// playback clock once ≥2 frames are queued; with a single EOS item it never starts and so never ends (grey screen on device). Each hand-over reports what is left and re-signals "output available"
 static int dec_AcquireOutputBufferIndex(void *self, int *idx, int64_t *pts, int *flags, int *remaining) {
-    mv_t *m = M(self); *remaining = 0;
-    pthread_mutex_lock(&g_lock); int eos = m->eos_out; m->eos_out = 0; pthread_mutex_unlock(&g_lock);
-    if (!eos) { KMVLOG("AcquireOutputBufferIndex → 暂无"); return ST_TRY_AGAIN; }
-    *idx = 0; *pts = m->dur_ns / 1000; *flags = FLAG_EOS; KMVLOG("交出流尾输出项"); return ST_OK;
+    mv_t *m = M(self);
+    pthread_mutex_lock(&g_lock); int n = m->eos_out; if (n) m->eos_out--; pthread_mutex_unlock(&g_lock);
+    if (!n) { *remaining = 0; return ST_TRY_AGAIN; }
+    int k = MV_OUT_ITEMS - n;
+    *idx = k; *flags = n == 1 ? FLAG_EOS : 0; *pts = n == 1 ? m->dur_ns / 1000 : (int64_t)k * 33333; *remaining = n - 1;
+    KMVLOG("交出输出项 %d%s", k, n == 1 ? "（流尾）" : "");
+    if (n > 1) g_signal_event(m->ev_out);
+    return ST_OK;
 }
 static int dec_ReleaseOutputBufferIndex(void *self, int idx) { (void)self; KMVLOG("ReleaseOutputBufferIndex %d", idx); return ST_OK; }
-static int dec_GetOutputBufferFormat(void *self, int idx, void *md) { (void)self; (void)md; KMVLOG("GetOutputBufferFormat %d", idx); return ST_EOS; }
+static int dec_GetOutputBufferFormat(void *self, int idx, void **md) {
+    (void)self; KMVLOG("GetOutputBufferFormat %d", idx);
+    free(*md); kmd *m = calloc(1, sizeof *m); *md = m; md_put(m, "width", 32, 1920, NULL); md_put(m, "height", 32, 1080, NULL); return ST_OK;
+}
 static int dec_GetOutputFormat(void *self, void **md) {   // 视频解码线程 main+0x770790 只读 width / height | the video decode thread (main+0x770790) reads only width / height
     (void)self; KMVLOG("Decoder GetOutputFormat");
     free(*md); kmd *m = calloc(1, sizeof *m); *md = m; md_put(m, "width", 32, 1920, NULL); md_put(m, "height", 32, 1080, NULL); return ST_OK;
@@ -159,7 +171,7 @@ static int dec_GetOutputFormat(void *self, void **md) {   // 视频解码线程 
 static int dec_GetOutputBuffer(void *self, int idx, kbuf *b) {
     static uint8_t *frame; enum { W = 1920, H = 1088, N = W * H * 3 / 2 };
     if (!frame) { frame = malloc(N); memset(frame, 0, W * H); memset(frame + W * H, 128, N - W * H); }
-    KMVLOG("GetOutputBuffer %d", idx); memset(b, 0, sizeof *b); b->base = frame; b->cap = N; b->size = N; b->i64 = M(self)->dur_ns / 1000; return ST_OK;
+    KMVLOG("GetOutputBuffer %d", idx); memset(b, 0, sizeof *b); b->base = frame; b->cap = N; b->size = N; b->i64 = (int64_t)idx * 33333; return ST_OK;
 }
 TRAP(dec, 7, "Reset") TRAP(dec, 14, "GetOutputBufferSize")
 TRAP(dec, 16, "GetLastError") TRAP(dec, 17, "GetOutputBuffer(MediaData)")
