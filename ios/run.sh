@@ -1,8 +1,8 @@
 #!/bin/bash
 # 卡比 iOS App：出包、编着色器、装机、推 RomFS、启动并拉日志。参照 dm/ios/run.sh（D2R）。
 # 用法（在任意目录）：
-#   kirby/ios/run.sh shaders            Windows 出的着色器库（$KIRBY_SHLIB）→ iOS 版 metallib（$KIRBY_SHLIB_IOS）；只在着色器库更新后跑
-#   kirby/ios/run.sh build              生成工程并构建（要 $KIRBY_PATCHED 和 $KIRBY_SHLIB_IOS）
+#   kirby/ios/run.sh shaders            Windows 出的着色器库（${KIRBY_SHLIB}）→ iOS 版 metallib（${KIRBY_SHLIB_IOS}）；只在着色器库更新后跑
+#   kirby/ios/run.sh build              生成工程并构建（要 $KIRBY_PATCHED 和 ${KIRBY_SHLIB_IOS}）
 #   KIRBY_NO_GAME=1 kirby/ios/run.sh build   不带游戏内容只编外壳和宿主（没有游戏文件时检查编译 / 链接 / 签名用；装上也跑不了）
 #   kirby/ios/run.sh install            装到手机
 #   kirby/ios/run.sh romfs [RomFS 目录]  把 RomFS 推进 App 的 Library/Application Support/romfs（缺省 $KIRBY_WORK/RomFS）
@@ -38,11 +38,11 @@ build)
     echo '// KIRBY_NO_GAME：空' > Gen/embed.S; echo 'OTHER_LDFLAGS = $(inherited) $(KIRBY_FRAMEWORKS)' >> Gen/kirby.xcconfig
   else
     for m in $MODS; do for f in patched.bin fixups.tsv gates.tsv; do
-      [ -f "$PATCHED/$m.$f" ] || { t "🔴 缺 $PATCHED/$m.$f（K04 的改写产物，Windows 上在 D:\\kirby-work\\patched）"; exit 1; }; done; done
+      [ -f "$PATCHED/$m.$f" ] || { t "🔴 缺 $PATCHED/$m.${f}（K04 的改写产物，Windows 上在 D:\\kirby-work\\patched）"; exit 1; }; done; done
     F=$(python3 -I "$REPO/dm/ios/tools/gen_embed.py" "$PATCHED" Gen/embed.S $MODS) || { t "🔴 gen_embed 失败"; exit 1; }
     echo "OTHER_LDFLAGS = \$(inherited) \$(KIRBY_FRAMEWORKS) $F" >> Gen/kirby.xcconfig
     for m in $MODS; do cp "$PATCHED/$m.fixups.tsv" "$PATCHED/$m.gates.tsv" Gen/dm/; done
-    [ -f "$SHLIB_IOS/shader_map.tsv" ] && ls "$SHLIB_IOS/b-$V" 2>/dev/null | grep -q '_b.metallib$' || { t "🔴 缺 iOS 版着色器 $SHLIB_IOS/b-$V（先跑 run.sh shaders；翻译链版本 $V）"; exit 1; }
+    [ -f "$SHLIB_IOS/shader_map.tsv" ] && ls "$SHLIB_IOS/b-$V" 2>/dev/null | grep -q '_b.metallib$' || { t "🔴 缺 iOS 版着色器 $SHLIB_IOS/b-${V}（先跑 run.sh shaders；翻译链版本 ${V}）"; exit 1; }
     cp "$SHLIB_IOS/shader_map.tsv" Gen/dm/
     mkdir -p "Gen/msl/b-$V"; find "$SHLIB_IOS/b-$V" -name '*_b.metallib' -o -name '*_b.json' | xargs -I{} cp -c {} "Gen/msl/b-$V/"   # APFS 克隆，不占空间 | APFS clones, no extra space
   fi
@@ -87,7 +87,7 @@ run|log)
   [ "$1" = log ] && { pull && cat "$O"; exit; }
   CAP=${2:-120}; rm -f "$O"
   xcrun devicectl device process launch --device "$D" --terminate-existing "$B" > "$R/launch.log" 2>&1 || { t "🔴 启动失败"; tail -8 "$R/launch.log"; exit 1; }
-  t "已启动，日志拉回到 $O（上限 ${CAP}s）"
+  t "已启动，日志拉回到 ${O}（上限 ${CAP}s）"
   s=$SECONDS; n=0; sleep 3
   while :; do
     pull; if [ -f "$O" ]; then c=$(wc -l < "$O"); [ "$c" -gt "$n" ] && { sed -n "$((n + 1)),${c}p" "$O"; n=$c; }; grep -q '^\[kirby\] DONE' "$O" && { t "宿主已退出（DONE）"; exit 0; }; fi
