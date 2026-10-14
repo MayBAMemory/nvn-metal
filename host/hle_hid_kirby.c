@@ -68,11 +68,35 @@ static uint32_t style_of(uint32_t id) {
     return id == NPAD_HANDHELD ? STYLE_HANDHELD : STYLE_FULLKEY;
 }
 
+// ---- 测试用按键脚本：KIRBY_KEYS="键@秒[+按住秒],…"（秒从宿主启动算，缺省按住 0.2 秒），键名 A B X Y L R ZL ZR PLUS MINUS UP DOWN LEFT RIGHT ----
+// 例：KIRBY_KEYS="A@10,A@20+0.5"。无人值守跑真机时用（devicectl 传 DEVICECTL_CHILD_KIRBY_KEYS）；D2R 那套脚本在 hle_hid.c，卡比不编
+// ---- Test key script: KIRBY_KEYS="key@seconds[+hold seconds],..." (seconds from host start, default hold 0.2 s), key names as above ----
+// e.g. KIRBY_KEYS="A@10,A@20+0.5". For unattended device runs (devicectl passes DEVICECTL_CHILD_KIRBY_KEYS); D2R's script lives in hle_hid.c, which Kirby does not build
+static struct { uint64_t mask, t0, t1; } g_ks[32]; static int g_nks = -1;
+static uint64_t script_buttons(void) {
+    if (g_nks < 0) {
+        g_nks = 0; const char *e = getenv("KIRBY_KEYS"); if (!e) return 0;
+        static const struct { const char *n; uint64_t m; } k[] = {{"A", DM_BTN_A}, {"B", DM_BTN_B}, {"X", DM_BTN_X}, {"Y", DM_BTN_Y}, {"L", DM_BTN_L}, {"R", DM_BTN_R},
+            {"ZL", DM_BTN_ZL}, {"ZR", DM_BTN_ZR}, {"PLUS", DM_BTN_PLUS}, {"MINUS", DM_BTN_MINUS}, {"UP", DM_BTN_UP}, {"DOWN", DM_BTN_DOWN}, {"LEFT", DM_BTN_LEFT}, {"RIGHT", DM_BTN_RIGHT}};
+        char buf[1024]; snprintf(buf, sizeof buf, "%s", e);
+        for (char *sv, *tok = strtok_r(buf, ",", &sv); tok && g_nks < 32; tok = strtok_r(NULL, ",", &sv)) {
+            char *at = strchr(tok, '@'); if (!at) die("KIRBY_KEYS 项「%s」缺 @秒", tok); *at = 0;
+            uint64_t m = 0; for (unsigned i = 0; i < sizeof k / sizeof *k; i++) if (!strcmp(tok, k[i].n)) m = k[i].m;
+            if (!m) die("KIRBY_KEYS 未知键名「%s」", tok);
+            char *plus = strchr(at + 1, '+'); double t = atof(at + 1), d = plus ? atof(plus + 1) : 0.2;
+            g_ks[g_nks++] = (typeof(g_ks[0])){m, g_t0_ns + (uint64_t)(t * 1e9), g_t0_ns + (uint64_t)((t + d) * 1e9)};
+        }
+        LOG("hid：按键脚本 %d 项（KIRBY_KEYS）", g_nks);
+    }
+    uint64_t now = now_ns(), m = 0;
+    for (int i = 0; i < g_nks; i++) if (now >= g_ks[i].t0 && now < g_ks[i].t1) { m |= g_ks[i].mask; if (!(g_ks[i].mask & 1ull << 63)) { g_ks[i].mask |= 1ull << 63; LOG("hid：脚本按键 %#llx（第 %.1f 秒）", (unsigned long long)(g_ks[i].mask & ~(1ull << 63)), (now - g_t0_ns) / 1e9); } }
+    return m & ~(1ull << 63);
+}
 static void fill(NpadState *s, uint32_t id, uint32_t style) {
     memset(s, 0, sizeof *s);
     s->sampling = atomic_fetch_add(&g_sampling, 1) + 1;
     if (!(style_of(id) & style)) return;   // 这个号没接这种样式：全 0（未连接） | this id does not have this style connected: all zero (not connected)
-    s->buttons = atomic_load(&g_in.buttons) | atomic_exchange(&g_press_latch, 0) | atomic_load(&g_pad_btn) | atomic_exchange(&g_pad_latch, 0);
+    s->buttons = atomic_load(&g_in.buttons) | atomic_exchange(&g_press_latch, 0) | atomic_load(&g_pad_btn) | atomic_exchange(&g_pad_latch, 0) | script_buttons();
     s->lx = atomic_load(&g_in.lx); s->ly = atomic_load(&g_in.ly); s->rx = atomic_load(&g_in.rx); s->ry = atomic_load(&g_in.ry);
     uint64_t ax = atomic_load(&g_pad_axes); int16_t plx = (int16_t)ax, ply = (int16_t)(ax >> 16), prx = (int16_t)(ax >> 32), pry = (int16_t)(ax >> 48);
     if (!(s->lx || s->ly)) { s->lx = plx; s->ly = ply; }
