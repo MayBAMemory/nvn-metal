@@ -60,11 +60,9 @@ RomFS 也可以不用 `run.sh romfs`：手机连 Mac，在 Finder 里选中手�
 ## 已知限制和坑
 
 - **构建按 target，不给 `-destination`**：Xcode 26 给任何真机或通用目标构建都要先装「iOS 平台」组件，也就是模拟器运行时，约 8 GB，否则报 `iOS 26.5 is not installed`。按 target 加 `-sdk iphoneos` 构建不查这一项，产物一样。
-  代价是 xcodebuild 不会顺带把手机登记进开发者团队。如果签名报「团队里没有设备」，任选一种办法：
-  - 在 Xcode 里打开 `kirby/ios/KirbyIOS.xcodeproj`，选手机为运行目标，点一次构建。Xcode 会提示下载平台，下完就能登记。
-  - 付费账号在 developer.apple.com → Devices 里手动添加手机的 UDID（Xcode → Devices and Simulators 里能看到）。
+  实测（2026-10-14，免费个人团队）：按 target 构建、自动签名时，Xcode 照样把连着的手机登记进了描述文件，不用另外处理。如果以后报「团队里没有设备」，在 Xcode 里打开 `KirbyIOS.xcodeproj`，对着手机构建一次就能登记。
 - **免费账号**：签不了「提高内存上限」和「扩展虚拟寻址」两项权限。D2R 不带这两项也能跑；卡比够不够要实测。另外，描述文件 7 天过期，过期了要重新 build、install。
-- **手机系统比 Xcode 新**：手机是 iOS 27.2，Xcode 是 26.5。按 iOS 26 编的 App 在新系统上照常能跑。能不能装机、能不能拉日志，要第一次连上实测。
+- **手机系统比 Xcode 新**：手机 iOS 27.2、Xcode 26.5，实测装机、启动、拉日志都正常。
 - **着色器**：`shaders` 报失败的，记在 `~/kirby-work/shlib_ios/b-<V>/failed.tsv`，其余照常可用。运行时用到编不过的着色器，日志里会有「【红】加载着色器失败」。
 - **还没接**：
   - alpha 测试和几何着色器（`docs/shaders.md`，留给 H4）。
