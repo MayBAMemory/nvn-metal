@@ -29,6 +29,7 @@
 | H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 完成：改为补 6 个入口（kirby/host/hle_audio_kirby.c），Mac 编译链接通过 |
 | H3 | 着色器作答表（facts）方案 | 高 | K07 | 完成：按机器码定键出库 16985 份，不需要作答表（docs/shaders.md）；alpha 测试与几何着色器留 H4 |
 | H4 | Mac / iOS 上启动调试，直到出第一帧 | 高 | H1, K04 | 主线程（要 Mac） |
+| I1 | 卡比的 iOS 外壳（kirby/ios）：出包、签名、装机、推 RomFS、拉日志 | 高 | H1 | 完成：无游戏内容的构建和假模块流程都通过；签名装机待用户登录 Apple ID、拷来游戏数据（reports/I1.md） |
 | U1 | 决定开发设备（Apple 芯片 Mac，或 Intel Mac 加 iPhone） | — | — | 用户 |
 | U2 | 决定游戏版本：是否从主机导出最新更新包 | — | — | 用户（越早越好） |
 
