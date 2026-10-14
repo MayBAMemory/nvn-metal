@@ -11,7 +11,7 @@
 #   in   <shlib>/b-<V>/<key>_b.{metal,json}, <shlib>/shader_map.tsv
 #   out  <out>/b-<V>/<key>_b.{metallib,json}, <out>/shader_map.tsv, <out>/b-<V>/failed.tsv (failures, one per line: key \t first error)
 # Re-runs skip targets newer than their source. Usage: python3 -I shlib_ios.py <shlib dir> <out dir> [-j jobs]
-import argparse, concurrent.futures as cf, json, os, shutil, subprocess, sys, tempfile, time
+import argparse, concurrent.futures as cf, json, os, re, shutil, subprocess, sys, tempfile, time
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(0, os.path.join(REPO, 'dm', 'ios', 'tools'))
 import ios_metal   # noqa: E402  METAL / METALLIB / RECORD
@@ -28,21 +28,47 @@ os.makedirs(dst_dir, exist_ok=True)
 shutil.copy2(os.path.join(a.shlib, 'shader_map.tsv'), os.path.join(a.out, 'shader_map.tsv'))
 keys = sorted(f[:-len('_b.metal')] for f in os.listdir(src_dir) if f.endswith('_b.metal'))
 if not keys: sys.exit(f'🔴 {src_dir} 里没有 *_b.metal')
+
+# 顶点着色器补齐插值输出（FIX 变了就重编所有顶点着色器）。真机（2026-10-14）：2640 次建管线失败，全是
+# 「Fragment input(s) user(locn3) ... not written by vertex shader」——NVN 允许片元读顶点没写的插值（读到未定义值），Metal 不许。
+# 翻译出来的插值一律是 float4、顶点里 `main0_out out = {};` 清零，所以给每个顶点着色器补上缺的 user(locnK)（K 到 max(14, 本身最大)），值为 0。
+# 片元不读的顶点输出 Metal 会忽略；15 个 float4 + 位置远在 Metal 的 124 分量上限内。
+# Pad vertex-shader varyings (when FIX changes, every vertex shader is recompiled). On device (2026-10-14): 2640 pipeline failures, all
+# "Fragment input(s) user(locn3) ... not written by vertex shader" -- NVN lets a fragment read a varying the vertex did not write (undefined value), Metal does not.
+# Translated varyings are all float4 and vertex shaders zero them with `main0_out out = {};`, so each vertex shader gets the missing user(locnK) (K up to max(14, its own max)) as 0.
+# Metal ignores vertex outputs the fragment does not read; 15 float4 + position is far under Metal's 124-component limit.
+FIX = 'pad-locn-v1'
+PAD_MAX = 14
+def fix_vs(src):
+    m = re.search(r'struct main0_out\n\{\n(.*?)\n\};', src, re.S)
+    if not m: return src, 0
+    have = {int(x) for x in re.findall(r'\[\[user\(locn(\d+)\)\]\]', m.group(1))}
+    top = max([PAD_MAX] + list(have))
+    add = [f'    float4 m_kpad{k} [[user(locn{k})]];' for k in range(top + 1) if k not in have]
+    if not add: return src, 0
+    return src[:m.end(1)] + '\n' + '\n'.join(add) + src[m.end(1):], len(add)
 tmp = tempfile.mkdtemp(prefix='kirby_air_')
 
 def one(k):
     src, lib = os.path.join(src_dir, f'{k}_b.metal'), os.path.join(dst_dir, f'{k}_b.metallib')
     jin, jout = os.path.join(src_dir, f'{k}_b.json'), os.path.join(dst_dir, f'{k}_b.json')
-    if os.path.exists(lib) and os.path.exists(jout) and os.path.getmtime(lib) >= os.path.getmtime(src): return k, 'skip', ''
-    air = os.path.join(tmp, f'{k}.air')
-    r = subprocess.run([*ios_metal.METAL, src, '-o', air], capture_output=True, text=True)
+    j = json.load(open(jin, encoding='utf-8'))
+    vs = j.get('msl_entry_kind') == 'vertex' or j.get('stage') == 'vs'
+    if os.path.exists(lib) and os.path.exists(jout) and os.path.getmtime(lib) >= os.path.getmtime(src):
+        if not vs or json.load(open(jout, encoding='utf-8')).get('kirby_ios_fix') == FIX: return k, 'skip', ''
+    air, msl = os.path.join(tmp, f'{k}.air'), src
+    if vs:
+        text, npad = fix_vs(open(src, encoding='utf-8').read())
+        if npad: msl = os.path.join(tmp, f'{k}_b.metal'); open(msl, 'w', encoding='utf-8').write(text)
+        j['kirby_ios_fix'] = FIX
+    r = subprocess.run([*ios_metal.METAL, msl, '-o', air], capture_output=True, text=True)
+    if msl != src: os.remove(msl)
     if r.returncode == 0: r = subprocess.run([*ios_metal.METALLIB, air, '-o', lib], capture_output=True, text=True)
     if os.path.exists(air): os.remove(air)
     if r.returncode:
         err = next((l for l in r.stderr.splitlines() if 'error' in l), r.stderr.strip()[:300])
         if os.path.exists(lib): os.remove(lib)
         return k, 'fail', err.replace('\t', ' ')
-    j = json.load(open(jin, encoding='utf-8'))
     j['chain_metal'] = ios_metal.RECORD   # 记录 == 实际编译参数 | record == the actual compile flags
     json.dump(j, open(jout, 'w', encoding='utf-8'), ensure_ascii=False)
     return k, 'ok', ''
