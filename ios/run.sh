@@ -44,7 +44,7 @@ build)
     for m in $MODS; do cp "$PATCHED/$m.fixups.tsv" "$PATCHED/$m.gates.tsv" Gen/dm/; done
     [ -f "$SHLIB_IOS/shader_map.tsv" ] && ls "$SHLIB_IOS/b-$V" 2>/dev/null | grep -q '_b.metallib$' || { t "🔴 缺 iOS 版着色器 $SHLIB_IOS/b-${V}（先跑 run.sh shaders；翻译链版本 ${V}）"; exit 1; }
     cp "$SHLIB_IOS/shader_map.tsv" Gen/dm/
-    mkdir -p "Gen/msl/b-$V"; find "$SHLIB_IOS/b-$V" -name '*_b.metallib' -o -name '*_b.json' | xargs -I{} cp -c {} "Gen/msl/b-$V/"   # APFS 克隆，不占空间 | APFS clones, no extra space
+    cp -cR "$SHLIB_IOS/b-$V" Gen/msl/ && rm -f "Gen/msl/b-$V/failed.tsv"   # 一个进程整目录 APFS 克隆（逐个 cp 3.4 万个文件要 9 分钟） | one-process APFS clone of the whole dir (per-file cp of 34k files took 9 minutes)
   fi
   # 权限：付费账号带「提高内存上限」和「扩展虚拟寻址」；免费账号签不了这两项 | entitlements: paid accounts get the two memory ones; free accounts cannot sign them
   if [ "${KIRBY_FREE_ACCOUNT:-0}" = 1 ]; then
@@ -69,7 +69,10 @@ build)
 
 install)
   need KIRBY_DEVICE
-  xcrun devicectl device install app --device "$D" "$APP" > "$R/install.log" 2>&1 || { t "🔴 装机失败"; tail -5 "$R/install.log"; exit 1; }
+  # 打成单个 .ipa 再装：直接装 .app 目录要逐个传 3.4 万个着色器文件，实测传到一半 CoreDevice 连接就断（「The connection was interrupted」）
+  # Install as one .ipa: installing the .app directory transfers 34k shader files one by one, and the CoreDevice connection dropped midway ("The connection was interrupted")
+  rm -rf "$BLD/ipa" && mkdir -p "$BLD/ipa/Payload" && cp -cR "$APP" "$BLD/ipa/Payload/" && (cd "$BLD/ipa" && zip -qr -1 KirbyIOS.ipa Payload) || { t "🔴 打包 .ipa 失败"; exit 1; }
+  xcrun devicectl device install app --device "$D" "$BLD/ipa/KirbyIOS.ipa" > "$R/install.log" 2>&1 || { t "🔴 装机失败"; tail -5 "$R/install.log"; exit 1; }
   t "装机完成" ;;
 
 romfs)
