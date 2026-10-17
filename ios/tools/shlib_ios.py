@@ -123,6 +123,8 @@ def iamasks_of(k, ia):   # 骨骼的属性 2、3（被按位还原的那几个�
     m = set(need_ia.get(k, ()))
     d = sum(1 << l for l in ia if l in (2, 3))
     if d: m.add(d)
+    # 全部被按位还原的属性也预编一份：回放层把没绑的属性算整数（占位全 0），没绑法线等时用到 | all bit-cast attributes too: the replay layer counts unbound attributes as integer (all-zero placeholder)
+    if ia and len(ia) <= 4: m.add(sum(1 << l for l in ia))
     return m
 def umasks_of(k, src):
     m = set(need_masks.get(k, ()))
