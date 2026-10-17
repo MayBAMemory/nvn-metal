@@ -68,16 +68,24 @@ static uint32_t style_of(uint32_t id) {
     return id == NPAD_HANDHELD ? STYLE_HANDHELD : STYLE_FULLKEY;
 }
 
-// ---- 测试用按键脚本：KIRBY_KEYS="键@秒[+按住秒],…"（秒从宿主启动算，缺省按住 0.2 秒），键名 A B X Y L R ZL ZR PLUS MINUS UP DOWN LEFT RIGHT ----
+// ---- 测试用按键脚本：KIRBY_KEYS="键@秒[+按住秒],…"（秒从宿主启动算，缺省按住 0.2 秒），键名 A B X Y L R ZL ZR PLUS MINUS UP DOWN LEFT RIGHT，
+//      左摇杆推到底 SU SD SL SR（走动测性能用：卡比十字键不走路） ----
 // 例：KIRBY_KEYS="A@10,A@20+0.5"。无人值守跑真机时用（devicectl 传 DEVICECTL_CHILD_KIRBY_KEYS）；D2R 那套脚本在 hle_hid.c，卡比不编
-// ---- Test key script: KIRBY_KEYS="key@seconds[+hold seconds],..." (seconds from host start, default hold 0.2 s), key names as above ----
+// ---- Test key script: KIRBY_KEYS="key@seconds[+hold seconds],..." (seconds from host start, default hold 0.2 s), key names as above,
+//      left stick fully pushed SU SD SL SR (for walking perf tests: Kirby does not walk on the d-pad) ----
 // e.g. KIRBY_KEYS="A@10,A@20+0.5". For unattended device runs (devicectl passes DEVICECTL_CHILD_KIRBY_KEYS); D2R's script lives in hle_hid.c, which Kirby does not build
+#define KS_SU (1ull << 56)
+#define KS_SD (1ull << 57)
+#define KS_SL (1ull << 58)
+#define KS_SR (1ull << 59)
+#define KS_STICK (KS_SU | KS_SD | KS_SL | KS_SR)
 static struct { uint64_t mask, t0, t1; } g_ks[32]; static int g_nks = -1;
 static uint64_t script_buttons(void) {
     if (g_nks < 0) {
         g_nks = 0; const char *e = getenv("KIRBY_KEYS"); if (!e) return 0;
         static const struct { const char *n; uint64_t m; } k[] = {{"A", DM_BTN_A}, {"B", DM_BTN_B}, {"X", DM_BTN_X}, {"Y", DM_BTN_Y}, {"L", DM_BTN_L}, {"R", DM_BTN_R},
-            {"ZL", DM_BTN_ZL}, {"ZR", DM_BTN_ZR}, {"PLUS", DM_BTN_PLUS}, {"MINUS", DM_BTN_MINUS}, {"UP", DM_BTN_UP}, {"DOWN", DM_BTN_DOWN}, {"LEFT", DM_BTN_LEFT}, {"RIGHT", DM_BTN_RIGHT}};
+            {"ZL", DM_BTN_ZL}, {"ZR", DM_BTN_ZR}, {"PLUS", DM_BTN_PLUS}, {"MINUS", DM_BTN_MINUS}, {"UP", DM_BTN_UP}, {"DOWN", DM_BTN_DOWN}, {"LEFT", DM_BTN_LEFT}, {"RIGHT", DM_BTN_RIGHT},
+            {"SU", KS_SU}, {"SD", KS_SD}, {"SL", KS_SL}, {"SR", KS_SR}};
         char buf[1024]; snprintf(buf, sizeof buf, "%s", e);
         for (char *sv, *tok = strtok_r(buf, ",", &sv); tok && g_nks < 32; tok = strtok_r(NULL, ",", &sv)) {
             char *at = strchr(tok, '@'); if (!at) die("KIRBY_KEYS 项「%s」缺 @秒", tok); *at = 0;
@@ -96,8 +104,10 @@ static void fill(NpadState *s, uint32_t id, uint32_t style) {
     memset(s, 0, sizeof *s);
     s->sampling = atomic_fetch_add(&g_sampling, 1) + 1;
     if (!(style_of(id) & style)) return;   // 这个号没接这种样式：全 0（未连接） | this id does not have this style connected: all zero (not connected)
-    s->buttons = atomic_load(&g_in.buttons) | atomic_exchange(&g_press_latch, 0) | atomic_load(&g_pad_btn) | atomic_exchange(&g_pad_latch, 0) | script_buttons();
+    uint64_t sk = script_buttons();
+    s->buttons = atomic_load(&g_in.buttons) | atomic_exchange(&g_press_latch, 0) | atomic_load(&g_pad_btn) | atomic_exchange(&g_pad_latch, 0) | (sk & ~KS_STICK);
     s->lx = atomic_load(&g_in.lx); s->ly = atomic_load(&g_in.ly); s->rx = atomic_load(&g_in.rx); s->ry = atomic_load(&g_in.ry);
+    if (sk & KS_STICK) { s->lx = sk & KS_SR ? 32767 : sk & KS_SL ? -32767 : 0; s->ly = sk & KS_SU ? 32767 : sk & KS_SD ? -32767 : 0; }
     uint64_t ax = atomic_load(&g_pad_axes); int16_t plx = (int16_t)ax, ply = (int16_t)(ax >> 16), prx = (int16_t)(ax >> 32), pry = (int16_t)(ax >> 48);
     if (!(s->lx || s->ly)) { s->lx = plx; s->ly = ply; }
     if (!(s->rx || s->ry)) { s->rx = prx; s->ry = pry; }
