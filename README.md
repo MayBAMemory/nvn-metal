@@ -15,7 +15,7 @@ English: [README.en.md](README.en.md)
 | 部分 | 状态 |
 |---|---|
 | 解包 XCI / ExeFS / RomFS、改写三个模块（`main`、`sdk`、`subsdk0`） | 完成，等价性已核对 |
-| 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | 基本完成，真机已进第一关 3D 场景 |
+| 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | 基本完成，真机已进第一关 3D 场景；Mac 上直接跑已到难易度选择画面（见「在 Mac 上直接跑」） |
 | 着色器离线翻译（BNSH → GLSL → MSL → metallib） | 完成，iOS 版 metallib 在 Mac 上预编 |
 | iOS App（签名、装机、推 RomFS、拉日志） | 走通，iOS 27.2 真机 |
 | 音频（nn::audio AudioRenderer）、过场视频（VP9） | 音频部分完成；视频空播已通，实际解码待做 |
@@ -50,6 +50,57 @@ ios/run.sh build && ios/run.sh install && ios/run.sh run
 
 `ios/local.env`（样例 `ios/local.env.example`）里填设备、签名和 `KIRBY_WORK` 路径，不进仓库。
 
+## 在 Mac 上直接跑（Apple 芯片）
+
+不上手机、不用签名，宿主 `host/kirbyhost` 直接在 Mac 上跑游戏。2026-10-22 第一次在 M5（10 核）上跑通：走到新存档的难易度选择画面，画面和中文都正常；无窗口跑 60 秒稳定 60 Hz（帧时间 p50 16.67 / p95 16.98 / 最大 17.7 ms），GPU 每帧约 1.6 ms，常驻内存约 1.5 GB。还没进过关卡。
+
+要有：`make -C host` 编出的 `host/kirbyhost`；`$KIRBY_WORK`（缺省 `~/kirby-work`）里的 `patched/`、`RomFS/`，以及 **macOS 版着色器 `shlib_mac/`**。
+
+```bash
+# 一次性：把 shlib/ 编成 macOS 版 metallib（变换和 iOS 版完全相同，只换编译目标）
+python3 -I ios/tools/shlib_ios.py ~/kirby-work/shlib ~/kirby-work/shlib_mac --sdk macosx
+make -C host
+host/run_mac.sh          # 开窗口玩
+host/run_mac.sh 60       # 不开窗口跑 60 秒就停，日志在 ~/kirby-work/mac/runN.txt（测启动、测帧时间用）
+```
+
+- 键位：WASD 左摇杆；J K U I = A B X Y；Q E = L R；Z C = ZL ZR；回车 = +；Tab = −；方向键 = 十字键。
+- 存档在 `~/kirby-work/mac/save`。运行时缺的变体清单（`uint_masks.tsv`、`iattr_masks.tsv`）和管线清单 `pso_user.tsv` 写在 `~/kirby-work/mac/`；合并进 `~/kirby-work/` 下的同名清单后，重跑上面的编译命令就只补编缺的。
+- 为什么要单独编一份：Mac 上的宿主没有 `DM_SHELL`，读的是真正编好的 metallib（`newLibraryWithData`）；`kirby_shlib.py` 出的 `_b.metallib` 里装的是 MSL 源码，`shlib_ios/` 是 iOS 目标的，都不能直接用。
+- 编译要很久：约 3.8 万次 `metal` 编译（主库 16985 + 全整数输出 `_u` 约 8500 + 部分整数输出 `_um` 约 4400 + 整数属性 `_ia` 约 2300），每次约 1 秒，几乎全花在编译器的优化阶段（`xcrun` 的开销、合并成一个进程批量编都量过，省不了）。M5 上 62 分钟。**编着色器时别测性能**：它占满所有核，系统负载到 100 左右，测出来的长帧不能算数。
+- 已知：窗口标题和菜单是上游 Mac 外壳的（「D2R Mobile」、`dmAppMenuView`），不影响玩。
+
+### 只有 XCI 时，全在 Mac 上从头重做（不用 Windows）
+
+2026-10-22 在 M5 上照下面做了一遍，每一步的数字都和原来 Windows 上的报告一致：K01 RomFS 9373 个文件；K04 三个模块 STRUCT / EQUIV 全 OK、站点数相同；K06 27239 组全部对上；H3 出库 16985、跳过 10 份几何着色器。
+
+```bash
+brew install dotnet spirv-cross llvm xcodegen
+python3 -m venv ~/.venvs/kirby && ~/.venvs/kirby/bin/pip install capstone lz4 zstandard unicorn pycryptodomex
+PY=~/.venvs/kirby/bin/python; W=~/kirby-work; DM=../d2r-mobile/dm
+# K01 解包
+$PY -I tools/xci_extract.py <你的.xci> <你的 prod.keys> $W --romfs-out $W/RomFS
+$PY -I tools/verify_romfs.py $W/RomFS $W/romfs_list.txt
+# K04 改写三个模块并核对（核对要 Homebrew 的 LLVM：Xcode 里没有 llvm-objcopy）
+export DM_RULESET=native DM_ROOT=$W LLVM_BIN=$(brew --prefix llvm)/bin
+for m in main sdk subsdk0; do
+  $PY -I $DM/tools/patch_nso.py $W/exefs/$m $W/patched $m
+  $PY -I tools/structck_kirby.py $W/patched $m $W/exefs/$m
+  $PY -I tools/equiv_kirby.py $W/patched $m $W/exefs/$m --seed 1 --jobs 4 --tsv $W/patched/$m.equiv.tsv
+done
+# K06 提取着色器（会改写 analysis/shader_index_parts.txt、丢掉 main 那一行，跑完 git checkout 还原）
+$PY -I tools/bnsh_extract.py $W/RomFS $W/shaders analysis/kirby_shaders.tsv --inventory docs/cmp_shader_containers.tsv
+$PY -I tools/verify_k06.py analysis $W/shaders
+$PY -I tools/nso_info.py $W/exefs $W/img && $PY -I tools/main_shaders.py $W/img/main.img $W/shaders
+# H3 出着色器库：翻译器按上游源码编（只编它，不跑 setup.sh）
+export DOTNET_ROOT=$(brew --prefix dotnet)/libexec
+dotnet publish $DM/gfx/tools/dmsh_xlate -c Release -o $W/tools/dmsh_xlate
+$PY -I tools/kirby_shlib.py --shaders $W/shaders --out $W/shlib --xlate $W/tools/dmsh_xlate/dmsh_xlate --spirv-cross $(which spirv-cross) --jobs $(sysctl -n hw.ncpu)
+```
+
+- Homebrew 的 spirv-cross 是 1.4.363，原来验过的是 1.4.357。整条链自己从头出，前后自洽，没影响。
+- 这样重做，真机记下的三份清单（`pso_manifest.tsv`、`uint_masks.tsv`、`iattr_masks.tsv`）就没有了，要重新跑出来。
+
 ## 换一台电脑接着做
 
 git 里只有代码。下面这几样要另外准备或从旧电脑拷过来。
@@ -83,7 +134,7 @@ git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 | Xcode 里登录 Apple ID | 签名 | Xcode → Settings → Accounts |
 
 - Intel Mac 和 Apple 芯片的 Mac 都能出包、装机，游戏在手机上跑。只有想在 Mac 上直接跑 `host/kirbyhost` 才要 Apple 芯片。
-- 从零重出着色器库（`shlib/`）要 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](reports/K07.md)、[docs/shaders.md](docs/shaders.md)。拷旧电脑的 `shlib/` 就用不上它们。
+- 从零重出着色器库（`shlib/`）原来用 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](reports/K07.md)、[docs/shaders.md](docs/shaders.md)。现在 Mac 上也能做，见「只有 XCI 时，全在 Mac 上从头重做」。拷旧电脑的 `shlib/` 就用不上它们。
 
 ### 3. 工作区 `~/kirby-work`（不进 git，从旧电脑拷）
 
@@ -176,7 +227,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 
 | 目录 | 内容 |
 |---|---|
-| `host/` | 卡比宿主：入口、hid / 音频 / 杂项 HLE、垫片，Mac 上 `make` 出 `kirbyhost` |
+| `host/` | 卡比宿主：入口、hid / 音频 / 杂项 HLE、垫片，Mac 上 `make` 出 `kirbyhost`，`run_mac.sh` 直接在 Mac 上跑 |
 | `ios/` | iOS 外壳：`Sources/`（入口、Metal 视图、触屏）、`tools/`（工程生成、着色器编 metallib）、`run.sh` |
 | `tools/` | 解包与改写脚本：XCI/NSO/RomFS、导入表、改写与等价核对、着色器翻译、离线接管清单、语法检查 |
 | `analysis/` | 从游戏里量出来的**描述性**数据：导入/导出符号、NVN 调用面、着色器键与统计、改写计数（单个文件不超过约 1 MB） |

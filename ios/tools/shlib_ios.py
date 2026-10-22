@@ -20,7 +20,14 @@ import ios_metal   # noqa: E402  METAL / METALLIB / RECORD
 ap = argparse.ArgumentParser()
 ap.add_argument('shlib'); ap.add_argument('out'); ap.add_argument('-j', type=int, default=os.cpu_count() or 4)
 ap.add_argument('--masks', default=os.path.expanduser('~/kirby-work/uint_masks.tsv'), help='真机记下的「键 \\t 掩码」（Documents/uint_masks.tsv 拉回来合并到这里）')
+ap.add_argument('--sdk', choices=('iphoneos', 'macosx'), default='iphoneos', help='编译目标；macosx 给 Mac 上的 kirbyhost')
 a = ap.parse_args()
+# --sdk macosx：同样的变换编成 macOS 版，给 Mac 上直接跑的 host/kirbyhost 用（它不走壳的现编，读的是真 metallib）
+# --sdk macosx: the same transforms compiled for macOS, for host/kirbyhost run directly on the Mac (it reads real metallibs, not the shell's on-device compile)
+METAL, METALLIB, RECORD = ios_metal.METAL, ios_metal.METALLIB, ios_metal.RECORD
+if a.sdk == 'macosx':
+    METAL, METALLIB = ['xcrun', '-sdk', 'macosx', 'metal', '-c', '-mmacosx-version-min=26.0'], ['xcrun', '-sdk', 'macosx', 'metallib']
+    RECORD = ' '.join(METAL) + '; ' + ' '.join(METALLIB)
 chain = open(os.path.join(DMROOT, 'dm/gfx/nvn/dmsh_chain.h'), encoding='utf-8').read().split('#define DMSH_CHAIN "', 1)[1].split('"', 1)[0]
 src_dir, dst_dir = os.path.join(a.shlib, f'b-{chain}'), os.path.join(a.out, f'b-{chain}')
 if not os.path.isdir(src_dir):
@@ -150,15 +157,15 @@ def one(k):
         j['int_attrs'] = sorted(bitcast_attrs(text))
         msl = os.path.join(tmp, f'{k}_b.metal'); open(msl, 'w', encoding='utf-8').write(text)
         j['kirby_ios_fix'] = FIX
-    r = subprocess.run([*ios_metal.METAL, msl, '-o', air], capture_output=True, text=True)
+    r = subprocess.run([*METAL, msl, '-o', air], capture_output=True, text=True)
     if msl != src: os.remove(msl)
-    if r.returncode == 0: r = subprocess.run([*ios_metal.METALLIB, air, '-o', lib], capture_output=True, text=True)
+    if r.returncode == 0: r = subprocess.run([*METALLIB, air, '-o', lib], capture_output=True, text=True)
     if os.path.exists(air): os.remove(air)
     if r.returncode:
         err = next((l for l in r.stderr.splitlines() if 'error' in l), r.stderr.strip()[:300])
         if os.path.exists(lib): os.remove(lib)
         return k, 'fail', err.replace('\t', ' ')
-    j['chain_metal'] = ios_metal.RECORD
+    j['chain_metal'] = RECORD
     if vs:
         base = gl_clip(fix_vs(open(src, encoding='utf-8').read())[0]); done = []
         for mk in sorted(iamasks_of(k, j.get('int_attrs', []))):
@@ -166,8 +173,8 @@ def one(k):
             if not v: continue
             vm, va, vl = os.path.join(tmp, f'{k}_bi.metal'), os.path.join(tmp, f'{k}_bi.air'), os.path.join(dst_dir, f'{k}_b_ia{mk}.metallib')
             open(vm, 'w', encoding='utf-8').write(v)
-            rv = subprocess.run([*ios_metal.METAL, vm, '-o', va], capture_output=True, text=True)
-            if rv.returncode == 0: rv = subprocess.run([*ios_metal.METALLIB, va, '-o', vl], capture_output=True, text=True)
+            rv = subprocess.run([*METAL, vm, '-o', va], capture_output=True, text=True)
+            if rv.returncode == 0: rv = subprocess.run([*METALLIB, va, '-o', vl], capture_output=True, text=True)
             for x in (vm, va):
                 if os.path.exists(x): os.remove(x)
             if rv.returncode == 0: done.append(mk)
@@ -178,8 +185,8 @@ def one(k):
         if u:
             um, ua, ul = os.path.join(tmp, f'{k}_bu.metal'), os.path.join(tmp, f'{k}_bu.air'), os.path.join(dst_dir, f'{k}_b_u.metallib')
             open(um, 'w', encoding='utf-8').write(u)
-            ru = subprocess.run([*ios_metal.METAL, um, '-o', ua], capture_output=True, text=True)
-            if ru.returncode == 0: ru = subprocess.run([*ios_metal.METALLIB, ua, '-o', ul], capture_output=True, text=True)
+            ru = subprocess.run([*METAL, um, '-o', ua], capture_output=True, text=True)
+            if ru.returncode == 0: ru = subprocess.run([*METALLIB, ua, '-o', ul], capture_output=True, text=True)
             for x in (um, ua):
                 if os.path.exists(x): os.remove(x)
             j['kirby_ios_ufix'] = UFIX if ru.returncode == 0 else 'failed'
@@ -190,8 +197,8 @@ def one(k):
             if not u: done.append(mk); continue
             um, ua, ul = os.path.join(tmp, f'{k}_bm.metal'), os.path.join(tmp, f'{k}_bm.air'), os.path.join(dst_dir, f'{k}_b_um{mk}.metallib')
             open(um, 'w', encoding='utf-8').write(u)
-            ru = subprocess.run([*ios_metal.METAL, um, '-o', ua], capture_output=True, text=True)
-            if ru.returncode == 0: ru = subprocess.run([*ios_metal.METALLIB, ua, '-o', ul], capture_output=True, text=True)
+            ru = subprocess.run([*METAL, um, '-o', ua], capture_output=True, text=True)
+            if ru.returncode == 0: ru = subprocess.run([*METALLIB, ua, '-o', ul], capture_output=True, text=True)
             for x in (um, ua):
                 if os.path.exists(x): os.remove(x)
             if ru.returncode == 0: done.append(mk)
