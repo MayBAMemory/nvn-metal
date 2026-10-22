@@ -15,7 +15,7 @@ The approach and the base code come from [d2r-mobile](https://github.com/jhaizho
 | Part | State |
 |---|---|
 | Unpack XCI / ExeFS / RomFS, rewrite the three modules (`main`, `sdk`, `subsdk0`) | done, equivalence checked |
-| Host `kirbyhost` (Mac, Apple silicon): NVN graphics, hid, audio, files, time | mostly done; reached the first 3D level on device |
+| Host `kirbyhost` (Mac, Apple silicon): NVN graphics, hid, audio, files, time | mostly done; reached the first 3D level on device; running directly on the Mac reaches the difficulty select (see "Running directly on the Mac") |
 | Offline shader translation (BNSH → GLSL → MSL → metallib) | done; iOS metallibs precompiled on the Mac |
 | iOS app (sign, install, push RomFS, pull logs) | working on device (iOS 27.2) |
 | Audio (`nn::audio` AudioRenderer), cutscene video (VP9) | audio done; video plays as black frames, real decoding pending |
@@ -45,6 +45,26 @@ ios/run.sh build && ios/run.sh install && ios/run.sh run
 ```
 
 Fill in device, signing and `KIRBY_WORK` in `ios/local.env` (sample: `ios/local.env.example`); it is not committed.
+
+## Running directly on the Mac (Apple silicon)
+
+No phone and no signing: `host/kirbyhost` runs the game on the Mac itself. First run on 2026-10-22, on an M5 (10 cores): it reaches the new-save difficulty select with correct rendering and text. A 60 s headless run held 60 Hz (frame time p50 16.67 / p95 16.98 / max 17.7 ms), with about 1.6 ms of GPU per frame and about 1.5 GB resident. It has not entered a level yet.
+
+It needs `host/kirbyhost` from `make -C host`, plus `patched/`, `RomFS/` and a **macOS shader library `shlib_mac/`** in `$KIRBY_WORK` (default `~/kirby-work`).
+
+```bash
+# One-off: compile shlib/ into macOS metallibs (same transforms as the iOS build, different target)
+python3 -I ios/tools/shlib_ios.py ~/kirby-work/shlib ~/kirby-work/shlib_mac --sdk macosx
+make -C host
+host/run_mac.sh          # windowed, to play
+host/run_mac.sh 60       # headless, stops after 60 s; log in ~/kirby-work/mac/runN.txt
+```
+
+- Keys: WASD = left stick, J K U I = A B X Y, Q E = L R, Z C = ZL ZR, Return = +, Tab = −, arrows = D-pad.
+- Saves go to `~/kirby-work/mac/save`. Missing-variant lists and `pso_user.tsv` are written to `~/kirby-work/mac/`.
+- Why a separate library: the Mac host (no `DM_SHELL`) loads real metallibs. `kirby_shlib.py` output holds MSL source, and `shlib_ios/` targets iOS.
+- The compile is slow: about 38,000 `metal` invocations at about 1 s each, nearly all in the compiler's optimizer. It took 62 minutes on the M5. Don't measure performance while it runs, because it saturates every core.
+- Redoing everything from the XCI on a Mac, with no Windows (Homebrew `dotnet spirv-cross llvm`): see the Chinese [README.md](README.md#只有-xci-时全在-mac-上从头重做不用-windows). Verified 2026-10-22; every number matched the original reports.
 
 ## Continuing on another computer
 

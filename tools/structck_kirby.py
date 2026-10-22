@@ -34,7 +34,8 @@
 import sys, os, re, struct, subprocess, tempfile
 sys.path.insert(0, os.path.dirname(__file__))
 import verify_nsoimg as nsoimg
-HLE_HEADER = os.path.join(os.path.dirname(__file__), '..', '..', 'dm', 'host', 'hle.h')
+DMROOT = os.environ.get('D2R_MOBILE') or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'd2r-mobile')   # 上游 d2r-mobile 检出 | upstream checkout
+HLE_HEADER = os.path.join(DMROOT, 'dm', 'host', 'hle.h')
 DM_ROOT = os.environ.get('DM_ROOT') or os.path.expanduser('~/dm-work')   # 工作区根目录（游戏文件、产物、运行现场都在它下面） | Workspace root (game files, build outputs and run artifacts are all under it)
 
 LLVM = os.environ.get('LLVM_BIN', '/opt/homebrew/opt/llvm@23/bin')
