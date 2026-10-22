@@ -10,14 +10,15 @@
 
 ## patches/d2r-mobile-kirby.patch
 
-卡比能跑起来，上游有 11 个文件需要小改（约 520 行）：图形侧的整数顶点属性 / 整数颜色附件 / 管线与贴图细节，宿主侧的文件、音频、时间、装载与 HLE 注册。补丁基于上游 `main` 分支生成：
+卡比能跑起来，上游有 11 个文件需要小改（约 520 行）：图形侧的整数顶点属性 / 整数颜色附件 / 管线与贴图细节，宿主侧的文件、音频、时间、装载与 HLE 注册。补丁基于上游提交 `6a2474d`（2026-10-13）生成，套不上之后的 `main`（上游又改过其中 6 个文件）：
 
 ```bash
 git clone https://github.com/jhaizhou-ops/d2r-mobile.git ../d2r-mobile
+git -C ../d2r-mobile checkout 6a2474d
 git -C ../d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 ```
 
-补丁里的改动同样以 MIT 发布；上游代码的版权仍归 jhaizhou。如果上游以后合并了这些改动，补丁可以删掉。
+补丁里的改动同样以 MIT 发布；上游代码的版权仍归 jhaizhou。改了 `dm/` 之后重新生成：`git -C ../d2r-mobile add -N dm && git -C ../d2r-mobile diff 6a2474d -- dm > patches/d2r-mobile-kirby.patch`。如果上游以后合并了这些改动，补丁可以删掉。
 
 ## 不含游戏内容
 
