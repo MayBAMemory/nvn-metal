@@ -35,7 +35,8 @@ HLE_FORCE("_ZN2nn5audio28GetAudioOutPlayedSampleCountEPKNS0_8AudioOutE", "已播
 // 让 SDK 自带的混音器在本进程跑；自动执行的那一半由宿主补：每个这样的渲染器一条客体线程，每 5 ms（48 kHz 下一帧 240 个样本）
 // 调一次 ExecuteAudioRendererRendering。它出完一帧会自己 Signal 句柄里的事件（sdk+0x4caa8，事件由手动模式的 Open 建好、放在
 // 句柄 +8，sdk+0x4c3c8），游戏的音响线程照常等这个事件，和真机节拍一样。
-// 声音：手动模式下 DeviceSink 不出声（docs/audio.md 第 3 条），所以这个渲染器的声音暂时出不来；先让游戏跑起来。
+// 声音：手动模式下 DeviceSink 不出声（docs/audio.md 第 3 条）。2026-10-23 起的做法见下面「设备输出旁路」：游戏 AddDeviceSink 时在同一个
+// 最终混音上再挂一个循环缓冲输出，宿主每执行一帧就把它读出来送进 AudioUnit。为此这类渲染器的参数里输出数、效果数（决定内存池数）各加 1。
 // AudioRendererHandle 是 16 字节、按值传（x0 = 管理器，x1 = 事件）；AudioRendererParameter 0x38 字节（InitializeAudioRendererParameter）。
 // ---- AudioRenderer: turn "DSP + auto execution" into "CPU + manual execution", with the host executing one frame every 5 ms in place of the DSP ----
 // Measured on device (iPhone, 2026-10-14): besides the CPU renderer described in docs/audio.md, the game's sound system (Atk2) opens a second renderer
@@ -45,14 +46,17 @@ HLE_FORCE("_ZN2nn5audio28GetAudioOutPlayedSampleCountEPKNS0_8AudioOutE", "已播
 // letting the SDK's own mixer run in-process; the host supplies the "auto" half: one guest thread per such renderer, calling ExecuteAudioRendererRendering
 // every 5 ms (one 240-sample frame at 48 kHz). After each frame it signals the event in the handle itself (sdk+0x4caa8; the manual-mode Open creates that
 // event and stores it at handle+8, sdk+0x4c3c8), so the game's sound thread waits on it as usual, at the hardware cadence.
-// Sound: in manual mode DeviceSink makes no sound (docs/audio.md item 3), so this renderer stays silent for now; getting the game running comes first.
+// Sound: in manual mode DeviceSink makes no sound (docs/audio.md item 3). Since 2026-10-23 see "device sink bypass" below: when the game calls AddDeviceSink, a circular buffer sink is
+// added on the same final mix and the host reads it after every frame it executes, feeding an AudioUnit. For that, such renderers get one more sink and one more effect (which sets the memory pool count) in their parameters.
 // AudioRendererHandle is 16 bytes passed by value (x0 = manager, x1 = event); AudioRendererParameter is 0x38 bytes (InitializeAudioRendererParameter).
 #include <pthread.h>
 #include <time.h>
-enum { AR_PARAM_SIZE = 0x38, AR_DEVICE = 0x2c, AR_MODE = 0x30 };
-static const uint8_t *ar_param_cpu(const uint8_t *p, uint8_t *tmp) {   // DSP+自动 → CPU+手动；其余原样 | DSP+auto → CPU+manual; anything else unchanged
+enum { AR_PARAM_SIZE = 0x38, AR_SAMPLES = 0x04, AR_SINKS = 0x14, AR_EFFECTS = 0x18, AR_DEVICE = 0x2c, AR_MODE = 0x30 };
+// DSP+自动 → CPU+手动，另多留一个输出和一个效果（设备输出旁路要用）；其余原样 | DSP+auto → CPU+manual with one spare sink and one spare effect (for the device sink bypass); anything else unchanged
+static const uint8_t *ar_param_cpu(const uint8_t *p, uint8_t *tmp) {
     if (*(const uint32_t *)(p + AR_DEVICE) != 0) return p;
-    memcpy(tmp, p, AR_PARAM_SIZE); *(uint32_t *)(tmp + AR_DEVICE) = 1; *(uint32_t *)(tmp + AR_MODE) = 1; return tmp;
+    memcpy(tmp, p, AR_PARAM_SIZE); *(uint32_t *)(tmp + AR_DEVICE) = 1; *(uint32_t *)(tmp + AR_MODE) = 1;
+    *(uint32_t *)(tmp + AR_SINKS) += 1; *(uint32_t *)(tmp + AR_EFFECTS) += 1; return tmp;
 }
 static void *ar_sdk(const char *n) {   // SDK 自己的定义（被强制接管的名字，guest_sym 会给回宿主实现） | the SDK's own definition (guest_sym would hand back the host takeover)
     for (int i = 0; i < g_nmod; i++) if (!strcmp(g_mod[i].name, "sdk")) { void *p = module_sym(&g_mod[i], n); if (p) return p; }
@@ -67,6 +71,123 @@ typedef struct { uint64_t mgr; void *ev; } ar_handle;
 static pthread_mutex_t g_ar_lock = PTHREAD_MUTEX_INITIALIZER;   // 宿主「DSP」线程的 Execute 与游戏的 RequestUpdate 互斥 | serialises the host "DSP" thread's Execute with the game's RequestUpdate
 static struct { ar_handle h; _Atomic int live; } g_ar[4]; static int g_ar_n;
 static int ar_find(uint64_t mgr) { for (int i = 0; i < g_ar_n; i++) if (g_ar[i].h.mgr == mgr) return i; return -1; }
+// ---- 设备输出旁路：把 DeviceSink 的输入原样再接一个循环缓冲输出，读出来自己出声 ----
+// 循环缓冲里每一帧按声道分块（声道 0 的 240 个样本、声道 1 的 240 个……，16 位；同 Ryujinx 的 CircularBufferSinkCommand），
+// 宿主转成立体声交错（6 声道时按 ITU 系数缩混）推进环形缓冲，AudioUnit 从里面拉。出不出声与 AudioOut 同一规则：iOS 缺省出声，Mac 要 DM_AUDIO=1。
+// ---- Device sink bypass: hook the DeviceSink's inputs to a circular buffer sink as well, read it back and play it ourselves ----
+// Each frame in the circular buffer is planar per channel (240 samples of channel 0, then channel 1, ..., 16-bit; as in Ryujinx's CircularBufferSinkCommand);
+// the host converts to interleaved stereo (6 channels are downmixed with ITU coefficients) into a ring that an AudioUnit pulls from. Same rule as AudioOut: sound by default on iOS, DM_AUDIO=1 on the Mac.
+#include <AudioToolbox/AudioToolbox.h>
+#include <TargetConditionals.h>
+enum { SINK_FRAMES = 8, SAMPLE_FMT_PCM16 = 2, RING = 48000 / 2, RING_KEEP = 48000 / 10 };   // 环形缓冲 0.5 秒，超过 0.1 秒就丢旧的 | 0.5 s ring, drop the oldest beyond 0.1 s
+static uint8_t g_cfg_param[AR_PARAM_SIZE]; static const void *g_cfg;           // 被改成 CPU 渲染的那个配置及其（改后的）参数 | the config converted to CPU rendering and its (adjusted) parameter
+static _Alignas(16) uint8_t g_cb[512], g_pool[512];                            // CircularBufferSinkType / MemoryPoolType（不透明，宽给）| opaque types, generously sized
+static uint8_t *g_cb_buf; static size_t g_cb_size; static int g_cb_ch, g_cb_samples, g_cb_pending; static _Atomic int g_cb_ready;
+static void *g_cb_fm; static int8_t g_cb_in[6];   // 等内存池挂上后再加循环缓冲输出时要用 | needed to add the circular buffer sink once the memory pool is attached
+static int16_t g_ring[RING * 2]; static _Atomic uint32_t g_rd, g_wr; static AudioUnit g_au;
+static int sink_real(void) { const char *e = getenv("DM_AUDIO"); return e ? atoi(e) != 0 : TARGET_OS_IPHONE; }
+static OSStatus sink_render(void *ctx, AudioUnitRenderActionFlags *f, const AudioTimeStamp *ts, UInt32 bus, UInt32 frames, AudioBufferList *bl) {
+    (void)ctx; (void)f; (void)ts; (void)bus;
+    int16_t *o = bl->mBuffers[0].mData; uint32_t rd = atomic_load(&g_rd), wr = atomic_load(&g_wr), have = (wr - rd) % RING, n = frames < have ? frames : have;
+    for (uint32_t k = 0; k < n; k++) { o[2 * k] = g_ring[2 * ((rd + k) % RING)]; o[2 * k + 1] = g_ring[2 * ((rd + k) % RING) + 1]; }
+    memset(o + 2 * n, 0, (frames - n) * 4); atomic_store(&g_rd, (rd + n) % RING); return noErr;
+}
+static void sink_au_open(void) {
+    AudioComponentDescription d = {.componentType = kAudioUnitType_Output, .componentManufacturer = kAudioUnitManufacturer_Apple,
+#if TARGET_OS_IPHONE
+                                   .componentSubType = kAudioUnitSubType_RemoteIO};
+#else
+                                   .componentSubType = kAudioUnitSubType_DefaultOutput};
+#endif
+    AudioComponent c = AudioComponentFindNext(NULL, &d);
+    AudioStreamBasicDescription fmt = {.mSampleRate = 48000, .mFormatID = kAudioFormatLinearPCM, .mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked,
+                                       .mBytesPerPacket = 4, .mFramesPerPacket = 1, .mBytesPerFrame = 4, .mChannelsPerFrame = 2, .mBitsPerChannel = 16};
+    AURenderCallbackStruct cb = {sink_render, NULL};
+    if (!c || AudioComponentInstanceNew(c, &g_au) || AudioUnitSetProperty(g_au, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &fmt, sizeof fmt) ||
+        AudioUnitSetProperty(g_au, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof cb) || AudioUnitInitialize(g_au) || AudioOutputUnitStart(g_au)) {
+        LOG("【红】设备输出旁路：AudioUnit 建不出来，没有声音"); g_au = NULL; }
+}
+static void sink_push(int16_t l, int16_t r) {
+    uint32_t wr = atomic_load(&g_wr), rd = atomic_load(&g_rd);
+    if ((wr + 1) % RING == rd) atomic_store(&g_rd, (rd + 1) % RING);   // 满了丢最旧的 | full: drop the oldest
+    g_ring[2 * wr] = l; g_ring[2 * wr + 1] = r; atomic_store(&g_wr, (wr + 1) % RING);
+}
+static int16_t sat(float x) { return (int16_t)(x > 32767.f ? 32767 : x < -32768.f ? -32768 : x); }
+// 持 g_ar_lock 调（紧跟在宿主执行一帧之后）| called with g_ar_lock held, right after the host executed one frame
+static void sink_drain(void) {
+    if (!atomic_load(&g_cb_ready)) return;
+    static size_t (*rd)(void *, void *, size_t);
+    if (!rd) rd = (size_t (*)(void *, void *, size_t))ar_sdk("_ZN2nn5audio22ReadCircularBufferSinkEPNS0_22CircularBufferSinkTypeEPvm");
+    static int16_t tmp[6 * 240 * SINK_FRAMES]; size_t frame = (size_t)g_cb_ch * g_cb_samples * 2;
+    size_t got = rd(g_cb, tmp, sizeof tmp < frame * SINK_FRAMES ? sizeof tmp : frame * SINK_FRAMES);
+    static uint64_t total; static int logged; total += got;
+    if (!logged && total >= 48000 * 4 * 2) { logged = 1; LOG("设备输出旁路：已读出 %llu 字节（%d 声道）", (unsigned long long)total, g_cb_ch); }
+    static FILE *dump; static int dump_checked; static int16_t raw[6 * 240 * SINK_FRAMES];
+    if (!dump_checked) { dump_checked = 1; const char *e = getenv("KIRBY_SOUND_DUMP"); if (e && *e) dump = fopen(e, "wb"); }   // 原始循环缓冲内容（排查用）| raw circular buffer content (for debugging)
+    if (dump) { memcpy(raw, tmp, got); fwrite(raw, 1, got, dump); fflush(dump); }
+    if (!g_au) return;
+    for (size_t f = 0; f + frame <= got; f += frame) {
+        const int16_t *b = tmp + f / 2; int n = g_cb_samples;
+        for (int k = 0; k < n; k++) {
+            float L = b[k], R = g_cb_ch > 1 ? b[n + k] : L;
+            if (g_cb_ch >= 6) { float C = b[2 * n + k], SL = b[4 * n + k], SR = b[5 * n + k]; L += 0.707f * (C + SL); R += 0.707f * (C + SR); }
+            sink_push(sat(L), sat(R));
+        }
+    }
+    uint32_t have = (atomic_load(&g_wr) - atomic_load(&g_rd)) % RING;
+    if (have > RING_KEEP) atomic_store(&g_rd, (atomic_load(&g_wr) - RING_KEEP) % RING);   // 堆积太多（切后台回来等）就追上，延迟不超过 0.1 秒 | too much backlog (back from background etc.): catch up, keep latency under 0.1 s
+}
+#define SDKFN(type, name, sym) static __typeof__(type) name; if (!name) name = (type)ar_sdk(sym)
+HLE_FORCE("_ZN2nn5audio36GetAudioRendererConfigWorkBufferSizeERKNS0_22AudioRendererParameterE", "配置工作区按改后的参数算（多一个输出、一个效果）",
+          size_t, kh_cfg_WorkSize, const uint8_t *p) {
+    SDKFN(size_t (*)(const uint8_t *), orig, "_ZN2nn5audio36GetAudioRendererConfigWorkBufferSizeERKNS0_22AudioRendererParameterE");
+    uint8_t tmp[AR_PARAM_SIZE]; return orig(ar_param_cpu(p, tmp));
+}
+HLE_FORCE("_ZN2nn5audio29InitializeAudioRendererConfigEPNS0_19AudioRendererConfigERKNS0_22AudioRendererParameterEPvm", "配置按改后的参数初始化；记下这是被改成 CPU 渲染的配置",
+          void, kh_cfg_Init, void *cfg, const uint8_t *p, void *buf, size_t size) {
+    SDKFN(void (*)(void *, const uint8_t *, void *, size_t), orig, "_ZN2nn5audio29InitializeAudioRendererConfigEPNS0_19AudioRendererConfigERKNS0_22AudioRendererParameterEPvm");
+    uint8_t tmp[AR_PARAM_SIZE]; const uint8_t *q = ar_param_cpu(p, tmp);
+    orig(cfg, q, buf, size);
+    if (q != p) { memcpy(g_cfg_param, q, AR_PARAM_SIZE); g_cfg = cfg; }
+}
+HLE_FORCE("_ZN2nn5audio13AddDeviceSinkEPNS0_19AudioRendererConfigEPNS0_14DeviceSinkTypeEPNS0_12FinalMixTypeEPKaiPKc", "设备输出：照常加，另在同一最终混音上挂循环缓冲输出（旁路出声）",
+          Result, kh_AddDeviceSink, void *cfg, void *sink, void *fm, const int8_t *in, int count, const char *name) {
+    SDKFN(Result (*)(void *, void *, void *, const int8_t *, int, const char *), orig, "_ZN2nn5audio13AddDeviceSinkEPNS0_19AudioRendererConfigEPNS0_14DeviceSinkTypeEPNS0_12FinalMixTypeEPKaiPKc");
+    Result r = orig(cfg, sink, fm, in, count, name);
+    LOG("audio::AddDeviceSink %s 声道 %d（输入 %d %d %d %d %d %d）→ %#x%s", name ? name : "?", count, count > 0 ? in[0] : -1, count > 1 ? in[1] : -1, count > 2 ? in[2] : -1,
+        count > 3 ? in[3] : -1, count > 4 ? in[4] : -1, count > 5 ? in[5] : -1, r, cfg == g_cfg ? "（CPU 渲染的配置，挂旁路）" : "");
+    const char *off = getenv("KIRBY_SOUND_BYPASS");   // =0 不挂旁路（对照用）| =0 skips the bypass (for comparison)
+    if (r || cfg != g_cfg || atomic_load(&g_cb_ready) || count < 1 || count > 6 || (off && *off == '0')) return r;
+    SDKFN(size_t (*)(const uint8_t *, int, int, int), need, "_ZN2nn5audio42GetRequiredBufferSizeForCircularBufferSinkEPKNS0_22AudioRendererParameterEiiNS0_12SampleFormatE");
+    SDKFN(int (*)(void *, void *, void *, size_t), acquire, "_ZN2nn5audio17AcquireMemoryPoolEPNS0_19AudioRendererConfigEPNS0_14MemoryPoolTypeEPvm");
+    SDKFN(int (*)(void *), attach, "_ZN2nn5audio23RequestAttachMemoryPoolEPNS0_14MemoryPoolTypeE");
+    // 第一步：只申请并请求挂上内存池。循环缓冲输出要等内存池真挂上（下一次 RequestUpdate 之后）才加：同一次更新里一起加，混音器有时在
+    // 内存池生效前就往缓冲里写，地址换算不对，写坏宿主的堆（实测约四次崩一次，崩在下一次 malloc）
+    // Step one: only acquire the memory pool and request attaching it. The circular buffer sink is added only once the pool is really attached (after the next RequestUpdate):
+    // adding both in the same update sometimes let the mixer write to the buffer before the pool took effect, with a wrong address translation that corrupted the host heap (about one run in four crashed at the next malloc)
+    // 循环缓冲输出拿 SDK 算的精确大小（整数帧）；内存池按 4 KB 取整。别把取整后的大小交给输出：混音器按帧写、写到末尾才绕回，
+    // 24576 不是一帧 2880 字节的整数倍，最后一帧会越界 1344 字节写坏宿主的堆（实测约四次崩一次）
+    // The sink gets the SDK's exact size (whole frames); only the memory pool is rounded to 4 KB. Never hand the rounded size to the sink: the mixer writes whole frames and wraps only at the end,
+    // and 24576 is not a multiple of a 2880-byte frame, so the last frame overran by 1344 bytes and corrupted the host heap (about one run in four crashed)
+    size_t exact = need(g_cfg_param, count, SINK_FRAMES, SAMPLE_FMT_PCM16), sz = (exact + 0xfff) & ~(size_t)0xfff;
+    g_cb_buf = aligned_alloc(0x1000, sz); memset(g_cb_buf, 0, sz); g_cb_size = exact;
+    int ok_pool = acquire(cfg, g_pool, g_cb_buf, sz) && attach(g_pool);
+    g_cb_fm = fm; memcpy(g_cb_in, in, (size_t)count); g_cb_ch = count; g_cb_samples = (int)*(const uint32_t *)(g_cfg_param + AR_SAMPLES); g_cb_pending = ok_pool;
+    LOG("设备输出旁路：循环缓冲 %zu 字节（内存池 %zu），内存池%s（%d 声道 × %d 样本/帧）", exact, sz, ok_pool ? "已请求挂上，等它生效再接输出" : "申请失败，没有声音", count, g_cb_samples);
+    return r;
+}
+// 第二步（游戏请求更新之前、游戏线程上）：内存池已挂上就加循环缓冲输出，随这次更新生效 | step two (before the game's update request, on the game thread): once the pool is attached, add the sink so it takes effect with this update
+static void sink_add_when_ready(const void *cfg) {
+    if (!g_cb_pending || cfg != g_cfg) return;
+    SDKFN(int (*)(const void *), state, "_ZN2nn5audio18GetMemoryPoolStateEPKNS0_14MemoryPoolTypeE");
+    SDKFN(Result (*)(void *, void *, void *, const int8_t *, int, void *, size_t, int), add, "_ZN2nn5audio21AddCircularBufferSinkEPNS0_19AudioRendererConfigEPNS0_22CircularBufferSinkTypeEPNS0_12FinalMixTypeEPKaiPvmNS0_12SampleFormatE");
+    int st = state(g_pool); static int last = -1; if (st != last) { LOG("设备输出旁路：内存池状态 %d", st); last = st; }
+    if (st != 1) return;   // nn::audio::MemoryPoolType::State：0 请求挂上、1 已挂上 | 0 RequestAttach, 1 Attached
+    g_cb_pending = 0;
+    Result ra = add((void *)cfg, g_cb, g_cb_fm, g_cb_in, g_cb_ch, g_cb_buf, g_cb_size, SAMPLE_FMT_PCM16);
+    LOG("设备输出旁路：内存池已挂上，AddCircularBufferSink → %#x（%s）", ra, sink_real() ? "真出声" : "静音（Mac 要 DM_AUDIO=1）");
+    if (!ra) { if (sink_real()) sink_au_open(); atomic_store(&g_cb_ready, 1); }
+}
 static void ar_dsp_thread(void *arg) {
     int i = (int)(intptr_t)arg;
     Result (*exec)(uint64_t, void *) = (Result (*)(uint64_t, void *))ar_sdk("_ZN2nn5audio29ExecuteAudioRendererRenderingENS0_19AudioRendererHandleE");
@@ -80,7 +201,7 @@ static void ar_dsp_thread(void *arg) {
         }
         pthread_mutex_lock(&g_ar_lock);   // live 在锁里查：Close 拿锁清掉它之后，不会再有一帧碰到已关的渲染器 | live checked under the lock: once Close clears it, no frame touches the closed renderer
         if (!atomic_load(&g_ar[i].live)) { pthread_mutex_unlock(&g_ar_lock); break; }
-        Result r = exec(g_ar[i].h.mgr, g_ar[i].h.ev); pthread_mutex_unlock(&g_ar_lock);
+        Result r = exec(g_ar[i].h.mgr, g_ar[i].h.ev); sink_drain(); pthread_mutex_unlock(&g_ar_lock);
         if (r && n < 3) LOG("【红】AudioRenderer#%d 宿主执行一帧失败 %#x", i, r);
         if (++n == 200) LOG("AudioRenderer#%d：宿主代替 DSP 已执行 200 帧（1 秒）", i);
         struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);   // 落后超过 50 ms（切后台等）就不追帧，从现在重新起拍 | more than 50 ms behind (background etc.): do not catch up, restart the cadence from now
@@ -107,6 +228,7 @@ HLE_FORCE("_ZN2nn5audio26RequestUpdateAudioRendererENS0_19AudioRendererHandleEPK
     static Result (*orig)(uint64_t, void *, const void *);
     if (!orig) orig = (Result (*)(uint64_t, void *, const void *))ar_sdk("_ZN2nn5audio26RequestUpdateAudioRendererENS0_19AudioRendererHandleEPKNS0_19AudioRendererConfigE");
     if (ar_find(mgr) < 0) return orig(mgr, ev, cfg);
+    sink_add_when_ready(cfg);
     pthread_mutex_lock(&g_ar_lock); Result r = orig(mgr, ev, cfg); pthread_mutex_unlock(&g_ar_lock); return r;
 }
 HLE_FORCE("_ZN2nn5audio18CloseAudioRendererENS0_19AudioRendererHandleE", "停掉宿主代执行线程", void, kh_ar_Close, uint64_t mgr, void *ev) {

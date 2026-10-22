@@ -31,3 +31,10 @@ kv_dec *kv_open(int width, int height);                   // 失败返回 NULL |
 // Decode one sample (may be a superframe). If a frame comes out, write packed NV12 (Y stride = width, UV right after) into out and return 1; 0 for hidden frames that show nothing; -1 on error
 int kv_decode(kv_dec *d, const uint8_t *data, size_t len, uint8_t *out);
 void kv_close(kv_dec *d);
+
+// Vorbis 音轨（kirby_vorbis.c，stb_vorbis）| Vorbis audio track (kirby_vorbis.c, stb_vorbis)
+typedef struct kvb_dec kvb_dec;
+kvb_dec *kvb_open(const uint8_t *priv, size_t len, int *channels, int *rate);   // CodecPrivate（三个头包）；失败返回 NULL | CodecPrivate (three header packets); NULL on failure
+int kvb_decode(kvb_dec *d, const uint8_t *pkt, size_t len, int16_t *out, int max_frames);   // 出 16 位交错 PCM，返回帧数（首包为 0 正常）| 16-bit interleaved PCM, returns frames (0 for the first packet is normal)
+void kvb_reset(kvb_dec *d);   // 跳转后清解码状态 | clear decoder state after a seek
+void kvb_close(kvb_dec *d);

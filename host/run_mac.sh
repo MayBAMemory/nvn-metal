@@ -21,6 +21,7 @@ for f in "$HERE/kirbyhost" "$W/patched/main.patched.bin" "$DM_ROMFS/shader" "$DM
   [ -e "$f" ] || { echo "🔴 缺 $f（见脚本开头注释）"; exit 1; }; done
 cd "$M"   # 缺的着色器变体清单（uint_masks.tsv、iattr_masks.tsv）写在当前目录 | missing-variant lists are written to the current directory
 if [ -z "${1:-}" ]; then
+  export DM_AUDIO=${DM_AUDIO:-1}   # 开窗口玩时出声（宿主在 Mac 上缺省静音）| play with sound in a window (the host is silent on the Mac by default)
   DM_WINDOW=1 exec "$HERE/kirbyhost" "$W/patched"
 fi
 n=1; while [ -e "$M/run$n.txt" ]; do n=$((n + 1)); done; O=$M/run$n.txt

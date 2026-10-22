@@ -188,7 +188,7 @@ index d64e95f..a2b1196 100644
  // Commands that only affect GPU state / only execute on the GPU: the null device only counts them (the thunk has already counted)
  static void nvn_nop(void) {}
 diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
-index 156a3ca..e7e51b6 100644
+index 156a3ca..95bb233 100644
 --- a/dm/gfx/nvn/nvn_mtl.m
 +++ b/dm/gfx/nvn/nvn_mtl.m
 @@ -49,6 +49,7 @@
@@ -840,7 +840,79 @@ index 156a3ca..e7e51b6 100644
  static void copy_b2t(const p_copy_b2t *c) {
      if (c->tex) zskip_del(c->tex->serial);
      id<MTLTexture> t = tex_mtl(c->tex);
-@@ -5491,6 +5808,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+@@ -5130,7 +5447,7 @@ void mtl_exec(const uint8_t *p) {
+ 
+ // ---------- 出图：交换链贴图画到 CAMetalLayer；可选截图 ----------
+ // ---------- Present: draw the swapchain texture to the CAMetalLayer; optional screenshot ----------
+-static id<MTLRenderPipelineState> g_blit_pso; static MTLPixelFormat g_blit_fmt;
++static id<MTLRenderPipelineState> g_blit_pso, g_blit_psos[2]; static MTLPixelFormat g_blit_fmts[2];
+ static id<MTLSamplerState> g_blit_samp;
+ static uint64_t g_present_n;
+ uint64_t mtl_present_count(void) { return g_present_n; }   // 实际出图次数（发热归因 DM_HEAT 算出图帧率） | Actual present count (heat attribution DM_HEAT computes the present frame rate)
+@@ -5402,26 +5719,37 @@ int mtl_display_hz(void) {
+ static _Atomic uint64_t g_present_stall_ns;   // 单测用：出图线程每次出图前额外停顿（模拟 drawable 迟迟不可用） | For unit tests: an extra pause before each present on the present thread (simulating a drawable that stays unavailable)
+ static CAMetalLayer *g_present_layer_resident;
+ void mtl_present_test_stall(uint64_t ns) { g_present_stall_ns = ns; }
+-static void present_pipeline(MTLPixelFormat format) {
+-    if (!g_blit_pso || g_blit_fmt != format) {
++// 源是 sRGB 贴图、目标不是时要重新编码：采样 sRGB 贴图得到的是线性值，原样写进非 sRGB 的窗口（Mac 图层是 BGRA8Unorm）整幅画面会偏暗、偏浓。
++// 卡比的交换链是 RGBA8 sRGB（NVN 格式 0x38），D2R 的不是，所以只有卡比要走 fs_enc
++// When the source is an sRGB texture and the target is not, re-encode: sampling an sRGB texture yields linear values, and writing them unchanged into a non-sRGB window (the Mac layer is BGRA8Unorm)
++// makes the whole picture darker and more saturated. Kirby's swapchain is RGBA8 sRGB (NVN format 0x38) and D2R's is not, so only Kirby takes fs_enc
++static int pf_srgb(MTLPixelFormat f) { return f == MTLPixelFormatRGBA8Unorm_sRGB || f == MTLPixelFormatBGRA8Unorm_sRGB; }
++static int present_needs_enc(id<MTLTexture> src, MTLPixelFormat dst) { return src && pf_srgb(src.pixelFormat) && !pf_srgb(dst); }
++static void present_pipeline(MTLPixelFormat format, int enc) {
++    if (!g_blit_psos[enc] || g_blit_fmts[enc] != format) {
+         static const char *src_msl =
+             "#include <metal_stdlib>\nusing namespace metal;\n"
+             "struct V { float4 p [[position]]; float2 uv; };\n"
+             "vertex V vs(uint id [[vertex_id]]) { float2 uv = float2((id << 1) & 2, id & 2); V o; o.p = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1); o.uv = uv; return o; }\n"
+             "struct Crop { float4 rect; float4 edge; };\n"
+-            "fragment float4 fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], constant Crop& c [[buffer(0)]]) { return t.sample(s, clamp(in.uv * c.rect.zw + c.rect.xy, c.edge.xy, c.edge.zw)); }\n";
++            "fragment float4 fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], constant Crop& c [[buffer(0)]]) { return t.sample(s, clamp(in.uv * c.rect.zw + c.rect.xy, c.edge.xy, c.edge.zw)); }\n"
++            "fragment float4 fs_enc(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], constant Crop& c [[buffer(0)]]) {\n"
++            "  float4 v = t.sample(s, clamp(in.uv * c.rect.zw + c.rect.xy, c.edge.xy, c.edge.zw)); float3 l = saturate(v.rgb);\n"
++            "  return float4(select(1.055 * pow(l, 1.0 / 2.4) - 0.055, l * 12.92, l <= 0.0031308), v.a); }\n";
+         NSError *e = nil;
+         id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src_msl) options:nil error:&e];
+         if (!lib) MDIE("出图着色器编译失败 %s", e.localizedDescription.UTF8String);
+         MTLRenderPipelineDescriptor *pd = [MTLRenderPipelineDescriptor new];
+-        pd.vertexFunction = [lib newFunctionWithName:@"vs"]; pd.fragmentFunction = [lib newFunctionWithName:@"fs"];
++        pd.vertexFunction = [lib newFunctionWithName:@"vs"]; pd.fragmentFunction = [lib newFunctionWithName:enc ? @"fs_enc" : @"fs"];
+         pd.colorAttachments[0].pixelFormat = format;
+-        g_blit_pso = [g_dev newRenderPipelineStateWithDescriptor:pd error:&e];
+-        if (!g_blit_pso) MDIE("出图管线失败 %s", e.localizedDescription.UTF8String);
+-        g_blit_fmt = format;
++        g_blit_psos[enc] = [g_dev newRenderPipelineStateWithDescriptor:pd error:&e];
++        if (!g_blit_psos[enc]) MDIE("出图管线失败 %s", e.localizedDescription.UTF8String);
++        g_blit_fmts[enc] = format;
++        if (enc) MLOG("出图：交换链是 sRGB、窗口不是，出图时重新编码 sRGB");
+         MTLSamplerDescriptor *sd = [MTLSamplerDescriptor new]; sd.minFilter = sd.magFilter = MTLSamplerMinMagFilterLinear; sd.supportArgumentBuffers = YES;
+         g_blit_samp = [g_dev newSamplerStateWithDescriptor:sd];
+     }
++    g_blit_pso = g_blit_psos[enc];
+ }
+ // 出图仅采NVN声明的有效源矩形；与原始交换链读回截图分开。边缘钳到有效区纹素中心，双线性不读外侧黑纹素。
+ // Present samples only the valid source rectangle declared by NVN; kept separate from the raw swapchain readback screenshot. Edges are clamped to the texel centers of the valid area, so bilinear does not read the black texels outside.
+@@ -5438,7 +5766,7 @@ static int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src, id<MTLTex
+     if (memcmp(meta, last_crop, sizeof meta)) { memcpy(last_crop, meta, sizeof meta);
+         MLOG("出图裁切：原纹理 %lux%lu，有效 %lu,%lu %lux%lu → 目标 %lux%lu", (unsigned long)src.width, (unsigned long)src.height,
+              (unsigned long)cx, (unsigned long)cy, (unsigned long)cw, (unsigned long)ch, (unsigned long)dst.width, (unsigned long)dst.height); }
+-    present_pipeline(dst.pixelFormat);
++    present_pipeline(dst.pixelFormat, present_needs_enc(src, dst.pixelFormat));
+     MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
+     // 保持游戏画面宽高比居中，余下留黑边（屏幕比例与游戏不同时不拉伸，如 iPhone 约 19.5:9 对游戏 16:9）；
+     // 比例差 < 1%（全屏口径下游戏宽度取 8 的倍数带来的零头，如 1952x900 对 2868x1320 差 0.17%）直接铺满，不留几像素的边
+@@ -5473,7 +5801,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+         }
+         cx = crop[0]; cy = crop[1]; cw = crop[2]; ch = crop[3];
+     }
+-    present_pipeline(dst.pixelFormat);
++    present_pipeline(dst.pixelFormat, present_needs_enc(src, dst.pixelFormat));
+     double dw = dst.width, dh = dst.height, s = fmin(dw / cw, dh / ch);
+     MTLViewport vp = {floor((dw - cw * s) / 2), floor((dh - ch * s) / 2), round(cw * s), round(ch * s), 0, 1};
+     if (fabs((dw / dh) / ((double)cw / ch) - 1) < 0.01) vp = (MTLViewport){0, 0, dw, dh, 0, 1};
+@@ -5491,6 +5819,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
      [g_present_args setSamplerState:g_blit_samp.gpuResourceID atIndex:0];
      float *uv = g_present_uv[uv_i].contents;
      uv[0] = (float)cx / src.width; uv[1] = (float)cy / src.height; uv[2] = (float)cw / src.width; uv[3] = (float)ch / src.height;
@@ -848,7 +920,7 @@ index 156a3ca..e7e51b6 100644
      uv[4] = (cx + 0.5f) / src.width; uv[5] = (cy + 0.5f) / src.height; uv[6] = (cx + cw - 0.5f) / src.width; uv[7] = (cy + ch - 0.5f) / src.height;
      [g_present_args setAddress:g_present_uv[uv_i].gpuAddress atIndex:0];
      [en setViewport:vp]; [en setRenderPipelineState:g_blit_pso];
-@@ -5545,6 +5863,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -5545,6 +5874,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
          nshot = 0; const char *e = getenv("DM_NVN_SHOT"), *c = e ? strchr(e, ':') : NULL;
          if (c) { shot_path = c + 1; for (const char *q = e; q < c && nshot < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : c) shots[nshot++] = atol(q); }
      }
@@ -861,6 +933,15 @@ index 156a3ca..e7e51b6 100644
      for (int i = 0; i < nshot; i++) if ((long)g_present_n == shots[i]) { char path[1024]; snprintf(path, sizeof path, shot_path, (int)g_present_n); mtl_finish_gpu(); shot(src, path, 1, crop); }
      pthread_mutex_lock(&g_shotq_mu);
      for (int i = 0; i < g_nshotq;) if (g_present_n >= g_shotq[i].frame) { mtl_finish_gpu(); shot(src, g_shotq[i].path, 1, crop); g_shotq[i] = g_shotq[--g_nshotq]; } else i++;
+@@ -5556,7 +5891,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+ #if TARGET_OS_OSX
+     if (!layer.displaySyncEnabled) layer.displaySyncEnabled = YES;   // 窗口模式按显示器垂直同步，防撕裂 | Windowed mode follows the display's vsync to prevent tearing
+ #endif
+-    present_pipeline(layer.pixelFormat);   // 和原路径一样，首帧编管线在取drawable之前 | Same as the original path: the first frame compiles the pipeline before taking the drawable
++    present_pipeline(layer.pixelFormat, present_needs_enc(src, layer.pixelFormat));   // 和原路径一样，首帧编管线在取drawable之前 | Same as the original path: the first frame compiles the pipeline before taking the drawable
+     if (g_grab_cb) grab_present(src, crop, layer.drawableSize);   // 整窗截图要的游戏画面（不加锁先看一眼，真取在函数里加锁） | Game picture needed by the whole-window screenshot (peek without the lock first; the real take locks inside the function)
+     uint64_t dt0 = now_ns();
+     id<CAMetalDrawable> dr = supplied ? supplied : [layer nextDrawable];
 diff --git a/dm/gfx/nvn/nvn_obj.h b/dm/gfx/nvn/nvn_obj.h
 index ee45b29..f21bd23 100644
 --- a/dm/gfx/nvn/nvn_obj.h
