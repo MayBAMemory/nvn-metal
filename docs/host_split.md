@@ -6,9 +6,9 @@
 
 不复制 `dm/host`，也不大改 D2R 的代码。卡比的宿主 `kirbyhost` 由三部分组成：
 
-1. **`dm/host` 的通用文件**：直接引用原文件编译（`kirby/host/Makefile` 的 `HOST`）。
+1. **`dm/host` 的通用文件**：直接引用原文件编译（`host/Makefile` 的 `HOST`）。
 2. **`dm/gfx` 全部**：和 D2R 一样。
-3. **`kirby/host/` 下的卡比文件**：
+3. **`host/` 下的卡比文件**：
 
 | 文件 | 取代 D2R 的哪个文件 | 内容 |
 |---|---|---|
@@ -16,7 +16,7 @@
 | `hle_hid_kirby.c` | `dm/host/hle_hid.c` | 手柄、体感、触屏。D2R 那份和触屏界面、按键脚本缠在一起；卡比导入了 36 个 hid 函数，D2R 只接了 13 个 |
 | `kirby_glue.c` | `diag.c`、`dm_*.c`、`hle_tact.c`、`touch_mac.c` 等 | 共用文件会调到这些 D2R 文件里的函数，这里给出中性的垫片（不碰游戏内存） |
 | `hle_audio_kirby.c` | （补充 `hle_audio.c`，不取代） | 卡比走的 AudioOut 和音频设备入口，D2R 没有覆盖，见 `docs/audio.md` |
-| `hle_misc_kirby.c` | （补充，不取代） | 卡比用到、D2R 没覆盖、会连系统服务的零散接口：文件系统 5 个、运行环境 6 个、显示 3 个、时间 3 个、Opus 2 个、设置 1 个、账号 4 个。由 `kirby/tools/svc_reach.py` 静态筛出；只在游戏进程里算的接口不接 |
+| `hle_misc_kirby.c` | （补充，不取代） | 卡比用到、D2R 没覆盖、会连系统服务的零散接口：文件系统 5 个、运行环境 6 个、显示 3 个、时间 3 个、Opus 2 个、设置 1 个、账号 4 个。由 `tools/svc_reach.py` 静态筛出；只在游戏进程里算的接口不接 |
 | `hle_movie_kirby.c` | `dm/host/hle_movie.c` | 卡比的播放器协议和 D2R 不同（槽 2 打开，再按轨道选取）。第一版报 0 条轨道，其余虚槽被调用就报名中止；`Buffer` 和 `MediaData` 全部改用宿主布局 |
 
 **不编的 D2R 专属文件**：`main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c hle_movie.c touch_mac.c romfs_validate.c`，以及 `dm/host/dm_*.c` 全部（共约 1.3 万行）。
@@ -35,16 +35,16 @@
 
 ## 关键发现
 
-1. **D2R 有 67 个强制接管条目在卡比里没有被任何重定位引用**（`kirby/tools/reloc_refs.py`，结果在 `D:\kirby-work\reloc_refs.txt`，2.8 MB，不进 git；重新生成：`python -I kirby/tools/reloc_refs.py D:\kirby-work\reloc_refs.txt D:\kirby-work\img\main.img D:\kirby-work\img\sdk.img D:\kirby-work\img\subsdk0.img`）。装载器原来的规矩是「登记了却没被引用就中止」，所以共用 D2R 的 `hle_*.c` 时必须放宽，上表最后一行就是为此改的。
+1. **D2R 有 67 个强制接管条目在卡比里没有被任何重定位引用**（`tools/reloc_refs.py`，结果在 `D:\kirby-work\reloc_refs.txt`，2.8 MB，不进 git；重新生成：`python -I tools/reloc_refs.py D:\kirby-work\reloc_refs.txt D:\kirby-work\img\main.img D:\kirby-work\img\sdk.img D:\kirby-work\img\subsdk0.img`）。装载器原来的规矩是「登记了却没被引用就中止」，所以共用 D2R 的 `hle_*.c` 时必须放宽，上表最后一行就是为此改的。
    K02 用的是「SDK 导出表里有没有这个名字」，这个标准太宽：导出不等于被引用。**以后判断「某个强制接管会不会命中」，一律以 `D:\kirby-work\reloc_refs.txt` 为准。**
 2. **卡比的 SDK 和 D2R 的 SDK 布局相同**，至少抽查的两处地址完全一样：`nn::init::Start` 都在 `sdk+0x2b0470`，`StandardAllocator::Allocate` 都在 `sdk+0x2f9974`。NSO 文件的哈希不同，大概是文件头里的构建信息不同。这意味着 D2R 在 SDK 层面（内核调用、线程、同步）踩过的坑，卡比大概率完全一样，宿主的这部分可以放心复用。
-3. 卡比 SDK 的 `nn::init::Start` 反汇编结果与 `kirby_main.c` 的启动顺序逐条一致（`kirby/tools/sdis_sym.py` 可以复查）。
+3. 卡比 SDK 的 `nn::init::Start` 反汇编结果与 `kirby_main.c` 的启动顺序逐条一致（`tools/sdis_sym.py` 可以复查）。
 4. 共用文件里还有几处 D2R 的痕迹只影响外观：窗口标题「D2R Mobile」（`front_mac.m`）、`app_mac.m` 的双击启动流程、`hle_fdstat.c` 的路径分类。先不动。
 
 ## 已知风险（编译和运行时才能确认）
 
 - **依赖扫描是用正则做的**，不是编译器。宏展开出来的引用可能漏掉；如果链接时报缺符号，就补进 `kirby_glue.c`，并在本文记一笔。
-- **K08 会新增 `kirby/host/hle_offline.c`**，它会被 Makefile 的通配自动编进来。里面的名字不能和 D2R 的 `hle_net.c`、`hle_friends.c`、`hle_misc.c`、`hle_account.c` 重复：强制接管表重名的话，装载时会中止。验收 K08 时要逐个对照。
+- **K08 会新增 `host/hle_offline.c`**，它会被 Makefile 的通配自动编进来。里面的名字不能和 D2R 的 `hle_net.c`、`hle_friends.c`、`hle_misc.c`、`hle_account.c` 重复：强制接管表重名的话，装载时会中止。验收 K08 时要逐个对照。
 - 过场动画（`hle_movie_kirby.c`）：报 0 条轨道之后，播放器会不会体面地收尾，要运行时确认。如果它一直等着，就改成报一条假的视频轨，并照 D2R 的方式按时长发「播完」。
 - `hle_audio.c` 是 AudioOut；卡比用 AudioRenderer，这部分接口目前全部没有接管，由 H2 负责。
 - 真机上，SDK 函数一旦走到进程间通信（svc 0x21 SendSyncRequest），宿主就没有分派。K04 列出了 27 个 D2R 没处理的 svc 号。H4 运行时逐个暴露，逐个接管。

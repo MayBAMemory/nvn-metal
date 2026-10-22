@@ -2,7 +2,7 @@
 
 目标：把卡比宿主 `kirbyhost` 的全部源码按 **arm64** 编译、链接一遍，修到 0 错误。Intel Mac 跑不了游戏，Apple 芯片的 Mac 才能跑。这一步只为提前清掉编译和链接问题。
 
-先读 `kirby/README.md`、`kirby/TASKS.md`、`kirby/docs/host_split.md`。
+先读 `kirby/README.md`、`kirby/TASKS.md`、`docs/host_split.md`。
 
 ## 前提
 
@@ -18,17 +18,17 @@ make -C kirby/host check            # 逐个文件 -arch arm64 -fsyntax-only，�
 make -C kirby/host ARCH="-arch arm64"   # 编译 + 链接出 kirbyhost（arm64，在 Intel 上不能运行）
 ```
 
-`kirby/host/Makefile` 的 `check` 目标也会检查 `.m`（Objective-C）文件，Windows 上的 `kirby/tools/syntax_check.py` 查不到这些：`dm/gfx/nvn/nvn_mtl.m`、`front_mac.m`、`app_mac.m`、`memstat.m`、`dm_gamepad.m`。
+`host/Makefile` 的 `check` 目标也会检查 `.m`（Objective-C）文件，Windows 上的 `tools/syntax_check.py` 查不到这些：`dm/gfx/nvn/nvn_mtl.m`、`front_mac.m`、`app_mac.m`、`memstat.m`、`dm_gamepad.m`。
 
 ## 修错的规矩
 
 - 先分清错在哪一边：
-  - 卡比专属文件（`kirby/host/`）可以直接改。
+  - 卡比专属文件（`host/`）可以直接改。
   - D2R 共用文件（`dm/`）只修编译错误本身，不改行为。凡是 D2R 专属的逻辑，一律用 `dm_game_d2r()` 隔开，见 `docs/host_split.md`。
-- 链接时报缺符号：缺的如果是 D2R 专属文件里的函数，就在 `kirby/host/kirby_glue.c` 里补一个中性的垫片，并在 `docs/host_split.md` 里记一笔。
-- 链接时报符号重复：一般是 `kirby/host/` 下的文件和 `dm/host` 的共用文件定义了同一个函数。保留一处。
+- 链接时报缺符号：缺的如果是 D2R 专属文件里的函数，就在 `host/kirby_glue.c` 里补一个中性的垫片，并在 `docs/host_split.md` 里记一笔。
+- 链接时报符号重复：一般是 `host/` 下的文件和 `dm/host` 的共用文件定义了同一个函数。保留一处。
 - **D2R 自己的构建**（`make -C dm/host`）要用 D2R 的游戏文件生成几个表头，这台机器上没有，所以不要求编过。对 `dm/` 的改动，至少要保证 `make -C kirby/host check` 能过。
-- 每修完一批就提交到 `kirby` 分支，提交信息以 `H4-mac:` 开头。修完后写 `kirby/reports/H4-intel-mac.md`：改了什么、为什么、还剩什么。
+- 每修完一批就提交到 `kirby` 分支，提交信息以 `H4-mac:` 开头。修完后写 `reports/H4-intel-mac.md`：改了什么、为什么、还剩什么。
 
 ## 做完以后
 

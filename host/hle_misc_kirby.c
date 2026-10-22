@@ -1,7 +1,7 @@
 // 卡比用到、D2R 的 hle_*.c 没覆盖、真机上会连系统服务的零散接口（文件系统、运行环境、显示、时间、Opus、设置、账号）。
-// 清单与分类依据：kirby/tools/svc_reach.py（静态判断会不会走到服务代理），见 kirby/docs/host_split.md。只在游戏进程里算的接口不接，原样跑 SDK。
+// 清单与分类依据：tools/svc_reach.py（静态判断会不会走到服务代理），见 docs/host_split.md。只在游戏进程里算的接口不接，原样跑 SDK。
 // Miscellaneous interfaces Kirby uses that D2R's hle_*.c does not cover and that reach system services on the real device (file system, operating environment, display, time, Opus, settings, account).
-// List and classification: kirby/tools/svc_reach.py (static check of whether a service proxy is reached), see kirby/docs/host_split.md. Interfaces computed purely inside the game process are not taken over and run the SDK as is.
+// List and classification: tools/svc_reach.py (static check of whether a service proxy is reached), see docs/host_split.md. Interfaces computed purely inside the game process are not taken over and run the SDK as is.
 #include "hle.h"
 #include <time.h>
 

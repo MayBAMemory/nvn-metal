@@ -10,8 +10,8 @@
 
 ```powershell
 $env:DOTNET_ROOT = "C:\Users\hy367\scoop\apps\dotnet-sdk\current"
-python -I kirby/tools/main_shaders.py D:\kirby-work\img\main.img D:\kirby-work\shaders   # main 内嵌的 49 份，只需跑一次
-python -I kirby/tools/kirby_shlib.py --shaders D:\kirby-work\shaders --out D:\kirby-work\shlib
+python -I tools/main_shaders.py D:\kirby-work\img\main.img D:\kirby-work\shaders   # main 内嵌的 49 份，只需跑一次
+python -I tools/kirby_shlib.py --shaders D:\kirby-work\shaders --out D:\kirby-work\shlib
 ```
 
 约 10 分钟。产物：
@@ -33,7 +33,7 @@ python -I kirby/tools/kirby_shlib.py --shaders D:\kirby-work\shaders --out D:\ki
 | 作答表 | `shader_facts.tsv`（按 PC 版反射人工维护） | **不需要** | K07：翻译器没有问过贴图类型和格式 |
 | 计算着色器的线程组 | 取自 PC 版反射 | **`ctrl+0x748/0x74c/0x750` = X/Y/Z，`ctrl+0x754` = 共享内存字节数** | 对比全部 72 个计算控制段得出：主要是 (32,1,1)，另有 (8,5,1)、(8,5,4)；共享内存 0x280 到 0x680。53 个计算着色器用到共享内存，K07 试翻译时按 0 处理是错的，正式出库已改正 |
 | 翻译选项 | `debug` 开、`reduced` 开 | 相同 | 开 `debug` 顺带解决了 K07 里那 3 个顶点着色器的翻译器异常 |
-| `main` 内嵌着色器 | 4 个计算核，手写 MSL（`nvn_builtin.h`） | `main` 里 3 个 BNSH 容器（`main+0xa07000`、`+0xa17000`、`+0xa1f000`），49 个新组合，**直接走同一条翻译链** | `kirby/tools/main_shaders.py`，索引在 `analysis/kirby_shaders.main.tsv` |
+| `main` 内嵌着色器 | 4 个计算核，手写 MSL（`nvn_builtin.h`） | `main` 里 3 个 BNSH 容器（`main+0xa07000`、`+0xa17000`、`+0xa1f000`），49 个新组合，**直接走同一条翻译链** | `tools/main_shaders.py`，索引在 `analysis/kirby_shaders.main.tsv` |
 | 没有 Metal 编译器 | `nometal_run.py`：库文件里放源码，设备上现编 | 同样做法 | |
 
 ## 还没做 / 已知缺口

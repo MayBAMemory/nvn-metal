@@ -1,9 +1,9 @@
 // 卡比 iOS 外壳的入口：开日志、找 RomFS、设好宿主要读的环境变量，场景到前台后在 64 MB 栈的线程上调 dm_main
-// （kirby/host/kirby_main.c 以 -Dmain=dm_main 编入）。改写后的模块映像在构建时就编进了可执行文件（dm/ios/tools/gen_embed.py），
+// （host/kirby_main.c 以 -Dmain=dm_main 编入）。改写后的模块映像在构建时就编进了可执行文件（dm/ios/tools/gen_embed.py），
 // 装载器在 iOS 上只把这些段 remap 回原布局，不在运行时写代码页——iOS 不许。
 // 参照 dm/ios/Sources/main.m（D2R）的 boot_prepare / boot_thread；D2R 的存档同步、资源下载、覆盖层、补充包、测试探针都不要。
 // Entry of Kirby's iOS shell: opens the log, finds the RomFS, sets the environment variables the host reads, and once the scene is in the foreground calls
-// dm_main on a 64 MB-stack thread (kirby/host/kirby_main.c is built in with -Dmain=dm_main). The rewritten module images are compiled into the executable at
+// dm_main on a 64 MB-stack thread (host/kirby_main.c is built in with -Dmain=dm_main). The rewritten module images are compiled into the executable at
 // build time (dm/ios/tools/gen_embed.py); on iOS the loader only remaps those segments back to the original layout and never writes code pages at run time -- iOS forbids that.
 // Modelled on boot_prepare / boot_thread in dm/ios/Sources/main.m (D2R); D2R's save sync, asset download, overlays, legacy pack and test probes are all left out.
 #import <UIKit/UIKit.h>
@@ -125,7 +125,7 @@ static void host_start(void) {   // 主线程；场景第一次到前台时调 |
     [super viewDidLoad]; self.view.backgroundColor = UIColor.blackColor;
     UILabel *l = [UILabel new]; l.numberOfLines = 0; l.textColor = UIColor.whiteColor; l.font = [UIFont systemFontOfSize:15];
     l.text = @"没找到游戏资源（RomFS）。\n\n"
-              "办法一（开发）：在 Mac 上运行  kirby/ios/run.sh romfs <RomFS 目录>\n"
+              "办法一（开发）：在 Mac 上运行  ios/run.sh romfs <RomFS 目录>\n"
               "办法二：用 Finder 或「文件」App 把整个 RomFS 文件夹拷进本 App 的文稿目录（文件夹里要有 gfx 和 shader）。\n\n"
               "拷好后把 App 完全退出再打开。";
     l.translatesAutoresizingMaskIntoConstraints = NO; [self.view addSubview:l];

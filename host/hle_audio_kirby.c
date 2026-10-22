@@ -1,10 +1,10 @@
 // nn::audio（卡比）：补 D2R 的 dm/host/hle_audio.c 没覆盖的几个入口。
-// 卡比的声音链（反汇编核对，见 kirby/docs/audio.md）：游戏把 AudioRendererParameter 的「渲染设备 = CPU、执行方式 = 手动」都设成 1
+// 卡比的声音链（反汇编核对，见 docs/audio.md）：游戏把 AudioRendererParameter 的「渲染设备 = CPU、执行方式 = 手动」都设成 1
 // （main+0x4596cc），SDK 于是在本进程里跑混音器（CreateAudioRendererManagerByDfc，不连 audren 服务）；游戏自己调
 // ExecuteAudioRendererRendering 出一帧、ReadCircularBufferSink 读出 PCM，再 AppendAudioOutBuffer 交给 AudioOut。
 // 所以混音器不用宿主实现，只要 AudioOut（D2R 已接 CoreAudio）和下面这几处会连系统服务的入口。
 // nn::audio (Kirby): fills the few entries D2R's dm/host/hle_audio.c does not cover.
-// Kirby's audio chain (checked by disassembly, see kirby/docs/audio.md): the game sets both "rendering device = CPU" and "execution mode = manual"
+// Kirby's audio chain (checked by disassembly, see docs/audio.md): the game sets both "rendering device = CPU" and "execution mode = manual"
 // of AudioRendererParameter to 1 (main+0x4596cc), so the SDK runs the mixer inside this process (CreateAudioRendererManagerByDfc, no audren service);
 // the game itself calls ExecuteAudioRendererRendering for one frame, reads the PCM with ReadCircularBufferSink, then hands it to AudioOut with AppendAudioOutBuffer.
 // So the host does not implement the mixer; it only needs AudioOut (D2R already wired to CoreAudio) plus the entries below that would reach system services.

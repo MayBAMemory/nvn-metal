@@ -8,7 +8,10 @@ import csv
 import re
 import sys
 from collections import Counter
+import os
 from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]                                       # 本仓库根 | this repository
+DMROOT = Path(os.environ.get('D2R_MOBILE', ROOT.parent / 'd2r-mobile')).resolve()   # 上游 d2r-mobile 检出 | upstream checkout
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from imports_compare import strip_comments
 
@@ -103,18 +106,18 @@ def policy(row):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--repo',type=Path,default=Path(__file__).resolve().parents[2]);ap.add_argument('--refs',type=Path,required=True)
+    ap.add_argument('--repo',type=Path,default=DMROOT);ap.add_argument('--refs',type=Path,required=True)
     args=ap.parse_args();repo=args.repo
-    imports=list(csv.DictReader((repo/'kirby/analysis/imports_main.tsv').open(encoding='utf-8'),delimiter='\t'))
+    imports=list(csv.DictReader((ROOT/'analysis/imports_main.tsv').open(encoding='utf-8'),delimiter='\t'))
     selected=[r for r in imports if r['ns'] in NAMESPACES or r['mangled'].startswith('glslc')]
     refs=set(args.refs.read_text(encoding='utf-8').splitlines())
     existing={}
     for file in SHARED:
-        text=strip_comments((repo/'dm/host'/file).read_text(encoding='utf-8'))
+        text=strip_comments((DMROOT/'dm/host'/file).read_text(encoding='utf-8'))
         for name in re.findall(r'"((?:_Z|nnssl|nnsocket)[^"\n]+)"',text):existing[name]=file
     # Include direct registrations from K02 as requested; scan quoted mangled names
     # as well, because SKF/SSF/SSC helper macros are not expanded by that old table.
-    for row in csv.DictReader((repo/'kirby/analysis/d2r_hle_in_kirby.tsv').open(encoding='utf-8'),delimiter='\t'):
+    for row in csv.DictReader((ROOT/'analysis/d2r_hle_in_kirby.tsv').open(encoding='utf-8'),delimiter='\t'):
         if Path(row['d2r_file']).name in SHARED:existing[row['name']]=Path(row['d2r_file']).name
     source=['// Kirby offline service draft (K08). Original policies; no third-party code copied.',
             '// ABI: narrow bool/enum arguments use int/unsigned; no native C varargs.',
@@ -138,7 +141,7 @@ def main():
             source += [line,''];registered.append(name)
         else:source += ['// No new registration: '+strategy,'']
         rows.append([name,row['demangled'],row['ns'],strategy,behaviour,evidence,int(name in refs)])
-    docs=repo/'kirby/docs';host=repo/'kirby/host';docs.mkdir(exist_ok=True);host.mkdir(exist_ok=True)
+    docs=ROOT/'docs';host=ROOT/'host';docs.mkdir(exist_ok=True);host.mkdir(exist_ok=True)
     with (docs/'offline_stubs.tsv').open('w',encoding='utf-8',newline='') as f:
         writer=csv.writer(f,delimiter='\t',lineterminator='\n')
         writer.writerow(['mangled','demangled','namespace','strategy','behaviour','evidence','relocated']);writer.writerows(rows)

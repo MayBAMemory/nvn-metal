@@ -1,5 +1,5 @@
 """Read dynamic symbols and relocations from an NSO memory image.
-Based on kirby/tools/imports.py and the ELF64 layout; returns addresses as well.
+Based on tools/imports.py and the ELF64 layout; returns addresses as well.
 """
 import struct
 

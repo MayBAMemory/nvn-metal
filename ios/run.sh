@@ -1,18 +1,20 @@
 #!/bin/bash
 # 卡比 iOS App：出包、编着色器、装机、推 RomFS、启动并拉日志。参照 dm/ios/run.sh（D2R）。
 # 用法（在任意目录）：
-#   kirby/ios/run.sh shaders            Windows 出的着色器库（${KIRBY_SHLIB}）→ iOS 版 metallib（${KIRBY_SHLIB_IOS}）；只在着色器库更新后跑
-#   kirby/ios/run.sh build              生成工程并构建（要 $KIRBY_PATCHED 和 ${KIRBY_SHLIB_IOS}）
-#   KIRBY_NO_GAME=1 kirby/ios/run.sh build   不带游戏内容只编外壳和宿主（没有游戏文件时检查编译 / 链接 / 签名用；装上也跑不了）
-#   kirby/ios/run.sh install            装到手机
-#   kirby/ios/run.sh romfs [RomFS 目录]  把 RomFS 推进 App 的 Library/Application Support/romfs（缺省 $KIRBY_WORK/RomFS）
-#   kirby/ios/run.sh run [上限秒]        启动并把 Documents/boot.txt 持续拉回到 $KIRBY_WORK/run/boot.txt（缺省 120 秒）
-#   kirby/ios/run.sh log                只拉一次日志
-# 本机配置：kirby/ios/local.env（不进仓，样例 local.env.example）。
+#   ios/run.sh shaders            Windows 出的着色器库（${KIRBY_SHLIB}）→ iOS 版 metallib（${KIRBY_SHLIB_IOS}）；只在着色器库更新后跑
+#   ios/run.sh build              生成工程并构建（要 $KIRBY_PATCHED 和 ${KIRBY_SHLIB_IOS}）
+#   KIRBY_NO_GAME=1 ios/run.sh build   不带游戏内容只编外壳和宿主（没有游戏文件时检查编译 / 链接 / 签名用；装上也跑不了）
+#   ios/run.sh install            装到手机
+#   ios/run.sh romfs [RomFS 目录]  把 RomFS 推进 App 的 Library/Application Support/romfs（缺省 $KIRBY_WORK/RomFS）
+#   ios/run.sh run [上限秒]        启动并把 Documents/boot.txt 持续拉回到 $KIRBY_WORK/run/boot.txt（缺省 120 秒）
+#   ios/run.sh log                只拉一次日志
+# 本机配置：ios/local.env（不进仓，样例 local.env.example）。
 # Kirby iOS App: build, compile shaders, install, push the RomFS, launch and pull the log. Modelled on dm/ios/run.sh (D2R). See the usage lines above.
 set -u
 cd "$(dirname "$0")"
-IOS=$(pwd); REPO=$(cd ../.. && pwd)
+IOS=$(pwd); ROOT=$(cd .. && pwd)
+# 上游 d2r-mobile 检出（dm/ 不在本仓库）；放在别处就设 D2R_MOBILE
+DMROOT=${D2R_MOBILE:-$ROOT/../d2r-mobile}
 [ -f local.env ] && { set -a; source local.env; set +a; }
 W=${KIRBY_WORK:-$HOME/kirby-work}
 PATCHED=${KIRBY_PATCHED:-$W/patched}; SHLIB=${KIRBY_SHLIB:-$W/shlib}; SHLIB_IOS=${KIRBY_SHLIB_IOS:-$W/shlib_ios}
@@ -21,9 +23,9 @@ BLD=${KIRBY_BUILD_DIR:-$W/build}
 APP=$BLD/sym/Release-iphoneos/KirbyIOS.app
 MODS="main sdk subsdk0"
 t(){ echo "[$(date +%T)] $*"; }
-need(){ local v miss=; for v in "$@"; do [ -n "${!v:-}" ] || miss="$miss $v"; done; [ -z "$miss" ] || { t "🔴 缺本机配置：${miss}（复制 kirby/ios/local.env.example 成 kirby/ios/local.env 再填）"; exit 1; }; }
+need(){ local v miss=; for v in "$@"; do [ -n "${!v:-}" ] || miss="$miss $v"; done; [ -z "$miss" ] || { t "🔴 缺本机配置：${miss}（复制 ios/local.env.example 成 ios/local.env 再填）"; exit 1; }; }
 D=${KIRBY_DEVICE:-}; B=${KIRBY_BUNDLE_ID:-}
-V=$(sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p' "$REPO/dm/gfx/nvn/dmsh_chain.h")
+V=$(sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p' "$DMROOT/dm/gfx/nvn/dmsh_chain.h")
 
 case "${1:-}" in
 shaders)
@@ -39,7 +41,7 @@ build)
   else
     for m in $MODS; do for f in patched.bin fixups.tsv gates.tsv; do
       [ -f "$PATCHED/$m.$f" ] || { t "🔴 缺 $PATCHED/$m.${f}（K04 的改写产物，Windows 上在 D:\\kirby-work\\patched）"; exit 1; }; done; done
-    F=$(python3 -I "$REPO/dm/ios/tools/gen_embed.py" "$PATCHED" Gen/embed.S $MODS) || { t "🔴 gen_embed 失败"; exit 1; }
+    F=$(python3 -I "$DMROOT/dm/ios/tools/gen_embed.py" "$PATCHED" Gen/embed.S $MODS) || { t "🔴 gen_embed 失败"; exit 1; }
     echo "OTHER_LDFLAGS = \$(inherited) \$(KIRBY_FRAMEWORKS) $F" >> Gen/kirby.xcconfig
     for m in $MODS; do cp "$PATCHED/$m.fixups.tsv" "$PATCHED/$m.gates.tsv" Gen/dm/; done
     [ -f "$SHLIB_IOS/shader_map.tsv" ] && ls "$SHLIB_IOS/b-$V" 2>/dev/null | grep -q '_b.metallib$' || { t "🔴 缺 iOS 版着色器 $SHLIB_IOS/b-${V}（先跑 run.sh shaders；翻译链版本 ${V}）"; exit 1; }
@@ -65,7 +67,7 @@ build)
   xcodebuild -project KirbyIOS.xcodeproj -target KirbyIOS -configuration Release -sdk iphoneos -arch arm64 \
     SYMROOT="$BLD/sym" OBJROOT="$BLD/obj" "${SIGN[@]}" KIRBY_BUILD_NUMBER=${BN:-1} build > "$R/build.log" 2>&1 || {
       t "🔴 构建失败"; grep -E "error:|Undefined symbols|ld: " "$R/build.log" | sort -u | head -20
-      grep -qE 'no devices from which to generate a provisioning profile|has no devices' "$R/build.log" && t "原因：开发者团队名下还没有登记这台手机。见 kirby/ios/README.md「签名」"
+      grep -qE 'no devices from which to generate a provisioning profile|has no devices' "$R/build.log" && t "原因：开发者团队名下还没有登记这台手机。见 ios/README.md「签名」"
       exit 1; }
   du -sh "$APP" | awk '{print "App 大小 " $1}'; t "构建完成：$APP" ;;
 

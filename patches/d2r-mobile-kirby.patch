@@ -1,0 +1,976 @@
+diff --git a/dm/gfx/nvn/hle_nvn.c b/dm/gfx/nvn/hle_nvn.c
+index d64e95f..a2b1196 100644
+--- a/dm/gfx/nvn/hle_nvn.c
++++ b/dm/gfx/nvn/hle_nvn.c
+@@ -164,7 +164,8 @@ NVN(nvnDeviceGetSeparateSamplerHandle, NVNseparateSamplerHandle, const NVNdevice
+ NVN(nvnDeviceInstallDebugCallback, void, NVNdevice *d, const PFNNVNDEBUGCALLBACKPROC cb, void *data, uint32_t enable) {
+     dev_t_ *o = (dev_t_ *)d; o->dbg_cb = B(enable) ? (void *)cb : NULL; o->dbg_data = data;
+ }
+-NVN(nvnDeviceSetWindowOriginMode, void, NVNdevice *d, NVNwindowOriginMode m) { ((dev_t_ *)d)->origin = m; LOG("[nvn] 窗口原点 %s", m ? "左上（同 D3D / Metal）" : "左下（GL）"); }
++extern int g_nvn_gl_origin;   // nvn_mtl.m
++NVN(nvnDeviceSetWindowOriginMode, void, NVNdevice *d, NVNwindowOriginMode m) { ((dev_t_ *)d)->origin = m; g_nvn_gl_origin = m == 0; LOG("[nvn] 窗口原点 %s", m ? "左上（同 D3D / Metal）" : "左下（GL）"); }
+ NVN(nvnDeviceSetDepthMode, void, NVNdevice *d, NVNdepthMode m) { ((dev_t_ *)d)->depth_mode = m; LOG("[nvn] 深度模式 %s", m ? "近=0（同 D3D / Metal）" : "近=-w（GL）"); }
+ NVN(nvnDeviceFinalizeCommandHandle, void, NVNdevice *d, NVNcommandHandle h) { (void)d; (void)h; }
+ 
+@@ -299,6 +300,23 @@ NVN(nvnTextureReadTexelsStrided, void, const NVNtexture *t, const NVNtextureView
+     read_texels(CTX(t), (const view_t *)v, r, dst, row, img);
+ }
+ NVN(nvnTextureInvalidateTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { (void)t; (void)v; (void)r; }
++// CPU 写贴图（卡比的字形缓存用，D2R 不调）：WriteTexels 与 ReadTexels 对称；FlushTexels 是把 CPU 缓存写回给 GPU，宿主的统一内存不需要
++// CPU texture write (used by Kirby's glyph cache, never called by D2R): WriteTexels mirrors ReadTexels; FlushTexels writes CPU caches back for the GPU, which the host's unified memory does not need
++static void write_texels(const tex_t *o, const view_t *v, const NVNcopyRegion *r, const uint8_t *src, ptrdiff_t row, ptrdiff_t img) {
++    int bw, bh, bpb = nvn_fmt_bpb(o->d.format, &bw, &bh);
++    uint32_t wb = (uint32_t)((r->width + bw - 1) / bw) * bpb, hb = (uint32_t)(r->height + bh - 1) / bh;
++    if (!row) row = wb;
++    if (!img) img = row * hb;
++    unsigned level = v && v->set_levels ? (unsigned)v->base_level : 0, layer0 = v && v->set_layers ? (unsigned)v->min_layer : 0;
++    mtl_write_texels(o, level, layer0, r, src, (size_t)row, (size_t)img);
++}
++NVN(nvnTextureWriteTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, const void *src) {
++    write_texels(CTX(t), (const view_t *)v, r, src, 0, 0);
++}
++NVN(nvnTextureWriteTexelsStrided, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, const void *src, ptrdiff_t row, ptrdiff_t img) {
++    write_texels(CTX(t), (const view_t *)v, r, src, row, img);
++}
++NVN(nvnTextureFlushTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { (void)t; (void)v; (void)r; }
+ 
+ // ---------- 采样器 ----------
+ // ---------- Samplers ----------
+@@ -749,7 +767,11 @@ void dm_gfx_suspend(int on) {
+     pthread_mutex_unlock(&g_susp_mu);
+     if (on) { mtl_drain(); LOG("[nvn] 图形挂起：在途 GPU 工作已清空"); } else LOG("[nvn] 图形恢复");
+ }
++// 最近一次提交命令的线程：采样分析器（kirby/host/kirby_prof.c）只打断它 | thread of the latest command submission: the sampling profiler (kirby/host/kirby_prof.c) interrupts only it
++#include <pthread.h>
++pthread_t g_nvn_submit_thread;
+ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
++    g_nvn_submit_thread = pthread_self();
+     gfx_enter();
+     uint64_t t0 = now_ns(), c0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), i0, y0, s0 = thr_sys_ns(); thr_counts(&i0, &y0);
+     ((queue_t *)q)->submits++;
+@@ -767,6 +789,138 @@ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h)
+     gfx_leave();
+ }
+ 
++// ---------- 卡比经 nn::gfx 用到、D2R 不用的接口（清单：kirby/analysis/nvn_new_needed.tsv）----------
++// 原则同上：有 CPU 可见结果的按语义做；只改 GPU 状态、回放层还不支持的，录不录都一样，就在第一次遇到非缺省值时报红一次，便于运行时定位。
++// 还没做的一项故意不在这里（Downsample）：被调到时走 nvn_unimpl_entry 报红报名，比猜一个实现更好查。WriteTexels / FlushTexels 已在上面 ReadTexels 旁边实现（卡比真机：字形缓存经它上传，缺了文字全是黑框）。
++// ---------- Interfaces Kirby uses through nn::gfx and D2R does not (list: kirby/analysis/nvn_new_needed.tsv) ----------
++// Same principles as above: anything with a CPU-visible result is implemented per its semantics; pure GPU-state changes the replay layer does not support yet report a failure once, on the first non-default value, to make runtime diagnosis easy.
++// One is deliberately not here yet (Downsample): when called it goes to nvn_unimpl_entry and reports its name, which is easier to diagnose than a guessed implementation. WriteTexels / FlushTexels are implemented above next to ReadTexels (Kirby on device: the glyph cache uploads through them; without them all text was black boxes).
++#define RED_ONCE_H(tag, ...) do { static int once_##tag; if (!once_##tag++) LOG("【红】" __VA_ARGS__); } while (0)
++
++// 缓冲对象 | Buffer objects
++#define BB(b) ((buf_builder_t *)(b))
++NVN(nvnBufferBuilderSetDefaults, void, NVNbufferBuilder *b) { memset(b, 0, sizeof(buf_builder_t)); }
++NVN(nvnBufferBuilderSetDevice, void, NVNbufferBuilder *b, NVNdevice *d) { BB(b)->dev = d; }
++NVN(nvnBufferBuilderSetStorage, void, NVNbufferBuilder *b, NVNmemoryPool *p, ptrdiff_t off, size_t n) { BB(b)->pool = (const pool_t *)p; BB(b)->off = off; BB(b)->size = n; }
++NVN(nvnBufferInitialize, NVNboolean, NVNbuffer *b, const NVNbufferBuilder *bb) {
++    const buf_builder_t *s = (const buf_builder_t *)bb; buf_t *o = (buf_t *)b;
++    if (!s->pool || !s->pool->mem) { LOG("【红】BufferInitialize 没有存储（池 %p）", (const void *)s->pool); return 0; }
++    *o = (buf_t){MAGIC('B', 'U', 'F', 0), s->pool->mem + s->off, s->size, s->pool};
++    OLOG("Buffer %p mem=%p size=%#llx", (void *)b, (void *)o->mem, (unsigned long long)o->size);
++    return 1;
++}
++NVN(nvnBufferFinalize, void, NVNbuffer *b) { ((buf_t *)b)->magic = 0; }
++NVN(nvnBufferSetDebugLabel, void, NVNbuffer *b, const char *s) { (void)b; (void)s; }
++NVN(nvnBufferGetAddress, NVNbufferAddress, const NVNbuffer *b) { return (NVNbufferAddress)((const buf_t *)b)->mem; }   // GPU 地址 = CPU 地址 | GPU address = CPU address
++NVN(nvnBufferMap, void *, const NVNbuffer *b) { return ((const buf_t *)b)->mem; }
++// 统一内存：CPU 写入 GPU 直接可见，刷新 / 失效都不用做（同 nvnMemoryPoolFlushMappedRange）
++// Unified memory: CPU writes are directly visible to the GPU, so neither flush nor invalidate is needed (same as nvnMemoryPoolFlushMappedRange)
++NVN(nvnBufferFlushMappedRange, void, const NVNbuffer *b, ptrdiff_t off, size_t n) { (void)b; (void)off; (void)n; }
++NVN(nvnBufferInvalidateMappedRange, void, const NVNbuffer *b, ptrdiff_t off, size_t n) { (void)b; (void)off; (void)n; }
++
++// 内存池 | Memory pools
++NVN(nvnMemoryPoolSetDebugLabel, void, NVNmemoryPool *p, const char *s) { (void)p; (void)s; }
++NVN(nvnMemoryPoolGetFlags, NVNmemoryPoolFlags, const NVNmemoryPool *p) { return (NVNmemoryPoolFlags)((const pool_t *)p)->flags; }
++NVN(nvnMemoryPoolMap, void *, const NVNmemoryPool *p) { return ((const pool_t *)p)->mem; }
++
++// 设备句柄：组合句柄 = 贴图号 | 采样器号 << 20（与 GetSeparate*Handle 的位布局一致）；只取像素的句柄不带采样器
++// Device handles: combined handle = texture id | sampler id << 20 (same bit layout as GetSeparate*Handle); a texel-fetch handle carries no sampler
++NVN(nvnDeviceGetTextureHandle, NVNtextureHandle, const NVNdevice *d, int tex, int samp) { (void)d; return (NVNtextureHandle)((uint64_t)(uint32_t)tex | (uint64_t)(uint32_t)samp << 20); }
++NVN(nvnDeviceGetTexelFetchHandle, NVNtextureHandle, const NVNdevice *d, int tex) { (void)d; return (NVNtextureHandle)(uint64_t)(uint32_t)tex; }
++
++// 贴图与视图 | Textures and views
++NVN(nvnTextureGetTarget, NVNtextureTarget, const NVNtexture *t) { return (NVNtextureTarget)CTX(t)->d.target; }
++NVN(nvnTextureGetFormat, NVNformat, const NVNtexture *t) { return (NVNformat)CTX(t)->d.format; }
++NVN(nvnTextureSetDebugLabel, void, NVNtexture *t, const char *s) { (void)t; (void)s; }
++NVN(nvnTextureViewGetLevels, NVNboolean, const NVNtextureView *v, int *base, int *n) {
++    const view_t *w = (const view_t *)v; if (!w->set_levels) return 0; *base = w->base_level; *n = w->nlevels; return 1;
++}
++NVN(nvnTextureViewGetTarget, NVNboolean, const NVNtextureView *v, NVNtextureTarget *t) {
++    const view_t *w = (const view_t *)v; if (!w->set_target) return 0; *t = (NVNtextureTarget)w->target; return 1;
++}
++// 通道重排与深度模板模式：记进视图。通道重排由回放层建采样视图时交给 Metal（nvn_mtl.m tex_by_id）；深度模板模式还没用上，非缺省值报红一次
++// Swizzle and depth-stencil mode: recorded into the view. The swizzle is handed to Metal when the replay layer builds sampling views (nvn_mtl.m tex_by_id); the depth-stencil mode is not used yet, a non-default value reports a failure once
++NVN(nvnTextureViewSetSwizzle, void, NVNtextureView *v, NVNtextureSwizzle r, NVNtextureSwizzle g, NVNtextureSwizzle b, NVNtextureSwizzle a) {
++    view_t *w = VW(v); w->set_swz = 1; w->swz[0] = (uint8_t)r; w->swz[1] = (uint8_t)g; w->swz[2] = (uint8_t)b; w->swz[3] = (uint8_t)a;
++    if (!(r == NVN_TEXTURE_SWIZZLE_R && g == NVN_TEXTURE_SWIZZLE_G && b == NVN_TEXTURE_SWIZZLE_B && a == NVN_TEXTURE_SWIZZLE_A))
++        { static int once; if (!once++) LOG("[nvn] 贴图视图通道重排 %d,%d,%d,%d（首例；回放层建视图时传给 Metal）", r, g, b, a); }
++}
++NVN(nvnTextureViewSetDepthStencilMode, void, NVNtextureView *v, NVNtextureDepthStencilMode m) {
++    VW(v)->ds_mode = (uint8_t)m; if (m != NVN_TEXTURE_DEPTH_STENCIL_MODE_DEPTH) RED_ONCE_H(dsm, "贴图视图按模板采样：回放层还没接");
++}
++
++// 采样器 | Samplers
++NVN(nvnSamplerBuilderSetReductionFilter, void, NVNsamplerBuilder *b, NVNsamplerReduction r) {
++    (void)b; if (r != NVN_SAMPLER_REDUCTION_AVERAGE) RED_ONCE_H(red, "采样器取最小 / 最大值（%d）：Metal 没有对应，按平均处理", r);
++}
++NVN(nvnSamplerSetDebugLabel, void, NVNsampler *s, const char *l) { (void)s; (void)l; }
++
++// 颜色状态：alpha 测试 / 逻辑运算记进状态字（color_st 原有字段）；回放层还不生效（Metal 没有固定功能的 alpha 测试，要在片元着色器里做，归 H3）
++// Color state: alpha test / logic op are recorded into the state word (existing color_st fields); the replay layer does not apply them yet (Metal has no fixed-function alpha test, it must be done in the fragment shader, belongs to H3)
++NVN(nvnColorStateSetAlphaTest, void, NVNcolorState *s, NVNalphaFunc f) {
++    ST(color_st, s)->alpha_func = (uint32_t)f & 0xf; if (f != NVN_ALPHA_FUNC_ALWAYS) RED_ONCE_H(atest, "alpha 测试（函数 %d）：还没在着色器里实现", f);
++}
++NVN(nvnColorStateSetLogicOp, void, NVNcolorState *s, NVNlogicOp op) {
++    ST(color_st, s)->logic_op = (uint32_t)op & 0xf; if (op != NVN_LOGIC_OP_COPY) RED_ONCE_H(lop, "逻辑运算 %d：Metal 没有对应", op);
++}
++
++// 程序：SetShadersExt 的数组每项 0x18 字节 {机器码地址, 控制段, 附加字}（main+0x51d284 按 0x18 步长填），取前两项转成普通 SetShaders
++// Program: each element of the SetShadersExt array is 0x18 bytes {code address, control section, extra word} (main+0x51d284 fills it with a 0x18 stride); take the first two and turn it into a plain SetShaders
++typedef struct { NVNbufferAddress data; const void *control; uint64_t extra; } nvn_shader_data_ext;
++NVN_NOPROTO(nvnProgramSetShadersExt, NVNboolean, NVNprogram *p, int n, const nvn_shader_data_ext *sd) {
++    if (n < 0 || n > 6) { LOG("【红】ProgramSetShadersExt 阶段数 %d", n); return 0; }
++    NVNshaderData plain[6];
++    for (int i = 0; i < n; i++) { plain[i].data = sd[i].data; plain[i].control = sd[i].control; }
++    return h_nvnProgramSetShaders(p, n, plain);
++}
++
++// 队列：等同步对象。回放是单队列、按提交顺序执行，队列内等待天然成立
++// Queue: wait for a sync object. Replay is a single queue executing in submit order, so an in-queue wait holds naturally
++NVN(nvnQueueWaitSync, NVNboolean, NVNqueue *q, const NVNsync *s) { (void)q; (void)s; return 1; }
++
++// 窗口 | Window
++NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { return ((const win_t *)w)->interval; }
++
++// 命令缓冲 | Command buffer
++NVN(nvnCommandBufferGetCommandMemoryUsed, size_t, const NVNcommandBuffer *c) {
++    const cmd_t *o = (const cmd_t *)c; return o->recording && o->begin && o->cur >= o->begin ? (size_t)(o->cur - o->begin) : 0;   // 近似：本次录制已用字节 | approximation: bytes used by this recording
++}
++NVN(nvnCommandBufferCallCommands, void, NVNcommandBuffer *c, int n, const NVNcommandHandle *h) {   // 与 CopyCommands 同样录成 OP_CALL | recorded as OP_CALL, same as CopyCommands
++    for (int i = 0; i < n; i++) { uint8_t *p = cmd_alloc(CB(c), 16); put_hdr(p, OP_CALL, 16); memcpy(p + 8, &h[i], 8); }
++}
++NVN(nvnCommandBufferBindTexture, void, NVNcommandBuffer *c, NVNshaderStage st, int i, NVNtextureHandle h) { bind_handles(c, OP_BIND_TEX, st, i, 1, (const uint64_t *)&h); }
++NVN(nvnCommandBufferBindImage, void, NVNcommandBuffer *c, NVNshaderStage st, int i, NVNimageHandle h) { bind_handles(c, OP_BIND_IMG, st, i, 1, (const uint64_t *)&h); }
++NVN(nvnCommandBufferBindVertexBuffer, void, NVNcommandBuffer *c, int i, NVNbufferAddress a, size_t n) {
++    if (i < 0 || i >= 16) { LOG("【红】BindVertexBuffer %d", i); return; }
++    p_bind_vbuf *r = RECN(c, OP_BIND_VBUF, p_bind_vbuf, r, 1); r->first = i; r->n = 1; r->r[0].address = a; r->r[0].size = n;
++}
++// 多个剪裁 / 深度范围：回放层只有一组（第 0 个视口），取第 0 个；其余不同时报红一次
++// Multiple scissors / depth ranges: the replay layer has only one set (viewport 0), take index 0; report a failure once when the others differ
++NVN(nvnCommandBufferSetScissors, void, NVNcommandBuffer *c, int first, int n, const int *r) {
++    if (first == 0 && n >= 1) *REC(c, OP_SCISSOR, p_scissor) = (p_scissor){r[0], r[1], r[2], r[3]};
++    for (int i = first == 0 ? 1 : 0; i < n; i++) if (memcmp(r + 4 * i, r, 16)) { RED_ONCE_H(scs, "多组剪裁矩形：只用第 0 组"); break; }
++}
++NVN(nvnCommandBufferSetDepthRanges, void, NVNcommandBuffer *c, int first, int n, const float *r) {
++    if (first == 0 && n >= 1) *REC(c, OP_DEPTH_RANGE, p_depth_range) = (p_depth_range){r[0], r[1]};
++    for (int i = first == 0 ? 1 : 0; i < n; i++) if (memcmp(r + 2 * i, r, 8)) { RED_ONCE_H(dps, "多组深度范围：只用第 0 组"); break; }
++}
++NVN(nvnCommandBufferDrawArraysInstanced, void, NVNcommandBuffer *c, NVNdrawPrimitive pr, int first, int n, int base_inst, int inst) {
++    *REC(c, OP_DRAW, p_draw) = (p_draw){pr, first, n, inst > 0 ? inst : 1, base_inst};
++}
++NVN(nvnCommandBufferDrawElementsBaseVertex, void, NVNcommandBuffer *c, NVNdrawPrimitive pr, NVNindexType it, int n, NVNbufferAddress ib, int bv) {
++    *REC(c, OP_DRAW_IDX, p_draw_idx) = (p_draw_idx){pr, it, n, bv, 0, 1, ib};
++}
++// 只改 GPU 固定功能、回放层没有对应的：取缺省值时什么都不用做，非缺省值报红一次
++// GPU fixed-function changes the replay layer has no counterpart for: nothing to do at the default value, report a failure once for a non-default value
++NVN(nvnCommandBufferSetAlphaRef, void, NVNcommandBuffer *c, float v) { (void)c; (void)v; }   // 随 alpha 测试一起做（H3） | done together with alpha test (H3)
++NVN(nvnCommandBufferSetDepthClamp, void, NVNcommandBuffer *c, uint32_t on) { (void)c; if (B(on)) RED_ONCE_H(dclamp, "深度钳制：回放层还没接（Metal setDepthClipMode 可做）"); }
++NVN(nvnCommandBufferSetRasterizerDiscard, void, NVNcommandBuffer *c, uint32_t on) { (void)c; if (B(on)) RED_ONCE_H(rdisc, "光栅化丢弃：回放层还没接"); }
++NVN(nvnCommandBufferSetConservativeRasterEnable, void, NVNcommandBuffer *c, uint32_t on) { (void)c; if (B(on)) RED_ONCE_H(cons, "保守光栅化：Metal 没有对应"); }
++NVN(nvnCommandBufferSetSampleMask, void, NVNcommandBuffer *c, int m) { (void)c; if ((uint32_t)m != 0xffffffffu && (m & 0xffff) != 0xffff) RED_ONCE_H(smask, "采样掩码 %#x：回放层还没接", m); }
++NVN(nvnCommandBufferSetLineWidth, void, NVNcommandBuffer *c, float w) { (void)c; if (w != 1.0f) RED_ONCE_H(lw, "线宽 %.2f：Metal 只有 1 像素线", w); }
++NVN(nvnCommandBufferSetCopyImageStride, void, NVNcommandBuffer *c, ptrdiff_t s) { (void)c; if (s) RED_ONCE_H(cis, "拷贝图像跨距 %lld：回放层还没接", (long long)s); }
++NVN(nvnCommandBufferPopDebugGroupId, void, NVNcommandBuffer *c, uint32_t id) { (void)c; (void)id; }
++
+ // 只影响 GPU 状态 / 只在 GPU 上执行的命令：空设备只计数（跳板已计）
+ // Commands that only affect GPU state / only execute on the GPU: the null device only counts them (the thunk has already counted)
+ static void nvn_nop(void) {}
+diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
+index 156a3ca..8ba6435 100644
+--- a/dm/gfx/nvn/nvn_mtl.m
++++ b/dm/gfx/nvn/nvn_mtl.m
+@@ -65,6 +65,13 @@
+ static id<MTL4ArgumentTable> g_vt, g_ft, g_ct, g_up_ct;
+ static id<MTL4ArgumentTable> g_present_args;
+ static id<MTLBuffer> g_present_uv[3];
++// 窗口原点是不是 GL 的左下（NVN 缺省）：卡比不调 nvnDeviceSetWindowOriginMode，用缺省；D2R 设成左上（hle_nvn.c 置 0）。
++// 左下时：着色器库在顶点输出里把 y 取反（kirby/ios/tools/shlib_ios.py），渲染出来的内存第 0 行就是图像底部，与 GL 一致；
++// 回放层随之对调正面绕序，出图时上下翻转一次（游戏的帧缓冲「底在上」）
++// Whether the window origin is GL lower-left (the NVN default): Kirby never calls nvnDeviceSetWindowOriginMode and keeps the default; D2R sets upper-left (hle_nvn.c clears this).
++// For lower-left: the shader library negates y in the vertex output (kirby/ios/tools/shlib_ios.py), so memory row 0 of what is rendered is the bottom of the image, as in GL;
++// the replay layer swaps the front-face winding accordingly and flips vertically once at present (the game's framebuffer is "bottom first")
++int g_nvn_gl_origin = 1;
+ int g_bloom_q = -1;   // 泛光 1/4 起点（非 static：真机同进程交替直接改 0 / 1） | Bloom 1/4 starting point (non-static: real-device same-process alternation sets it to 0 / 1 directly)
+ static id<MTL4ArgumentTable> g_bloomq_args;
+ static id<MTLBuffer> g_bloomq_const[3];
+@@ -374,15 +381,22 @@ int mtl_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off) {
+     pthread_mutex_unlock(&g_mu);
+     return ok;
+ }
++// 最近命中的 4 个池先查（卡比真机：每帧 1100+ 次绘制、每次绑若干 uniform / 顶点缓冲，逐个扫 129 个池占提交线程 18%）。
++// 只按下标记、用时重验区间，池增删后下标挪位也不会给错结果 | check the 4 most recently hit pools first (Kirby on device: 1100+ draws per frame, several uniform / vertex
++// buffer binds each; scanning 129 pools took 18% of the submit thread). Only indices are kept and the range is re-checked on use, so pools moving on add/delete never give a wrong result
++static int g_pool_mru[4];
+ int mtl_gpu_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu) {
+-    int ok = 0;
++    int hit = -1;
+     pthread_mutex_lock(&g_mu);
+-    for (int i = 0; i < g_npool; i++)
+-        if (addr >= g_pools[i].lo && addr + len <= g_pools[i].hi) {
+-            *buf = (__bridge void *)g_pools[i].buf; *off = addr - g_pools[i].base; *gpu = g_pools[i].gpu + *off; ok = 1; break;
+-        }
++    for (int k = 0; k < 4 && hit < 0; k++) {
++        int i = g_pool_mru[k];
++        if (i < g_npool && addr >= g_pools[i].lo && addr + len <= g_pools[i].hi) { hit = i; if (k) { g_pool_mru[k] = g_pool_mru[0]; g_pool_mru[0] = i; } }
++    }
++    for (int i = 0; i < g_npool && hit < 0; i++)
++        if (addr >= g_pools[i].lo && addr + len <= g_pools[i].hi) { hit = i; memmove(g_pool_mru + 1, g_pool_mru, 3 * sizeof *g_pool_mru); g_pool_mru[0] = i; }
++    if (hit >= 0) { *buf = (__bridge void *)g_pools[hit].buf; *off = addr - g_pools[hit].base; *gpu = g_pools[hit].gpu + *off; }
+     pthread_mutex_unlock(&g_mu);
+-    return ok;
++    return hit >= 0;
+ }
+ 
+ // ---------- 提交 ----------
+@@ -755,7 +769,7 @@ static void mtl_finish_gpu(void) {
+ // ================= 渲染回放 =================
+ // ================= Render replay =================
+ #include "../../host/front.h"
+-static int g_red_once[64];
++static int g_red_once[72];
+ #define RED_ONCE(k, ...) do { if (!g_red_once[k]++) MLOG("【红】" __VA_ARGS__); } while (0)
+ 
+ // ---------- 贴图 → MTLTexture ----------
+@@ -793,16 +807,28 @@ static int tex_need_pfv(MTLPixelFormat base, MTLPixelFormat view) {
+ static void serial_del(uint64_t k) { pthread_mutex_lock(&g_smu); id old = hm_get_id(&g_by_serial, &k); if (old) defer_obj_release(old); hm_del_id(&g_by_serial, &k); g_ser_gen++; pthread_mutex_unlock(&g_smu); }
+ // 预排布贴图的宿主记录：当前 MTLTexture、上传戳、上次检查时的全局写代号
+ // Host record of a packaged texture: the current MTLTexture, the upload stamp, and the global write generation at the last check
+-@interface NvPkg : NSObject { @public id<MTLTexture> tex; uint64_t stamp, seen, hash; } @end   // hash：DM_NVN_DIRTYCHECK 时上传内容的全量哈希 | hash: full hash of the uploaded content under DM_NVN_DIRTYCHECK
++@interface NvPkg : NSObject { @public id<MTLTexture> tex; uint64_t stamp, seen, hash, uhash, uframe, used, bytes; } @end   // hash：DM_NVN_DIRTYCHECK 时上传内容的全量哈希 | hash: full hash of the uploaded content under DM_NVN_DIRTYCHECK
+ @implementation NvPkg
+-- (void)dealloc { res_remove(tex); }
++static _Atomic uint64_t g_pkg_live_bytes; static uint64_t g_pkg_evicted, g_pkg_evicted_bytes;
++- (void)dealloc { res_remove(tex); g_pkg_live_bytes -= bytes; }
+ @end
+ static uint64_t g_pkg_uploads, g_pkg_reuploads, g_pkg_miss;
+ static uint64_t g_pfv_upgrades;
++static uint64_t g_pkg_src_bytes;   // 已拷成 GPU 私有贴图的预排布源数据累计（去重潜力，内存统计行） | cumulative packaged source bytes copied into private GPU textures (dedup potential, memory stats line)
++static const uint8_t *g_lin_mem[8]; static size_t g_lin_size[8]; static uint64_t g_lin_ser[8]; static int g_lin_n;   // 线性贴图（字形缓存）诊断：第 300 / 600 帧报非零字节数 | linear textures (glyph cache) diagnostic: non-zero byte count at frames 300 / 600
+ // DM_NVN_DIRTYCHECK=1（诊断，对照真值）：每次使用都全量哈希池内容，变了却没被脏页跟踪检出 = 漏检
+ // DM_NVN_DIRTYCHECK=1 (diagnostic, compared against ground truth): fully hash the pool content on every use; changed but not detected by dirty-page tracking = a missed detection
+ static int dirtycheck(void) { static int v = -1; if (v < 0) v = getenv("DM_NVN_DIRTYCHECK") != NULL; return v; }
+ static uint64_t full_hash(const uint8_t *m, uint64_t n) { uint64_t h = 1469598103934665603ull; for (uint64_t i = 0; i < n; i++) h = (h ^ m[i]) * 1099511628211ull; return h; }
++// 不在写保护跟踪区间里的预排布贴图（卡比真机：3 张 512x512 每次用到都整张重传，30 秒周转 21 GB 暂存、内存被系统杀掉）：
++// 改按内容哈希判断是否变过，8 字节一步，512x512 约 0.1 ms | packaged textures outside the write-protect tracked ranges (Kirby on device: three 512x512 re-uploaded on every use,
++// 21 GB of staging churn in 30 s, killed for memory): compare a content hash instead, 8 bytes per step, ~0.1 ms for 512x512
++static uint64_t fast_hash(const uint8_t *m, uint64_t n) {
++    uint64_t h = 1469598103934665603ull, w; uint64_t i = 0;
++    for (; i + 8 <= n; i += 8) { memcpy(&w, m + i, 8); h = (h ^ w) * 1099511628211ull; h ^= h >> 29; }
++    for (; i < n; i++) h = (h ^ m[i]) * 1099511628211ull;
++    return h;
++}
+ // 显卡不支持 BC 压缩格式（A15 / A16 等）：BC 贴图建成解压后的格式，上传 / 缓冲→贴图拷贝时在 CPU 上解压（nvn_bcdec.c）。
+ // 游戏贴图里的 BC3 由老机型补充包离线换成了 ASTC（dm/tools/astc_pack.py），走到这里的是剩下的少量 BC。测试开关 DM_TEST_NO_BC=1 在任何机器上强制走这条路
+ // The GPU does not support BC compressed formats (A15 / A16 etc.): BC textures are created in the decompressed format and decompressed on the CPU at upload / buffer→texture copy time (nvn_bcdec.c).
+@@ -1171,6 +1197,32 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+     up_flush();
+     return mt;
+ }
++// 预排布贴图的显卡副本回收：游戏常把 NVNtexture 建在临时内存里、登记进贴图池后不调 Finalize（重新 Initialize 时旧序号也就丢了），
++// 这些副本原先永不释放，走过的场景越多占得越多（卡比真机进城时离系统上限只剩 145 MB）。每 150 帧扫一遍，600 帧（约 20 秒）没被用到的副本释放
++// （在途绘制由延迟释放保住）；再被用到时序号查不到，按池里的源数据重建，跟首传一样
++// Reclaiming GPU copies of packaged textures: games often build NVNtexture in temporary memory and never call Finalize after registering it in the texture pool (and a re-Initialize drops the old serial),
++// so these copies were never freed and grew with every area visited (Kirby on device had 145 MB left before the system limit on entering the city). Every 150 frames, copies unused for 600 frames (~20 s) are released
++// (in-flight draws are kept safe by deferred release); if used again the serial lookup misses and the copy is rebuilt from the pool source data, same as a first upload
++static void pkg_sweep(uint64_t fr) {
++    static uint64_t last; if (fr < last + 150) return; last = fr;
++    if (fr < 600) return;
++    uint64_t *dead = NULL; size_t nd = 0, cap = 0, bytes = 0;
++    pthread_mutex_lock(&g_smu);
++    for (uint32_t i = 0; i < g_by_serial.cap; i++) {
++        if (!g_by_serial.vals[i]) continue;
++        id o = (__bridge id)g_by_serial.vals[i];
++        if (![o isKindOfClass:NvPkg.class]) continue;
++        NvPkg *pk = o; if (pk->used + 600 > fr) continue;
++        if (nd == cap) { cap = cap ? cap * 2 : 256; dead = realloc(dead, cap * sizeof *dead); }
++        memcpy(&dead[nd++], g_by_serial.keys + (size_t)i * g_by_serial.klen, 8); bytes += pk->bytes;
++    }
++    pthread_mutex_unlock(&g_smu);
++    for (size_t i = 0; i < nd; i++) serial_del(dead[i]);
++    free(dead);
++    if (nd) { g_pkg_evicted += nd; g_pkg_evicted_bytes += bytes;
++        static int n; if (n++ < 20) MLOG("预排布贴图回收：第 %llu 帧释放 %zu 张久未使用的显卡副本 %llu MB（累计 %llu 张 %llu MB，现存 %llu MB）", (unsigned long long)fr, nd,
++            (unsigned long long)(bytes >> 20), (unsigned long long)g_pkg_evicted, (unsigned long long)(g_pkg_evicted_bytes >> 20), (unsigned long long)(g_pkg_live_bytes >> 20)); }
++}
+ static id<MTLTexture> tex_mtl(const tex_t *ct) {
+     tex_t *t = (tex_t *)ct;
+     if (!t || !t->serial) return nil;
+@@ -1178,10 +1230,15 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+     id have = serial_get(t->serial);
+     if (packaged) {
+         NvPkg *pk = have;
++        uint64_t fr = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++        pkg_sweep(fr);
+         if (pk) {   // 已上传：自上次检查后有过客体写才查覆盖页 | Already uploaded: check the covered pages only if there has been a guest write since the last check
+             uint64_t now = nvn_dirty_now();
+             int tracked = nvn_dirty_tracked(t->mem, t->L.size);
+-            int clean = tracked && (now == pk->seen || !nvn_dirty_since(t->mem, t->L.size, pk->stamp));
++            pk->used = fr;
++            // 未跟踪的每帧最多哈希一次（卡比真机：同一张贴图一帧绑几十次，每次都哈希占提交线程 24%） | untracked: hash at most once per frame (Kirby on device: the same texture bound dozens of times per frame, hashing each time took 24% of the submit thread)
++            int clean = tracked ? (now == pk->seen || !nvn_dirty_since(t->mem, t->L.size, pk->stamp)) : (pk->uframe == fr + 1 || fast_hash(t->mem, t->L.size) == pk->uhash);
++            if (!tracked && clean) pk->uframe = fr + 1;
+             pk->seen = now;
+             if (clean && atomic_load_explicit(&g_up_lost_n, memory_order_relaxed) && up_lost_take(pk->tex)) { clean = 0; uint64_t k = atomic_load(&g_up_lost_redo); if (k <= 3 || !atomic_load(&g_up_lost_n)) MLOG("上传被丢的贴图 ser=%llu 重传（累计 %llu 张，记录里还剩 %d 张）", (unsigned long long)t->serial, (unsigned long long)k, atomic_load(&g_up_lost_n)); }
+             if (clean) {
+@@ -1189,14 +1246,17 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+                     MLOG("【红】脏页漏检：贴图 ser=%llu 池内容已变但未检出", t->serial);
+                 return pk->tex;
+             }
++            { static int nr; if (nr++ < 12) MLOG("预排布贴图重传 ser=%llu %ux%u 格式 %#x：跟踪 %d，戳后被写 %d", t->serial, t->d.width, t->d.height, t->d.format, tracked, tracked ? nvn_dirty_since(t->mem, t->L.size, pk->stamp) : -1); }
+             uint64_t st; id<MTLTexture> nt = pkg_upload(t, &st);   // 池内容变了（流式素材写进同一存储）：换新贴图，在途绘制仍读旧的 | Pool content changed (streamed assets written into the same storage): switch to a new texture; in-flight draws still read the old one
+-            if (nt) { id<MTLTexture> old = pk->tex; pk->tex = nt; defer_obj_release(old); res_add(nt); g_ser_gen++; pk->stamp = st; pk->seen = nvn_dirty_now(); g_pkg_reuploads++; if (dirtycheck()) pk->hash = full_hash(t->mem, t->L.size); }
++            if (nt) { id<MTLTexture> old = pk->tex; pk->tex = nt; defer_obj_release(old); res_add(nt); g_ser_gen++; pk->stamp = st; pk->seen = nvn_dirty_now(); g_pkg_reuploads++; if (!tracked) { pk->uhash = fast_hash(t->mem, t->L.size); pk->uframe = fr + 1; } if (dirtycheck()) pk->hash = full_hash(t->mem, t->L.size); }
+             return pk->tex;
+         }
+         pk = [NvPkg new];
+         pk->tex = pkg_upload(t, &pk->stamp);
+         if (!pk->tex) return nil;
+-        pk->seen = nvn_dirty_now(); g_pkg_uploads++; if (dirtycheck()) pk->hash = full_hash(t->mem, t->L.size);
++        pk->seen = nvn_dirty_now(); g_pkg_uploads++; g_pkg_src_bytes += t->L.size; if (dirtycheck()) pk->hash = full_hash(t->mem, t->L.size);
++        pk->used = fr; pk->bytes = t->L.size; g_pkg_live_bytes += pk->bytes;
++        if (!nvn_dirty_tracked(t->mem, t->L.size)) pk->uhash = fast_hash(t->mem, t->L.size);
+         serial_put(t->serial, pk);
+         return pk->tex;
+     }
+@@ -1218,6 +1278,33 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+         serial_put(t->serial, mt);
+         return mt;
+     }
++    // 线性贴图（LINEAR + 行距，卡比可变字体的字形缓存：CPU 直接往池内存里画字形，D2R 不用）：和缓冲贴图一样直接建在内存池缓冲上（零拷贝），
++    // GPU 每次读的都是池里的当前内容，同 NVN 线性贴图的语义。缺了这条时它被当成渲染目标建成私有贴图、从不读池内存 → 字形缓存恒为 0，文字全透明（真机，2026-10-14）。
++    // 只做单级 2D 非压缩格式；行距 / 偏移不满足 Metal 线性贴图对齐就报红退回原路
++    // Linear textures (LINEAR + stride; Kirby's scalable-font glyph cache: the CPU draws glyphs straight into pool memory; unused by D2R): created directly on the memory
++    // pool buffer like buffer textures (zero copy), so the GPU always reads the pool's current content, matching NVN linear-texture semantics. Without this they were created as
++    // private textures like render targets and never read pool memory -> the glyph cache stayed 0 and all text was transparent (on device, 2026-10-14).
++    // Single-level 2D uncompressed only; a stride / offset failing Metal's linear-texture alignment reports a failure and falls back to the old path
++    if ((t->d.flags & NVN_TEXTURE_FLAGS_LINEAR) && t->d.stride && t->mem && t->d.target == NVN_TEXTURE_TARGET_2D && t->d.levels <= 1 && !fmt_compressed(t->d.format)) {
++        uint32_t pf = 0; uint8_t swz[4]; void *mb; uint64_t mo;
++        if (nvn_fmt_to_mtl(t->d.format, &pf, swz) && pf && mtl_addr((uint64_t)t->mem, (uint64_t)t->d.stride * t->d.height, &mb, &mo)) {
++            id<MTLBuffer> b = (__bridge id<MTLBuffer>)mb;
++            NSUInteger al = [g_dev minimumLinearTextureAlignmentForPixelFormat:(MTLPixelFormat)pf];
++            if (mo % al || t->d.stride % al) RED_ONCE(66, "线性贴图偏移 %#llx / 行距 %u 不满足 %lu 字节对齐，按私有贴图建（CPU 写不可见）", (unsigned long long)mo, t->d.stride, (unsigned long)al);
++            else {
++                MTLTextureDescriptor *ld = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:(MTLPixelFormat)pf width:t->d.width height:t->d.height mipmapped:NO];
++                ld.resourceOptions = b.resourceOptions;
++                ld.usage = MTLTextureUsageShaderRead | (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET | NVN_TEXTURE_FLAGS_IMAGE) ? MTLTextureUsageRenderTarget | MTLTextureUsageShaderWrite : 0);
++                id<MTLTexture> mt = [b newTextureWithDescriptor:ld offset:mo bytesPerRow:t->d.stride];
++                if (mt) {
++                    static int n; if (n++ < 8) MLOG("线性贴图（池内存零拷贝）ser=%llu %ux%u 格式 %#x 行距 %u", t->serial, t->d.width, t->d.height, t->d.format, t->d.stride);
++                    if (g_lin_n < 8) { g_lin_mem[g_lin_n] = t->mem; g_lin_size[g_lin_n] = (size_t)t->d.stride * t->d.height; g_lin_ser[g_lin_n++] = t->serial; }
++                    res_add(mt); serial_put(t->serial, mt); return mt;
++                }
++                RED_ONCE(67, "线性贴图建不出 %ux%u 格式 %#x 行距 %u，按私有贴图建", t->d.width, t->d.height, t->d.format, t->d.stride);
++            }
++        }
++    }
+     MTLTextureDescriptor *d = tex_desc(t, 0);
+     if (!d) return nil;
+     id<MTLTexture> mt = [g_dev newTextureWithDescriptor:d];
+@@ -1259,6 +1346,19 @@ void mtl_mem_stat(unsigned long long frame, unsigned long long rss_mb, int heap_
+ #endif
+     MLOG("内存 至帧 %llu：常驻 %llu MB，显卡已分配 %llu MB，延迟释放队列 %lu，驻留集 %lu 个，内存池 %d 个（峰值 %d / 跟踪表容量 %d），贴图重传累计 %llu 次；游戏堆 %llu MB，余量 %llu MB，最大可分配块 %llu KB%s；离系统内存上限还有 %s", frame, rss_mb, gpu, nd, nr, live, peak, cap, (unsigned long long)g_pkg_reuploads,
+         heap_mb, heap_free_mb, heap_maxblk_kb, heap_ok ? "" : "（未读到）", avail);
++    {   // 贴图去重的潜力：内存池总量与其中常驻的页，以及已拷成私有贴图的预排布源数据 | dedup potential: pool total and resident pages, plus packaged source data copied to private textures
++        uint64_t tot = 0, res = 0; size_t pg = (size_t)getpagesize();
++        pthread_mutex_lock(&g_mu);
++        for (int i = 0; i < g_npool; i++) {
++            uintptr_t a = g_pools[i].lo & ~(pg - 1), b = (g_pools[i].hi + pg - 1) & ~(pg - 1); tot += g_pools[i].hi - g_pools[i].lo;
++            size_t np = (b - a) / pg; char *v = malloc(np ? np : 1);
++            if (v && !mincore((void *)a, b - a, v)) for (size_t k = 0; k < np; k++) res += (v[k] & 1) ? pg : 0;
++            free(v);
++        }
++        pthread_mutex_unlock(&g_mu);
++        MLOG("内存池 共 %llu MB、其中常驻 %llu MB；预排布贴图显卡副本 现存 %llu MB（累计建过 %llu MB，久未用回收 %llu MB）", (unsigned long long)(tot >> 20), (unsigned long long)(res >> 20),
++            (unsigned long long)(g_pkg_live_bytes >> 20), (unsigned long long)(g_pkg_src_bytes >> 20), (unsigned long long)(g_pkg_evicted_bytes >> 20));
++    }
+ }
+ void mtl_pkg_stats(uint64_t *uploads, uint64_t *reuploads) { *uploads = g_pkg_uploads; *reuploads = g_pkg_reuploads; }
+ uint64_t mtl_pkg_miss(void) { return g_pkg_miss; }
+@@ -1889,7 +1989,9 @@ @interface NvShader : NSObject { @public id<MTLFunction> fn; nvn_refl rf; id<MTL
+     // 上次编好的参数缓冲
+     // The argument buffer encoded last time
+     id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass;   // ab_pass：编这块参数的渲染通道序号——只在同一通道内复用（跨通道 / 跨提交的块所在 arena 可能已回收重写） | ab_pass: serial of the render pass that encoded this argument block - reused only within the same pass (the arena holding a block from another pass / another submission may already have been reclaimed and rewritten)
+-    id<MTLLibrary> bflib; int bflib_tried; NSMutableDictionary<NSString *, id<MTLFunction>> *bffn; } @end   // bflib：可读 tile 版本 <键>_bf（合并 B 第 2 步） | bflib: readable-tile version <key>_bf (merge B step 2)
++    id<MTLLibrary> bflib; int bflib_tried; NSMutableDictionary<NSString *, id<MTLFunction>> *bffn;
++    id<MTLFunction> ufn; int ufn_tried; NSMutableDictionary<NSNumber *, id> *umfn;
++    uint32_t iamask; NSMutableDictionary<NSNumber *, id> *iafn; } @end   // iamask：被按位还原成整数的顶点属性槽（json int_attrs，卡比） | iamask: vertex attribute slots bit-cast to integers (json int_attrs, Kirby)   // ufn：无符号整数输出变体 <键>_u（卡比，整数颜色附件用；kirby/ios/tools/shlib_ios.py 生成） | ufn: unsigned-integer-output variant <key>_u (Kirby, for integer colour attachments)   // bflib：可读 tile 版本 <键>_bf（合并 B 第 2 步） | bflib: readable-tile version <key>_bf (merge B step 2)
+ @implementation NvShader @end
+ #include "nvn_pso_skey.h"
+ @interface NvProg : NSObject { @public NvShader *sh[6]; } @end
+@@ -2033,6 +2135,7 @@ static void pso_user_record(const char *fmt, ...) {
+     if (nvn_refl_from_json(j, &o->rf, err, sizeof err)) { MLOG("【红】着色器 %s 反射转换失败：%s", pc.UTF8String, err); return nil; }
+     if (rt_range_on()) o->range_ro=rt_range_bindings_ro(j);
+     o->fn = [lib newFunctionWithName:j[@"entry"]]; o->stage = stage; strlcpy(o->key, pc.UTF8String, sizeof o->key);
++    for (NSNumber *l in [j[@"int_attrs"] isKindOfClass:NSArray.class] ? j[@"int_attrs"] : @[]) if (l.intValue < 32) o->iamask |= 1u << l.intValue;
+     if (o->rf.nb) {
+         o->ae = [o->fn newArgumentEncoderWithBufferIndex:o->rf.abi];
+         int max_aid = -1;
+@@ -2103,6 +2206,18 @@ static int rt_range_pr_ro(NvProg *p) {
+     }
+     return nil;
+ }
++// 着色器键：D2R = 控制段 0x880 字节的 sha256 前 16 位；别的游戏（dm_game_d2r() == 0，如卡比）= 机器码 [0, 控制段+0x704) 的 sha256 前 16 位。
++// 卡比的理由（kirby/tools/kirby_shlib.py 文件头）：同一控制段对应多份机器码（766 例），nn::gfx 的 SetShadersExt 还会在运行时改写控制段；
++// 翻译只取决于机器码（SPH、指令、c1 都在里面），所以按机器码定键。GPU 地址 = CPU 地址（内存池零拷贝），data 可以直接读。
++// Shader key: D2R = first 16 hex of sha256 over the 0x880-byte control section; other games (dm_game_d2r() == 0, e.g. Kirby) = first 16 hex of sha256 over the code [0, control+0x704).
++// Kirby's reason (header of kirby/tools/kirby_shlib.py): one control section maps to several codes (766 cases), and nn::gfx's SetShadersExt rewrites the control section at runtime;
++// the translation depends only on the code (SPH, instructions and c1 all live in it), so the key is taken from the code. GPU address = CPU address (zero-copy pools), so data can be read directly.
++__attribute__((weak)) int dm_game_d2r(void) { return 1; }   // 宿主 main.c / kirby_main.c 给强定义；图形单测不链宿主时按 D2R | strong definitions in the host's main.c / kirby_main.c; graphics unit tests without the host behave as D2R
++static void shader_key_of(const NVNshaderData *sd, uint8_t md[32]) {
++    if (dm_game_d2r()) { CC_SHA256(sd->control, 0x880, md); return; }
++    uint32_t len = *(const uint32_t *)((const uint8_t *)sd->control + 0x704);
++    CC_SHA256((const void *)(uintptr_t)sd->data, len, md);
++}
+ static __unsafe_unretained NvProg *prog_get(const prog_t *cp) {   // 只在提交线程调用 | Called only on the submit thread
+     prog_t *p = (prog_t *)cp;
+     static const prog_t *lp; static uint64_t lser, lgen; static NvProg *lpr;   // 上次结果：同一对象、同一序号且序号表未变即直接用 | Last result: same object, same serial and unchanged serial table means it is used directly
+@@ -2113,7 +2228,7 @@ static int rt_range_pr_ro(NvProg *p) {
+     shmap_load();
+     NvProg *o = [NvProg new];
+     for (unsigned i = 0; i < p->nstage; i++) {
+-        uint8_t md[32]; CC_SHA256(p->sd[i].control, 0x880, md);
++        uint8_t md[32]; shader_key_of(&p->sd[i], md);
+         NSString *k = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x", md[0], md[1], md[2], md[3], md[4], md[5], md[6], md[7]];
+         NSString *zh = g_shmap[k];
+         if (!zh) {   // 不在包里：查 main 本体内嵌的计算核（nvn_builtin.h） | Not in the package: look up the compute kernels embedded in the main body (nvn_builtin.h)
+@@ -2190,11 +2305,14 @@ static MTLTextureType ttype(int target, int fallback) {
+     id<MTLTexture> base = tex_mtl(&rp->t);
+     if (!base) return nil;
+     v = base;
+-    if (r.has_v && (r.v.set_format || r.v.set_levels || r.v.set_layers || r.v.set_target)) {
++    // 视图通道重排（卡比的字形视图 ONE,ONE,ONE,R：白字、透明度取 R；D2R 从不设）：NVN 与 Metal 的通道重排枚举数值相同（0 零 1 一 2–5 = RGBA），直接传
++    // View channel swizzle (Kirby's glyph views use ONE,ONE,ONE,R: white text, alpha from R; D2R never sets it): NVN and Metal swizzle enums have the same values (0 zero, 1 one, 2-5 = RGBA), passed straight through
++    int vswz = r.has_v && r.v.set_swz && !(r.v.swz[0] == 2 && r.v.swz[1] == 3 && r.v.swz[2] == 4 && r.v.swz[3] == 5) && r.v.swz[0] <= 5 && r.v.swz[1] <= 5 && r.v.swz[2] <= 5 && r.v.swz[3] <= 5;
++    if (r.has_v && (r.v.set_format || r.v.set_levels || r.v.set_layers || r.v.set_target || vswz)) {
+         uint32_t pf = (uint32_t)base.pixelFormat; uint8_t swz[4];
+         if (r.v.set_format && !(nvn_fmt_to_mtl(r.v.format, &pf, swz) && pf)) pf = (uint32_t)base.pixelFormat;
+         { uint32_t upf; int ubpp; if (r.v.set_format && bc_unpack(r.v.format, &upf, &ubpp)) pf = upf; }   // 无 BC：BC 视图跟底图一样换成解压后的格式 | No BC: a BC view is switched to the decompressed format just like the base texture
+-        if (r.v.set_format && tex_need_pfv(base.pixelFormat, (MTLPixelFormat)pf) && !(base.usage & MTLTextureUsagePixelFormatView)) {
++        if (r.v.set_format && tex_need_pfv(base.pixelFormat, (MTLPixelFormat)pf) && !(base.usage & MTLTextureUsagePixelFormatView)) {   // 只换通道重排不升级：升级要 blit，在绘制中途会结束当前渲染编码器（真机：之后的绘制报「No argument table set」） | swizzle-only views do not upgrade: the upgrade blits, which ends the current render encoder mid-draw (on device: the following draw reported "No argument table set")
+             base = tex_upgrade_pfv(&rp->t, base, (MTLPixelFormat)pf);
+             sg = g_ser_gen;
+         }
+@@ -2203,8 +2321,12 @@ static MTLTextureType ttype(int target, int fallback) {
+         NSUInteger ns = base.textureType == MTLTextureType3D ? 1 : (r.v.set_layers && r.v.nlayers ? r.v.nlayers : base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1) - s0);
+         MTLTextureType tt = r.v.set_target ? ttype(r.v.target, base.textureType) : base.textureType;
+         if (tt == MTLTextureType2D && ns > 1) ns = 1;
+-        v = [base newTextureViewWithPixelFormat:(MTLPixelFormat)pf textureType:tt levels:NSMakeRange(l0, nl) slices:NSMakeRange(s0, ns)];
++        v = vswz ? [base newTextureViewWithPixelFormat:(MTLPixelFormat)pf textureType:tt levels:NSMakeRange(l0, nl) slices:NSMakeRange(s0, ns)
++                                              swizzle:MTLTextureSwizzleChannelsMake(r.v.swz[0], r.v.swz[1], r.v.swz[2], r.v.swz[3])]
++                 : [base newTextureViewWithPixelFormat:(MTLPixelFormat)pf textureType:tt levels:NSMakeRange(l0, nl) slices:NSMakeRange(s0, ns)];
+         if (!v) { RED_ONCE(11, "贴图视图建不出 id %d", tid); v = base; }
++        if (vswz) { static int n; if (n++ < 12) MLOG("通道重排视图 id %d：%d,%d,%d,%d NVN 格式 %#x %ux%u 级 %u 行距 %u 预排布 %d 池内存 %d → Metal 基格式 %lu 视图格式 %u", tid, r.v.swz[0], r.v.swz[1], r.v.swz[2], r.v.swz[3],
++            rp->t.d.format, rp->t.d.width, rp->t.d.height, rp->t.d.levels, rp->t.d.stride, rp->t.has_layout, rp->t.mem != NULL, (unsigned long)base.pixelFormat, pf); }
+     }
+     rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_ser = sg; rp->view_dirty = dg;
+     return v;
+@@ -2327,7 +2449,8 @@ static MTLVertexFormat vfmt(int f) {
+         case 0x25: return MTLVertexFormatUChar4Normalized; case 0x26: return MTLVertexFormatChar4Normalized; case 0x27: return MTLVertexFormatUChar4; case 0x28: return MTLVertexFormatChar4;
+         case 0x29: return MTLVertexFormatHalf4; case 0x2A: return MTLVertexFormatUShort4Normalized; case 0x2B: return MTLVertexFormatShort4Normalized; case 0x2C: return MTLVertexFormatUShort4;
+         case 0x2D: return MTLVertexFormatShort4; case 0x2E: return MTLVertexFormatFloat4; case 0x2F: return MTLVertexFormatUInt4; case 0x30: return MTLVertexFormatInt4;
+-        case 0x3D: return MTLVertexFormatUInt1010102Normalized; case 0x3F: return MTLVertexFormatFloatRG11B10; case 0x9A: return MTLVertexFormatUChar4Normalized_BGRA;
++        case 0x3D: return MTLVertexFormatUInt1010102Normalized; case 0x69: return MTLVertexFormatInt1010102Normalized;   // 0x69 RGB10A2SN（卡比） | 0x69 RGB10A2SN (Kirby)
++        case 0x3F: return MTLVertexFormatFloatRG11B10; case 0x9A: return MTLVertexFormatUChar4Normalized_BGRA;
+     }
+     return MTLVertexFormatInvalid;
+ }
+@@ -2348,6 +2471,74 @@ static MTLBlendFactor bfac(int f) {
+ static NSMutableDictionary<NSString *, id<MTLFunction>> *g_bf_fn_cache;
+ static NSMutableDictionary<NSString *, id<MTLLibrary>> *g_bf_lib_cache;
+ static nvn_hmap g_pso = {.klen = sizeof(pso_key)}, g_dss;
++// 无符号整数颜色附件：片元输出要是 uint。NVN 的整数渲染目标存的是输出寄存器原始位，翻译出来的输出一律 float4，
++// 所以按需加载按位重解释的变体 <键>_u.metallib（没有这个文件就照旧用原函数，建管线失败处会报出来）
++// Unsigned-integer colour attachments need uint fragment outputs. NVN integer render targets store the raw output-register bits while the translated outputs are all float4,
++// so the bit-reinterpreting variant <key>_u.metallib is loaded on demand (without that file the original function is kept and the pipeline failure reports it)
++static int pf_is_uint(MTLPixelFormat f) {
++    switch (f) { case MTLPixelFormatR8Uint: case MTLPixelFormatR16Uint: case MTLPixelFormatRG8Uint: case MTLPixelFormatR32Uint: case MTLPixelFormatRG16Uint:
++        case MTLPixelFormatRGBA8Uint: case MTLPixelFormatRGB10A2Uint: case MTLPixelFormatRG32Uint: case MTLPixelFormatRGBA16Uint: case MTLPixelFormatRGBA32Uint: return 1;
++        default: return 0; }
++}
++// 混合格式的多渲染目标（卡比 G-buffer：附件 3 是 RGB10A2Uint、其余浮点）：只把掩码里的输出改成 uint 的变体 <键>_um<掩码>.metallib。
++// 没有这个文件就记进 Documents/uint_masks.tsv（键 \t 掩码），由 Mac 端 kirby/ios/tools/shlib_ios.py 补编
++// Mixed-format MRT (Kirby's G-buffer: attachment 3 is RGB10A2Uint, the rest float): a variant with only the masked outputs as uint, <key>_um<mask>.metallib.
++// Missing ones are appended to Documents/uint_masks.tsv (key \t mask) for the Mac side (kirby/ios/tools/shlib_ios.py) to compile
++static id<MTLFunction> fs_umask_fn(NvShader *fs, unsigned mask) {
++    if (!fs->umfn) fs->umfn = [NSMutableDictionary dictionary];
++    id got = fs->umfn[@(mask)]; if (got) return got == NSNull.null ? nil : got;
++    NSError *e = nil; id<MTLLibrary> lib = lib_from_file([NSString stringWithFormat:@"%@/%s_um%u.metallib", g_msl_dir, fs->key, mask], &e);
++    id<MTLFunction> fn = lib ? [lib newFunctionWithName:fs->fn.name] : nil;
++    fs->umfn[@(mask)] = fn ?: (id)NSNull.null;
++    if (!fn) { FILE *f = fopen("uint_masks.tsv", "a"); if (f) { fprintf(f, "%s\t%u\n", fs->key, mask); fclose(f); }
++        static int n; if (n++ < 8) MLOG("【红】缺部分整数输出变体 %s_um%u（已记进 Documents/uint_masks.tsv，Mac 端补编）", fs->key, mask); }
++    return fn;
++}
++// 整数顶点属性：着色器把属性按位还原成整数（骨骼编号）时，Switch 的整数格式在寄存器里是原始位，Metal 却转成浮点值。
++// 这些属性绑的是整数格式时换用 <键>_ia<掩码>.metallib（掩码里的属性声明 uint4、读取处 as_type<float>）；绑浮点格式（UI 的 Float2 等）用原函数。
++// 缺的组合记进 Documents/iattr_masks.tsv，由 Mac 端 shlib_ios.py 补编
++// Integer vertex attributes: when the shader bit-casts an attribute to an integer (bone indices), Switch integer formats put raw bits in the register while Metal converts to float values.
++// If those attributes are bound with integer formats use <key>_ia<mask>.metallib (masked attributes declared uint4, reads wrapped in as_type<float>); with float formats (UI Float2 etc.) keep the original.
++// Missing combinations are appended to Documents/iattr_masks.tsv for the Mac side (shlib_ios.py) to compile
++static int vf_is_int(MTLVertexFormat f) {
++    switch (f) { case MTLVertexFormatUChar: case MTLVertexFormatUChar2: case MTLVertexFormatUChar3: case MTLVertexFormatUChar4: case MTLVertexFormatChar: case MTLVertexFormatChar2:
++        case MTLVertexFormatChar3: case MTLVertexFormatChar4: case MTLVertexFormatUShort: case MTLVertexFormatUShort2: case MTLVertexFormatUShort3: case MTLVertexFormatUShort4:
++        case MTLVertexFormatShort: case MTLVertexFormatShort2: case MTLVertexFormatShort3: case MTLVertexFormatShort4: case MTLVertexFormatUInt: case MTLVertexFormatUInt2:
++        case MTLVertexFormatUInt3: case MTLVertexFormatUInt4: case MTLVertexFormatInt: case MTLVertexFormatInt2: case MTLVertexFormatInt3: case MTLVertexFormatInt4: return 1;
++        default: return 0; }
++}
++static id<MTLFunction> vs_ia_fn(NvShader *vs, unsigned mask) {
++    if (!vs->iafn) vs->iafn = [NSMutableDictionary dictionary];
++    id got = vs->iafn[@(mask)]; if (got) return got == NSNull.null ? nil : got;
++    NSError *e = nil; id<MTLLibrary> lib = lib_from_file([NSString stringWithFormat:@"%@/%s_ia%u.metallib", g_msl_dir, vs->key, mask], &e);
++    id<MTLFunction> fn = lib ? [lib newFunctionWithName:vs->fn.name] : nil;
++    vs->iafn[@(mask)] = fn ?: (id)NSNull.null;
++    if (!fn) { FILE *f = fopen("iattr_masks.tsv", "a"); if (f) { fprintf(f, "%s\t%u\n", vs->key, mask); fclose(f); }
++        static int n; if (n++ < 8) MLOG("【红】缺整数属性变体 %s_ia%u（已记进 Documents/iattr_masks.tsv，Mac 端补编）", vs->key, mask); }
++    return fn;
++}
++static id<MTLFunction> fs_uint_fn(NvShader *fs) {
++    if (!fs->ufn_tried) {
++        fs->ufn_tried = 1;
++        NSError *e = nil; id<MTLLibrary> lib = lib_from_file([NSString stringWithFormat:@"%@/%s_u.metallib", g_msl_dir, fs->key], &e);
++        fs->ufn = lib ? [lib newFunctionWithName:fs->fn.name] : nil;
++        static int n; if (n++ < 8) MLOG("整数输出变体 %s_u：%s", fs->key, fs->ufn ? "已加载" : "没有（用原函数）");
++    }
++    return fs->ufn;
++}
++// 贴图类型对齐：着色器按二维数组采样、绑的是普通二维贴图（或反过来）。NVN 允许（取第 0 层），Metal 类型不符读出 0——
++// 卡比的文字着色器就是按 texture2d_array 采样二维的字形缓存，文字全透明（真机，2026-10-14）。按底层贴图缓存一个单层视图
++// Texture type alignment: the shader samples a 2D array while a plain 2D texture is bound (or the reverse). NVN allows it (layer 0); Metal reads 0 on a type mismatch --
++// Kirby's text shader samples the 2D glyph cache as texture2d_array, so all text was transparent (on device, 2026-10-14). A single-layer view is cached per underlying texture
++static id<MTLTexture> tex_type_view(id<MTLTexture> t, MTLTextureType want) {
++    static NSMapTable<id<MTLTexture>, id<MTLTexture>> *m2a, *m2d;
++    NSMapTable *m = want == MTLTextureType2DArray ? (m2a ?: (m2a = [NSMapTable weakToStrongObjectsMapTable])) : (m2d ?: (m2d = [NSMapTable weakToStrongObjectsMapTable]));
++    id<MTLTexture> v = [m objectForKey:t]; if (v) return v;
++    v = [t newTextureViewWithPixelFormat:t.pixelFormat textureType:want levels:NSMakeRange(0, t.mipmapLevelCount) slices:NSMakeRange(0, 1)];
++    static int n; if (n++ < 8) MLOG("贴图类型对齐：%lux%lu 类型 %lu → %lu %s", (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.textureType, (unsigned long)want, v ? "（建视图）" : "【红】建不出视图");
++    if (v) [m setObject:v forKey:t];
++    return v;
++}
+ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged) {
+     MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+     d.vertexFunction = vs->fn; d.fragmentFunction = fsfn ? fsfn : fs ? fs->fn : nil;
+@@ -2364,6 +2555,8 @@ static MTLBlendFactor bfac(int f) {
+                 if (!hl) MLOG("【红】HILITE 着色器编译失败 %s", e.localizedDescription.UTF8String); }
+             if (hl) d.fragmentFunction = [hl newFunctionWithName:[NSString stringWithFormat:@"hl%d", i]];
+             break; } }
++    if (fs && !fsfn) { unsigned um = 0, all = 0; for (int i = 0; i < 8; i++) if (k->cfmt[i]) { all |= 1u << i; if (pf_is_uint((MTLPixelFormat)k->cfmt[i])) um |= 1u << i; }
++        if (um) { id<MTLFunction> u = um == all ? fs_uint_fn(fs) : fs_umask_fn(fs, um); if (u) d.fragmentFunction = u; } }
+     d.rasterSampleCount = k->samples ? k->samples : 1;
+     d.alphaToCoverageEnabled = k->a2c;
+     for (int i = 0; i < 8; i++) {
+@@ -2383,6 +2576,17 @@ static MTLBlendFactor bfac(int f) {
+     d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt;
+     MTLVertexDescriptor *vd = [MTLVertexDescriptor vertexDescriptor];
+     const nvn_refl *rf = &vs->rf;
++    unsigned iam = 0;
++    // 没绑的属性也算整数：占位常量全 0，按 uint4 / float4 读位都一样，这样「只绑骨骼编号、没绑权重」的单骨骼网格复用 2、3 的预编变体（真机缺的 17 个 _ia4 即此）
++    // Unbound attributes count as integer too: the placeholder constant is all zeros, identical bits read as uint4 or float4, so single-bone meshes (indices bound, weights not) reuse the precompiled 2,3 variant (the 17 missing _ia4 on device)
++    if (vs->iamask) for (int v = 0; v < rf->nv; v++) { int loc = rf->v[v].loc, a = rf->v[v].nvn;
++        if (loc >= 32 || !(vs->iamask >> loc & 1)) continue;
++        MTLVertexFormat f = a < 16 ? vfmt(k->attr[a].fmt) : MTLVertexFormatInvalid;
++        if (f == MTLVertexFormatInvalid || vf_is_int(f)) iam |= 1u << loc; }
++    if (iam) { int any_bound = 0;   // 全都没绑：不用变体 | none bound at all: no variant
++        for (int v = 0; v < rf->nv; v++) { int loc = rf->v[v].loc, a = rf->v[v].nvn; if (loc < 32 && (iam >> loc & 1) && a < 16 && vfmt(k->attr[a].fmt) != MTLVertexFormatInvalid) any_bound = 1; }
++        if (!any_bound) iam = 0; }
++    if (iam) { id<MTLFunction> f = vs_ia_fn(vs, iam); if (f) d.vertexFunction = f; else iam = 0; }
+     for (int v = 0; v < rf->nv; v++) {
+         int loc = rf->v[v].loc, a = rf->v[v].nvn;   // Metal 槽 loc ← NVN 属性 a | Metal slot loc ← NVN attribute a
+         MTLVertexFormat vf = a < 16 ? vfmt(k->attr[a].fmt) : MTLVertexFormatInvalid;
+@@ -2390,7 +2594,7 @@ static MTLBlendFactor bfac(int f) {
+         // When a >= S.nattr, k.attr[a] keeps the 0 from memset, vfmt(0) is Invalid, the same fallback branch is taken and the RED_ONCE condition of fmt being non-0 does not hold.
+         if (a < 16 && k->attr[a].fmt && vf == MTLVertexFormatInvalid) RED_ONCE(15, "顶点属性格式 %#x 未映射", k->attr[a].fmt);
+         if (vf == MTLVertexFormatInvalid) {
+-            int ct = rf->v[v].ct;
++            int ct = rf->v[v].ct; if (loc < 32 && (iam >> loc & 1)) ct = NVN_CT_UINT;
+             vd.attributes[loc].format = ct == NVN_CT_UINT ? MTLVertexFormatUInt4 : ct == NVN_CT_INT ? MTLVertexFormatInt4 : MTLVertexFormatFloat4;
+             vd.attributes[loc].offset = 0; vd.attributes[loc].bufferIndex = 30;
+             vd.layouts[30].stride = 16; vd.layouts[30].stepFunction = MTLVertexStepFunctionConstant; vd.layouts[30].stepRate = 0;
+@@ -2457,6 +2661,10 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
+     if (g_pso_lmap) { memcpy(k.lmap, g_pso_lmap, 8); k.fsfn = (__bridge void *)g_pso_fsfn; }
+     __unsafe_unretained id<MTLRenderPipelineState> cached = hm_get_id(&g_pso, &k);
+     if (cached) return cached;
++    // 建不出的管线记下来，同一组状态不再每次绘制都重试（真机：一个建不出的管线每帧被重试上千次，52 万次报错、白占 CPU）
++    // Remember pipelines that failed so the same state is not retried on every draw (on device: one failing pipeline was retried thousands of times per frame, 520k errors and wasted CPU)
++    static uint64_t failed[4096]; uint64_t kh = 1469598103934665603ull; for (size_t i = 0; i < sizeof k; i++) kh = (kh ^ ((const uint8_t *)&k)[i]) * 1099511628211ull; kh |= 1;
++    for (unsigned i = (unsigned)(kh % 4096), n = 0; n < 4096 && failed[i]; i = (i + 1) % 4096, n++) if (failed[i] == kh) return nil;
+     id<MTLRenderPipelineState> ps;
+     NSError *e = nil; uint64_t bt = bp_now();
+     ps = g_pso_lmap ? nil : pso_pend_take(&k);
+@@ -2467,7 +2675,12 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
+         ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+     }
+     g_bp_pso_n++; g_bp_pso_ns += bp_now() - bt;
+-    if (!ps) { MLOG("【红】建渲染管线失败：%s", e.localizedDescription.UTF8String); return nil; }
++    if (!ps) {
++        static int nf; if (nf++ < 16) MLOG("【红】建渲染管线失败：%s（顶点 %s 片元 %s，颜色附件格式 %u,%u,%u,%u 深度 %u 模板 %u）", e.localizedDescription.UTF8String, vs->key, fs ? fs->key : "-",
++            k.cfmt[0], k.cfmt[1], k.cfmt[2], k.cfmt[3], k.dfmt, k.sfmt);
++        for (unsigned i = (unsigned)(kh % 4096), n = 0; n < 4096; i = (i + 1) % 4096, n++) if (!failed[i]) { failed[i] = kh; break; }
++        return nil;
++    }
+     pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
+     pso_record("R\t%s\n", shex);
+     pso_user_record("R\t%s\n", shex);
+@@ -2557,10 +2770,13 @@ static void warm_start(void) {
+         paths = @[@(e)];
+     } else {
+         NSString *seed = [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"];
+-        NSMutableArray<NSString *> *all = [NSMutableArray arrayWithObject:seed];
++        NSMutableArray<NSString *> *all = [NSMutableArray array];
++        if ([NSFileManager.defaultManager fileExistsAtPath:seed]) [all addObject:seed];
+         NSString *user = pso_user_path();
+         if (user && [NSFileManager.defaultManager fileExistsAtPath:user]) [all addObject:user];
+-        if (![NSFileManager.defaultManager fileExistsAtPath:seed]) return;
++        // 没有种子清单也按本机用户清单预热（卡比：App 里还没带种子时，玩过的场景下次启动照样预编；原先缺种子就整个不预热）
++        // Warm up from the local user manifest even without a seed (Kirby: with no seed in the App yet, scenes already played still get precompiled next launch; previously a missing seed skipped warm-up entirely)
++        if (!all.count) return;
+         paths = all;
+     }
+     if (!g_warm_items) g_warm_items = [NSMutableArray array];
+@@ -2747,6 +2963,9 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
+                        (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.depth,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeSlice : 0), (unsigned long)t.arrayLength, (unsigned long)t.textureType);
++            if (t && ((b->dtt == MTLTextureType2DArray && t.textureType == MTLTextureType2D) || (b->dtt == MTLTextureType2D && t.textureType == MTLTextureType2DArray))) {
++                id<MTLTexture> v = tex_type_view(t, (MTLTextureType)b->dtt); if (v) { t = v; trid = v.gpuResourceID._impl; }
++            }
+             if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 7][b->dpf & 3]; }
+             slots[aid] = trid;
+             USE(t, MTLResourceUsageRead);
+@@ -4396,7 +4615,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+     enc_r_scissor(en, sc);
+     if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) return;
+     enc_r_cull(en, S.poly.cull == NVN_FACE_FRONT ? MTLCullModeFront : S.poly.cull == NVN_FACE_BACK ? MTLCullModeBack : MTLCullModeNone);
+-    enc_r_winding(en, S.poly.front == NVN_FRONT_FACE_CCW ? MTLWindingCounterClockwise : MTLWindingClockwise);
++    enc_r_winding(en, (S.poly.front == NVN_FRONT_FACE_CCW) != (g_nvn_gl_origin != 0) ? MTLWindingCounterClockwise : MTLWindingClockwise);   // GL 原点：y 取反后绕序反过来 | GL origin: winding reverses after the y negation
+     enc_r_fill(en, S.poly.mode == NVN_POLYGON_MODE_LINE ? MTLTriangleFillModeLines : MTLTriangleFillModeFill);
+     if (S.poly.offset_en & 4) enc_r_depth_bias(en, S.po.units, S.po.factor, S.po.clamp); else enc_r_depth_bias(en, 0, 0, 0);
+     enc_r_blend_color(en, S.blend_color[0], S.blend_color[1], S.blend_color[2], S.blend_color[3]);
+@@ -4483,14 +4702,27 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+             for (uint32_t q = 0; q < n; q++) { uint32_t b = q * 4; uint32_t v[6] = {b, b + 1, b + 2, b, b + 2, b + 3}; memcpy(ix + q * 6, v, 24); }
+             g_quad_ib = [g_dev newBufferWithBytes:ix length:n * 24 options:MTLResourceStorageModeShared]; g_quad_gpu = g_quad_ib.gpuAddress; res_add(g_quad_ib); free(ix);
+         }
+-        if (dw->count >= 4) enc_r_draw_indexed(en, mp, (dw->count / 4) * 6, MTLIndexTypeUInt32, g_quad_gpu, g_quad_ib.length, 1, dw->first, 0);
++        if (dw->count >= 4) enc_r_draw_indexed(en, mp, (dw->count / 4) * 6, MTLIndexTypeUInt32, g_quad_gpu, g_quad_ib.length,
++                                               dw->instances ? dw->instances : 1, dw->first, dw->base_instance);
+     } else if (dw) {
+-        if (dw->count) enc_r_draw(en, mp, dw->first, dw->count);
++        // instances 0 = 普通绘制（D2R 只用这种）；DrawArraysInstanced 填实例数与起始实例 | instances 0 = plain draw (the only kind D2R uses); DrawArraysInstanced fills the instance count and base instance
++        if (dw->count && dw->instances) enc_r_draw_instanced(en, mp, dw->first, dw->count, dw->instances, dw->base_instance);
++        else if (dw->count) enc_r_draw(en, mp, dw->first, dw->count);
+     } else {
+         if (prim == 7) { RED_ONCE(20, "带索引的四边形未实现"); return; }
+-        if (di->itype == 0) { RED_ONCE(21, "8 位索引未实现"); return; }
+         void *mb; uint64_t mo;
+         uint64_t gpu;
++        if (di->itype == 0) {   // 8 位索引（卡比用；Metal 没有）：在 CPU 上扩成 16 位放进临时缓冲，用过它的提交完成后释放 | 8-bit indices (Kirby; Metal has none): widened to 16 bits on the CPU into a temporary buffer, released after the submissions using it complete
++            void *sb; uint64_t so; const uint8_t *src;
++            if (!di->count) return;
++            if (!mtl_addr(di->ibuf, di->count, &sb, &so) || !(src = [(__bridge id<MTLBuffer>)sb contents])) { RED_ONCE(22, "索引缓冲不在内存池里"); return; }
++            id<MTLBuffer> b16 = [g_dev newBufferWithLength:(NSUInteger)di->count * 2 options:MTLResourceStorageModeShared];
++            uint16_t *d16 = b16.contents; for (int i = 0; i < di->count; i++) d16[i] = src[so + i];
++            res_add(b16); defer_obj_release(b16);
++            static int n8; if (!n8++) MLOG("8 位索引：转成 16 位（首例 %d 个）", di->count);
++            enc_r_draw_indexed(en, mp, di->count, MTLIndexTypeUInt16, b16.gpuAddress, b16.length, di->instances ? di->instances : 1, di->base_vertex, di->base_instance);
++            return;
++        }
+         if (!mtl_gpu_addr(di->ibuf, 1, &mb, &mo, &gpu)) { RED_ONCE(22, "索引缓冲不在内存池里"); return; }
+         use_rec("buf", di->ibuf, (uint64_t)di->count * (di->itype == 1 ? 2 : 4), 0, NULL);
+         if (di->count) enc_r_draw_indexed(en, mp, di->count, di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32, gpu, ((__bridge id<MTLBuffer>)mb).length - mo,
+@@ -4664,6 +4896,42 @@ void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNc
+     enc_b_end(b); [cb commit]; [cb waitUntilCompleted];
+     for (int z = 0; z < nz; z++) for (size_t y = 0; y < hb; y++) memcpy(dst + z * img + y * row, (uint8_t *)buf.contents + z * wb * hb + y * wb, wb);
+ }
++// CPU 写贴图（WriteTexels，卡比的字形缓存经它上传，D2R 不用）：和 ReadTexels 对称。预排布贴图以池内存为真值：整层解排布、改区域、再排布写回池内存——
++// 池页受写保护跟踪（nvn_dirty.c），写入即标脏，下次用到时按池内容重传；其余贴图直接 blit 进 MTLTexture（先等 GPU，NVN 规矩里调用方要保证贴图不在用）
++// CPU texture write (WriteTexels; Kirby's glyph cache uploads through it, D2R does not use it): symmetric to ReadTexels. For packaged textures the pool memory is the ground truth:
++// de-layout the whole level, patch the region, re-layout back into pool memory -- the pool pages are write-protect tracked (nvn_dirty.c), so the write marks them dirty and the
++// texture is re-uploaded from the pool on next use; other textures are blitted straight into the MTLTexture (waiting for the GPU first; per NVN rules the caller guarantees the texture is not in use)
++void mtl_write_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNcopyRegion *r, const uint8_t *src, size_t row, size_t img) {
++    PD("U cpu_write ser=%llu lv%u sl%u xyz=%d,%d,%d size=%d,%d,%d", t->serial, level, layer0, r->xoffset, r->yoffset, r->zoffset, r->width, r->height, r->depth);
++    { static uint64_t n; n++; if (n <= 4 || n % 500 == 0) MLOG("WriteTexels 第 %llu 次：ser=%llu %ux%u 区域 %dx%d 预排布 %d", (unsigned long long)n, t->serial, t->d.width, t->d.height, r->width, r->height, t->has_layout && t->mem); }
++    int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh);
++    size_t wb = (size_t)((r->width + bw - 1) / bw) * bpb, hb = (r->height + bh - 1) / bh, x0 = (size_t)(r->xoffset / bw) * bpb, y0 = r->yoffset / bh;
++    int nz = r->depth ? r->depth : 1, is3d = t->d.target == 2;
++    if (t->has_layout && t->mem) {
++        uint32_t lw = MAX(t->d.width >> level, 1u), lh = MAX(t->d.height >> level, 1u), lz = is3d ? MAX(t->d.depth >> level, 1u) : 1;
++        size_t lp = (size_t)((lw + bw - 1) / bw) * bpb, lr = (lh + bh - 1) / bh;
++        uint8_t *lin = malloc(lp * lr * lz);
++        for (int z = 0; z < nz; z++) {
++            unsigned layer = is3d ? 0 : layer0 + r->zoffset + z;
++            if ((is3d && z == 0) || !is3d) if (nvn_deswizzle(&t->d, level, layer, t->mem, lin, lp)) { RED_ONCE(64, "WriteTexels 解排布失败"); free(lin); return; }
++            uint8_t *d = lin + (is3d ? (size_t)(r->zoffset + z) * lp * lr : 0);
++            for (size_t y = 0; y < hb; y++) memcpy(d + (y0 + y) * lp + x0, src + z * img + y * row, wb);
++            if ((is3d && z == nz - 1) || !is3d) if (nvn_swizzle(&t->d, level, layer, lin, lp, t->mem)) { RED_ONCE(64, "WriteTexels 排布写回失败"); free(lin); return; }
++        }
++        free(lin);
++        return;
++    }
++    id<MTLTexture> mt = tex_mtl(t);
++    if (!mt) { RED_ONCE(65, "WriteTexels：贴图既没有池内存也没有 MTLTexture"); return; }
++    mtl_finish_gpu();
++    id<MTLBuffer> buf = [g_dev newBufferWithLength:wb * hb * nz ?: 16 options:MTLResourceStorageModeShared];
++    for (int z = 0; z < nz; z++) for (size_t y = 0; y < hb; y++) memcpy((uint8_t *)buf.contents + z * wb * hb + y * wb, src + z * img + y * row, wb);
++    id<MTLCommandBuffer> cb = q_cb(); id<MTLBlitCommandEncoder> b = enc_b_begin(cb);
++    for (int z = 0; z < nz; z++)
++        [b copyFromBuffer:buf sourceOffset:z * wb * hb sourceBytesPerRow:wb sourceBytesPerImage:wb * hb sourceSize:MTLSizeMake(r->width, r->height, 1)
++                toTexture:mt destinationSlice:is3d ? 0 : layer0 + r->zoffset + z destinationLevel:level destinationOrigin:MTLOriginMake(r->xoffset, r->yoffset, is3d ? r->zoffset + z : 0)];
++    enc_b_end(b); [cb commit]; [cb waitUntilCompleted];
++}
+ static void copy_b2t(const p_copy_b2t *c) {
+     if (c->tex) zskip_del(c->tex->serial);
+     id<MTLTexture> t = tex_mtl(c->tex);
+@@ -5491,6 +5759,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+     [g_present_args setSamplerState:g_blit_samp.gpuResourceID atIndex:0];
+     float *uv = g_present_uv[uv_i].contents;
+     uv[0] = (float)cx / src.width; uv[1] = (float)cy / src.height; uv[2] = (float)cw / src.width; uv[3] = (float)ch / src.height;
++    if (g_nvn_gl_origin) { uv[1] = (float)(cy + ch) / src.height; uv[3] = -(float)ch / src.height; }   // GL 原点：帧缓冲底在上，上下翻转取样 | GL origin: the framebuffer is bottom-first, sample flipped vertically
+     uv[4] = (cx + 0.5f) / src.width; uv[5] = (cy + 0.5f) / src.height; uv[6] = (cx + cw - 0.5f) / src.width; uv[7] = (cy + ch - 0.5f) / src.height;
+     [g_present_args setAddress:g_present_uv[uv_i].gpuAddress atIndex:0];
+     [en setViewport:vp]; [en setRenderPipelineState:g_blit_pso];
+@@ -5545,6 +5814,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+         nshot = 0; const char *e = getenv("DM_NVN_SHOT"), *c = e ? strchr(e, ':') : NULL;
+         if (c) { shot_path = c + 1; for (const char *q = e; q < c && nshot < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : c) shots[nshot++] = atol(q); }
+     }
++    if (g_present_n == 300 || g_present_n == 600) for (int i = 0; i < g_lin_n; i++) {
++        size_t nz = 0; for (size_t k = 0; k < g_lin_size[i]; k++) nz += g_lin_mem[i][k] != 0;
++        MLOG("线性贴图 ser=%llu 第 %llu 帧：非零字节 %zu / %zu", g_lin_ser[i], (unsigned long long)g_present_n, nz, g_lin_size[i]);
++        if (g_present_n == 300 && getenv("DM_NVN_LINDUMP")) { char path[64]; snprintf(path, sizeof path, "lin_%llu.raw", g_lin_ser[i]); FILE *f = fopen(path, "wb");
++            if (f) { fwrite(g_lin_mem[i], 1, g_lin_size[i], f); fclose(f); } }
++    }
+     for (int i = 0; i < nshot; i++) if ((long)g_present_n == shots[i]) { char path[1024]; snprintf(path, sizeof path, shot_path, (int)g_present_n); mtl_finish_gpu(); shot(src, path, 1, crop); }
+     pthread_mutex_lock(&g_shotq_mu);
+     for (int i = 0; i < g_nshotq;) if (g_present_n >= g_shotq[i].frame) { mtl_finish_gpu(); shot(src, g_shotq[i].path, 1, crop); g_shotq[i] = g_shotq[--g_nshotq]; } else i++;
+diff --git a/dm/gfx/nvn/nvn_obj.h b/dm/gfx/nvn/nvn_obj.h
+index ee45b29..f21bd23 100644
+--- a/dm/gfx/nvn/nvn_obj.h
++++ b/dm/gfx/nvn/nvn_obj.h
+@@ -34,7 +34,9 @@ typedef struct {
+     uint32_t magic; nvn_texdesc d; nvn_texlayout L; uint8_t *mem; pool_t *pool; int64_t off; uint8_t has_layout, layout[8];
+     uint64_t serial;                     // 初始化序号：回放层按它在宿主表里找 MTLTexture（游戏可能按值拷贝对象，不能存对象指针） | Initialization serial: the replay layer uses it to find the MTLTexture in the host table (the game may copy the object by value, so object pointers cannot be stored)
+ } tex_t;                                                                                     FITS(tex_t, NVNtexture);
+-typedef struct { uint8_t set_levels, set_layers, set_format, set_target; int32_t base_level, nlevels, min_layer, nlayers, format, target; } view_t;
++// set_swz / swz：通道重排（NVNtextureSwizzle）；ds_mode：深度模板贴图按深度（0）还是模板（1）采样。D2R 不设，恒 0（= 原样）
++// set_swz / swz: channel swizzle (NVNtextureSwizzle); ds_mode: sample a depth-stencil texture as depth (0) or stencil (1). D2R never sets them, always 0 (= unchanged)
++typedef struct { uint8_t set_levels, set_layers, set_format, set_target; int32_t base_level, nlevels, min_layer, nlayers, format, target; uint8_t set_swz, swz[4], ds_mode; } view_t;
+ FITS(view_t, NVNtextureView);
+ 
+ // 采样器参数（builder 与对象共用一份）
+@@ -45,6 +47,10 @@ typedef struct { uint32_t magic; samp_par p; } samp_t;
+ 
+ typedef struct { uint32_t magic, nstage; NVNshaderData sd[6]; uint64_t serial; } prog_t;     FITS(prog_t, NVNprogram);   // serial：回放层解析结果的表键 | serial: table key for the replay layer's resolved result
+ 
++// 缓冲对象（nvnBuffer*；D2R 不用，卡比经 nn::gfx 用）：GPU 地址 = CPU 地址 = 内存池基址 + 偏移
++// Buffer object (nvnBuffer*; unused by D2R, used by Kirby through nn::gfx): GPU address = CPU address = pool base + offset
++typedef struct { NVNdevice *dev; const pool_t *pool; int64_t off; uint64_t size; } buf_builder_t;  FITS(buf_builder_t, NVNbufferBuilder);
++typedef struct { uint32_t magic; uint8_t *mem; uint64_t size; const pool_t *pool; } buf_t;          FITS(buf_t, NVNbuffer);
+ typedef struct { uint32_t magic, fenced; uint64_t fence; } sync_t;                            FITS(sync_t, NVNsync);
+ typedef struct { const pool_t *pool; int64_t off; } ev_builder_t;                             FITS(ev_builder_t, NVNeventBuilder);
+ typedef struct { uint32_t magic; volatile uint32_t *val; } ev_t;                              FITS(ev_t, NVNevent);
+@@ -111,7 +117,7 @@ typedef struct { int32_t stage, index; uint64_t addr, size; } p_bind_buf;  // UB
+ typedef struct { int32_t stage, first, n; uint64_t h[32]; } p_bind_handles; // 分离贴图 / 采样器句柄 | Separate texture / sampler handles
+ typedef struct { int32_t face, value_mask, mask, ref, which; } p_stencil;  // which：0 值掩码 1 写掩码 2 参考值 | which: 0 value mask 1 write mask 2 reference value
+ typedef struct { float factor, units, clamp; } p_poly_offset;
+-typedef struct { int32_t prim, first, count; } p_draw;
++typedef struct { int32_t prim, first, count, instances, base_instance; } p_draw;   // instances 0 = 不实例化（D2R 的 DrawArrays 只填前三项） | instances 0 = not instanced (D2R's DrawArrays fills only the first three)
+ typedef struct { int32_t prim, itype, count, base_vertex, base_instance, instances; uint64_t ibuf; } p_draw_idx;
+ typedef struct { int32_t x, y, z; uint64_t caller; } p_dispatch;   // caller：游戏调用点返回地址（定位派发者） | caller: return address of the game call site (to locate the dispatcher)
+ typedef struct { const dpool_t *pool; } p_set_pool;
+@@ -166,6 +172,7 @@ void mtl_create_stats(uint64_t *lib, uint64_t *pso);   // 累计：提交线程
+ // CPU 读贴图：level / layer0 起，按 row / img 字节步长写进 dst
+ // CPU texture read: starting at level / layer0, written into dst with row / img byte strides
+ void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNcopyRegion *r, uint8_t *dst, size_t row, size_t img);
++void mtl_write_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNcopyRegion *r, const uint8_t *src, size_t row, size_t img);
+ // 描述符池登记（贴图号 / 采样器号 → 对象快照）、程序释放
+ // Descriptor pool registration (texture ID / sampler ID → object snapshot), program release
+ void mtl_reg_tex(int id, const tex_t *t, const view_t *v);
+diff --git a/dm/host/dm.h b/dm/host/dm.h
+index 5430909..77c4931 100644
+--- a/dm/host/dm.h
++++ b/dm/host/dm.h
+@@ -44,6 +44,11 @@ extern int g_nmod;
+ extern pthread_key_t g_key18, g_keytls, g_keytlr, g_keygate;
+ extern pthread_key_t g_keyres[2], g_keyaspect, g_keyaspectui;
+ 
++// 当前宿主是不是 D2R 产物：D2R 的 main.c 定义为 1，别的游戏的入口（如 kirby/host/kirby_main.c）定义为 0。
++// 共用文件里凡是写死 D2R 程序地址的地方，先判它再碰地址（别的游戏映像里那些偏移是别的东西，甚至越界）。
++// Whether this host is the D2R product: D2R's main.c defines it as 1, other games' entry files (e.g. kirby/host/kirby_main.c) define it as 0.
++// Anywhere a shared file hard-codes a D2R program address, check this before touching the address (in another game's image those offsets are something else, or even out of bounds).
++int dm_game_d2r(void);
+ void load_modules(const char *dir, const char **names, int n);
+ void run_module_inits(void);
+ void *module_sym(module_t *m, const char *name);
+diff --git a/dm/host/hle_audio.c b/dm/host/hle_audio.c
+index 8c3eed0..07d644e 100644
+--- a/dm/host/hle_audio.c
++++ b/dm/host/hle_audio.c
+@@ -26,6 +26,7 @@ typedef struct {
+     gbuf *q[QMAX]; _Atomic uint32_t q_head, q_tail;       // 待播：游戏侧写，出声端读 | Pending: written by the game side, read by the output side
+     gbuf *rel[RELMAX]; _Atomic uint32_t rel_head, rel_tail; // 已释放：出声端写，游戏侧读 | Released: written by the output side, read by the game side
+     uint64_t pos;                      // 当前块已播字节 | Bytes already played of the current block
++    _Atomic uint64_t played;           // 累计已交给出声端的字节（别的游戏的 GetAudioOutPlayedSampleCount 用） | Cumulative bytes handed to the output side (for other games' GetAudioOutPlayedSampleCount)
+     AudioUnit au;
+     pthread_t null_th; _Atomic int null_run;
+     dispatch_semaphore_t notify_sem;
+@@ -72,7 +73,7 @@ static void pull(aout *a, uint8_t *dst, uint64_t n) {
+         gbuf *b = a->q[qh & (QMAX - 1)];
+         uint64_t k = b->size - a->pos; if (k > n) k = n;
+         memcpy(dst, (uint8_t *)b->ptr + a->pos, k);
+-        dst += k; n -= k; a->pos += k;
++        dst += k; n -= k; a->pos += k; atomic_fetch_add_explicit(&a->played, k, memory_order_relaxed);
+         if (a->pos >= b->size) {
+             uint32_t rw = atomic_load_explicit(&a->rel_tail, memory_order_relaxed);
+             uint32_t rr = atomic_load_explicit(&a->rel_head, memory_order_acquire);
+@@ -161,6 +162,10 @@ HLE_FORCE("_ZN2nn5audio12OpenAudioOutEPNS0_8AudioOutEPNS_2os11SystemEventEPKcRKN
+     if (real_audio()) au_open(a);
+     return RES_OK;
+ }
++// 给别的游戏的接管文件用（如 kirby/host/hle_audio_kirby.c：卡比走 OpenDefaultAudioOut / 不带事件的 OpenAudioOut，D2R 没有这两个入口）
++// For other games' takeover files (e.g. kirby/host/hle_audio_kirby.c: Kirby goes through OpenDefaultAudioOut / OpenAudioOut without an event, entries D2R does not have)
++Result dm_audio_out_open(void *g, void *ev, const char *name, const uint8_t *param) { return h_au_Open(g, ev, name, param); }
++uint64_t dm_audio_out_played_samples(const void *g) { aout *a = ao(g); return atomic_load_explicit(&a->played, memory_order_relaxed) / (2u * (unsigned)a->ch); }
+ HLE_FORCE("_ZN2nn5audio13StartAudioOutEPNS0_8AudioOutE", "开始播放", Result, h_au_Start, void *g) {
+     aout *a = ao(g);
+     pthread_mutex_lock(&a->m); int was = atomic_load_explicit(&a->state, memory_order_relaxed); atomic_store_explicit(&a->state, STATE_STARTED, memory_order_release); pthread_mutex_unlock(&a->m);
+diff --git a/dm/host/hle_fs.c b/dm/host/hle_fs.c
+index ff8e772..e87432e 100644
+--- a/dm/host/hle_fs.c
++++ b/dm/host/hle_fs.c
+@@ -381,9 +381,11 @@ HLE_FORCE("_ZN2nn2fs13MountSaveDataEPKcRKNS_7account3UidE", "fsp-srv；存档 
+     const char *d = getenv("DM_SAVE");
+     if (!d) die("未设 DM_SAVE：请指向一份存档目录的可写副本");
+     char dd[1024]; strlcpy(dd, d, sizeof dd); size_t L = strlen(dd); while (L > 1 && dd[L - 1] == '/') dd[--L] = 0;   // 去掉结尾斜杠（.work / .new 拼在同级） | strip trailing slashes (.work / .new are appended at the same level)
+-    stash_seed(dd);
+-    low_vision_off(dd);
+-    settings_seed(dd); settings_lang_apply(dd);
++    if (dm_game_d2r()) {   // 这几步往存档里补的是 D2R 的储藏箱与 Settings.json：别的游戏不碰它的存档 | These steps add D2R's stash files and Settings.json to the save: leave other games' saves alone
++        stash_seed(dd);
++        low_vision_off(dd);
++        settings_seed(dd); settings_lang_apply(dd);
++    }
+     // 掉落过滤的规则文件（原版启动时载入，dm_lootfilter.c 用构造函数登记这个钩子；只链 hle_fs.c 的单测里它是空的）。与 settings_seed 同一个开关：
+     // iOS 上缺省写；Mac 宿主的对拍闸门（存档要和真机真值逐文件相同）不写
+     // Rule files for the loot filter (the game loads them at startup; dm_lootfilter.c registers this hook from a constructor; it is null in unit tests that link only hle_fs.c). Same switch as settings_seed:
+@@ -696,3 +698,28 @@ HLE_FORCE("_ZN2nn2fs13ReadDirectoryEPlPNS0_14DirectoryEntryENS0_15DirectoryHandl
+ HLE_FORCE("_ZN2nn2fs14CloseDirectoryENS0_15DirectoryHandleE", "fsp-srv → closedir(3)", void, h_fs_CloseDirectory, uint64_t hh) {
+     dirh_t *h = (dirh_t *)hh; closedir(h->d); if (h->od) closedir(h->od); free(h->snap); free(h);
+ }
++
++// ---------- 给别的游戏的接管文件用（如 kirby/host/hle_misc_kirby.c），D2R 自己不调 ----------
++// ---------- For other games' takeover files (e.g. kirby/host/hle_misc_kirby.c); D2R itself does not call these ----------
++// ReadFile 的四参数版（不回读到的字节数）：要求读满，读不满按真机语义报错（越界）
++// The four-argument ReadFile (does not return the byte count read): must read the full length, a short read is an error as on the real device (out of range)
++Result dm_fs_read_exact(uint64_t h, int64_t off, void *buf, size_t sz) {
++    size_t got = 0; Result r = h_fs_ReadFile(&got, h, off, buf, sz);
++    if (r != RES_OK) return r;
++    if (got != sz) { LOG("【红】fs ReadFile（四参数）读不满：fd %d 偏移 %lld 要 %zu 得 %zu", (int)h, (long long)off, sz, got); return RES_FAIL; }
++    return RES_OK;
++}
++Result dm_fs_commit(const char *name) { return h_fs_Commit(name); }   // CommitSaveData(名) 与 Commit(名) 对存档挂载同义 | CommitSaveData(name) means the same as Commit(name) for a save mount
++// CleanDirectoryRecursively：删掉目录下全部内容，目录本身保留
++// CleanDirectoryRecursively: delete everything inside the directory, keep the directory itself
++Result dm_fs_clean_dir(const char *path) {
++    HP(path); RW();
++    DIR *d = opendir(hp); if (!d) return err_res("opendir", hp);
++    struct dirent *e; Result r = RES_OK;
++    while ((e = readdir(d))) {
++        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
++        char c[1280]; snprintf(c, sizeof c, "%s/%s", hp, e->d_name);
++        if (rm_tree(c)) { r = err_res("rmtree", c); break; }
++    }
++    closedir(d); return r;
++}
+diff --git a/dm/host/hle_oe.c b/dm/host/hle_oe.c
+index 8304258..a4aba2e 100644
+--- a/dm/host/hle_oe.c
++++ b/dm/host/hle_oe.c
+@@ -217,6 +217,7 @@ void dm_3d_scale_hot(int hot) { (void)hot; }   // 过热不再直接降档（改
+ static _Atomic float g_scale3d_cur = 1.0f;
+ float dm_3d_scale_cur(void) { return atomic_load(&g_scale3d_cur); }
+ static void scale3d_tick(void) {
++    if (!dm_game_d2r()) return;   // 渲染器对象与改尺寸函数的地址只对 D2R 成立 | The renderer object and resize function addresses only hold for D2R
+     static float want_cfg = -1, cur = 1.0f; static module_t *main;
+     if (want_cfg < 0) {
+         const char *e = getenv("DM_3D_SCALE"); want_cfg = TARGET_OS_IPHONE ? 0.75f : 1.0f;
+diff --git a/dm/host/hle_svc.c b/dm/host/hle_svc.c
+index cb6a7f7..37e6298 100644
+--- a/dm/host/hle_svc.c
++++ b/dm/host/hle_svc.c
+@@ -76,6 +76,7 @@ static size_t image_bytes(void) { size_t n = 0; for (int i = 0; i < g_nmod; i++)
+ static module_t *mod_named(const char *n) { for (int i = 0; i < g_nmod; i++) if (!strcmp(g_mod[i].name, n)) return &g_mod[i]; return NULL; }
+ static _Atomic unsigned long long g_gheap_last[3];
+ int dm_guest_heap_stat(unsigned long long *total_mb, unsigned long long *free_mb, unsigned long long *maxblk_kb) {
++    if (!dm_game_d2r()) return 0;   // 主堆分配器的地址只对 D2R 成立 | The main heap allocator address only holds for D2R
+     module_t *mm = mod_named("main"), *ms = mod_named("sdk"); if (!mm || !ms || !g_heap_cur) return 0;
+     uint8_t *al = mm->base + 0x32137a0; if (!al[0]) return 0;   // 首字节 = 已初始化（sdk+0x2f9898 写） | First byte = initialized (written by sdk+0x2f9898)
+     uint64_t fr = ((uint64_t (*)(void *))(ms->base + 0x2f9d78))(al), mx = ((uint64_t (*)(void *))(ms->base + 0x2f9dbc))(al);
+@@ -83,7 +84,11 @@ int dm_guest_heap_stat(unsigned long long *total_mb, unsigned long long *free_mb
+     g_gheap_last[0] = *total_mb; g_gheap_last[1] = *free_mb; g_gheap_last[2] = *maxblk_kb; return 1;
+ }
+ HLE_FORCE("_ZN2nn3mem17StandardAllocator8AllocateEmm", "照原版分配，只在返回空时报红（原版调用方多处不判空）", void *, hle_stdalloc_allocate, void *self, size_t size, size_t align) {
+-    static void *(*orig)(void *, size_t, size_t); if (!orig) { module_t *ms = mod_named("sdk"); orig = (void *(*)(void *, size_t, size_t))(ms->base + 0x2f9974); }
++    // 原函数：D2R 照旧用 sdk+0x2f9974；别的游戏的 SDK 版本不同，按名字取 sdk 自己的定义
++    // Original function: D2R keeps using sdk+0x2f9974; other games have a different SDK version, so take the sdk's own definition by name
++    static void *(*orig)(void *, size_t, size_t); if (!orig) { module_t *ms = mod_named("sdk");
++        orig = dm_game_d2r() ? (void *(*)(void *, size_t, size_t))(ms->base + 0x2f9974) : (void *(*)(void *, size_t, size_t))module_sym(ms, "_ZN2nn3mem17StandardAllocator8AllocateEmm");
++        if (!orig) die("sdk 里找不到 nn::mem::StandardAllocator::Allocate"); }
+     void *p = orig(self, size, align);
+     if (!p && size) { static _Atomic int n; if (atomic_fetch_add(&n, 1) < 8) LOG("【红】游戏堆分配返回空：申请 %zu 字节（对齐 %zu），分配器 %p；上次读数 主堆 %llu MB、余量 %llu MB、最大可分配块 %llu KB", size, align, self,
+         (unsigned long long)g_gheap_last[0], (unsigned long long)g_gheap_last[1], (unsigned long long)g_gheap_last[2]); }
+diff --git a/dm/host/hle_time.c b/dm/host/hle_time.c
+index e7f094e..c898686 100644
+--- a/dm/host/hle_time.c
++++ b/dm/host/hle_time.c
+@@ -34,7 +34,7 @@ HLE_FORCE("time", "按返回点认出建局种子那一处（DM_FIXED_TIME）；
+         module_t *ms = NULL, *mm = NULL;
+         for (int i = 0; i < g_nmod; i++) { if (!strcmp(g_mod[i].name, "sdk")) ms = &g_mod[i]; if (!strcmp(g_mod[i].name, "main")) mm = &g_mod[i]; }
+         void *f = ms ? module_sym(ms, "time") : NULL; if (!f) die("SDK 里找不到 time");
+-        uint32_t w = mm ? *(uint32_t *)(mm->base + 0x3509a0) : 0;
++        uint32_t w = mm && dm_game_d2r() ? *(uint32_t *)(mm->base + 0x3509a0) : 0;   // 建局种子那一处只对 D2R 成立 | The game-creation seed site only holds for D2R
+         if ((w & 0xfc000000) == 0x94000000) seed_ret = (uint64_t)mm->base + 0x3509a4;               // bl time（构建 db0507f3…；改写器会改跳转目标，只认 bl 本身） | bl time (build db0507f3…; the rewriter changes the branch target, so only the bl itself is matched)
+         else if (fixed_time() >= 0) LOG("【红】DM_FIXED_TIME：main 0x3509a0 不是预期的 bl time（%#x），建局 time() 未固定", w);
+         sdk_time = (int64_t (*)(int64_t *))f;
+diff --git a/dm/host/loader.c b/dm/host/loader.c
+index 0032333..b7c5191 100644
+--- a/dm/host/loader.c
++++ b/dm/host/loader.c
+@@ -141,10 +141,13 @@ static void *force_lookup(const char *name) {
+ }
+ static void force_check(void) {
+     int bad = 0;
++    // 别的游戏（dm_game_d2r() == 0）共用 D2R 的 hle_*.c，其中有些接口那个游戏根本不用：只记一行，不中止
++    // Other games (dm_game_d2r() == 0) share D2R's hle_*.c files, some of whose interfaces that game never uses: log one line instead of aborting
+     for (unsigned i = 0; i < g_nforce; i++)
+-        if (!g_force_hits[i]) { LOG("强制接管条目无任何引用：%s", g_force[i].name); bad = 1; }
+-    if (bad) die("强制接管清单有误");
+-    LOG("force: %u 条全部命中", g_nforce);
++        if (!g_force_hits[i]) { if (dm_game_d2r() || g_flag.imports) LOG("强制接管条目无任何引用：%s", g_force[i].name); bad++; }
++    if (bad && dm_game_d2r()) die("强制接管清单有误");
++    if (bad) LOG("force: %u 条命中，%d 条本游戏未引用（DM_IMPORTS=1 逐条列出）", g_nforce - bad, bad);
++    else LOG("force: %u 条全部命中", g_nforce);
+ }
+ 
+ // 读改写器表头（段边界、槽号）；表头以外有任何行即旧版产物（装载期改代码），拒绝
+diff --git a/dm/host/main.c b/dm/host/main.c
+index 5291f97..8967f4b 100644
+--- a/dm/host/main.c
++++ b/dm/host/main.c
+@@ -9,6 +9,7 @@
+ void probe_install(void); void ticks_install(void); void hid_keys_init(void); void tact_prefetch_start(const char *outdir); void tact_chk_init(void); void stubs_report(void); void crash_install(void); void guest_thread_init(void); uint32_t svc_thread_main_init(void);
+ typedef void (*fn0)(void); typedef void (*fn2)(uint64_t, uint64_t); typedef void (*fnp)(void *);
+ static void *req(const char *n){ void *p=guest_sym(n); if(!p) die("缺符号 %s", n); return p; }
++int dm_game_d2r(void) { return 1; }   // 本文件是 D2R 的入口（dm.h） | This file is D2R's entry point (dm.h)
+ 
+ // 游戏参数：argv[0] 固定为 "D2R"，"--" 之后的原样追加（真机由 nn::init 从进程参数区取，经 SetHostArgc/Argv 交给 SDK）
+ // Game arguments: argv[0] is fixed to "D2R", and whatever follows "--" is appended as is (on a real device nn::init takes them from the process argument area and hands them to the SDK through SetHostArgc/Argv)

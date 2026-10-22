@@ -3,19 +3,22 @@ utility shaders) that K06 could not see (K06 only scanned RomFS). Writes the sam
 shader directory and an extra index part (same columns) so kirby_shlib.py / kirby_xlate.py pick them up.
 
 usage: python -I main_shaders.py <main.img> <shader dir>   (main.img from nso_info.py; image offsets = main+offset)
-writes kirby/analysis/kirby_shaders.main.tsv and appends it to kirby/analysis/shader_index_parts.txt
+writes analysis/kirby_shaders.main.tsv and appends it to analysis/shader_index_parts.txt
 """
 import csv, hashlib, re, struct, sys
+import os
 from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]                                       # 本仓库根 | this repository
+DMROOT = Path(os.environ.get('D2R_MOBILE', ROOT.parent / 'd2r-mobile')).resolve()   # 上游 d2r-mobile 检出 | upstream checkout
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bnsh_extract import parse_bnsh, header_size, BNSH_MAGIC
 
-repo = Path(__file__).resolve().parents[2]
+repo = DMROOT
 img = Path(sys.argv[1]).read_bytes(); out = Path(sys.argv[2])
 existing = {}
-for part in (repo / 'kirby/analysis/shader_index_parts.txt').read_text(encoding='utf-8').split():
+for part in (ROOT / 'analysis/shader_index_parts.txt').read_text(encoding='utf-8').split():
     if part == 'kirby_shaders.main.tsv': continue
-    with open(repo / 'kirby/analysis' / part, encoding='utf-8') as f:
+    with open(ROOT / 'analysis' / part, encoding='utf-8') as f:
         for r in csv.DictReader(f, delimiter='\t'): existing[(r['key'], r['code_hash'])] = r
 rows, seen = [], {}
 for m in re.finditer(BNSH_MAGIC, img):
@@ -33,9 +36,9 @@ for m in re.finditer(BNSH_MAGIC, img):
              'bnsh_offset': f'{base:#x}', 'code_size': str(len(code)), 'occurrences': '1', 'conflict': '1' if same_key else '0'}
         seen[(key, ch)] = r; rows.append(r)
 cols = ['key', 'code_hash', 'filename', 'stage', 'source', 'variant', 'bnsh_offset', 'code_size', 'occurrences', 'conflict']
-with open(repo / 'kirby/analysis/kirby_shaders.main.tsv', 'w', encoding='utf-8', newline='\n') as f:
+with open(ROOT / 'analysis/kirby_shaders.main.tsv', 'w', encoding='utf-8', newline='\n') as f:
     w = csv.DictWriter(f, cols, delimiter='\t', lineterminator='\n'); w.writeheader(); w.writerows(rows)
-parts_file = repo / 'kirby/analysis/shader_index_parts.txt'
+parts_file = ROOT / 'analysis/shader_index_parts.txt'
 parts = parts_file.read_text(encoding='utf-8').split()
 if 'kirby_shaders.main.tsv' not in parts: parts_file.write_text('\n'.join(parts + ['kirby_shaders.main.tsv']) + '\n', encoding='utf-8')
 from collections import Counter
