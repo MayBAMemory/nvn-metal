@@ -8,7 +8,10 @@ import csv
 import re
 import subprocess
 import sys
+import os
 from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]                                       # 本仓库根 | this repository
+DMROOT = Path(os.environ.get('D2R_MOBILE', ROOT.parent / 'd2r-mobile')).resolve()   # 上游 d2r-mobile 检出 | upstream checkout
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from imports_compare import strip_comments
 from offline_inventory import NAMESPACES, SHARED
@@ -16,21 +19,21 @@ from offline_inventory import NAMESPACES, SHARED
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--clang',required=True);ap.add_argument('--refs',type=Path,required=True)
-    args=ap.parse_args();repo=Path(__file__).resolve().parents[2]
-    imports=list(csv.DictReader((repo/'kirby/analysis/imports_main.tsv').open(encoding='utf-8'),delimiter='\t'))
+    args=ap.parse_args();repo=DMROOT
+    imports=list(csv.DictReader((ROOT/'analysis/imports_main.tsv').open(encoding='utf-8'),delimiter='\t'))
     target={r['mangled'] for r in imports if r['ns'] in NAMESPACES or r['mangled'].startswith('glslc')}
-    policy=list(csv.DictReader((repo/'kirby/docs/offline_stubs.tsv').open(encoding='utf-8'),delimiter='\t'))
+    policy=list(csv.DictReader((ROOT/'docs/offline_stubs.tsv').open(encoding='utf-8'),delimiter='\t'))
     assert len(policy)==len(target)==103 and {r['mangled'] for r in policy}==target
-    code=(repo/'kirby/host/hle_offline.c').read_text(encoding='utf-8')
+    code=(ROOT/'host/hle_offline.c').read_text(encoding='utf-8')
     registered=re.findall(r'\bHLE(?:_FORCE)?\("([^"]+)"',strip_comments(code))
     assert len(registered)==len(set(registered))==57
     shared=set()
     for name in SHARED:
-        text=strip_comments((repo/'dm/host'/name).read_text(encoding='utf-8'))
+        text=strip_comments((DMROOT/'dm/host'/name).read_text(encoding='utf-8'))
         shared.update(re.findall(r'"((?:_Z|nnssl|nnsocket)[^"\n]+)"',text))
     assert not set(registered)&shared
     references=set(args.refs.read_text(encoding='utf-8').splitlines());assert set(registered)<=references
-    header=(repo/'dm/host/hle.h').read_text(encoding='utf-8').splitlines()
+    header=(DMROOT/'dm/host/hle.h').read_text(encoding='utf-8').splitlines()
     macros=[]
     for name in ['HLE','HLE_FORCE']:
         i=next(i for i,line in enumerate(header) if line.startswith('#define '+name+'('))

@@ -26,7 +26,7 @@
 | K10b | AudioRenderer DSP 移植：混音、音量渐变、双二阶滤波 | 中 | K09 | 取消：不需要（docs/audio.md） |
 | K10c | AudioRenderer DSP 移植：效果器（延迟、混响、I3DL2、Aux） | 中 | K09 | 取消：不需要（docs/audio.md） |
 | H1 | 宿主拆分：通用部分 / D2R 专属部分，加卡比的构建配置 | 高 | — | 完成：Intel Mac 上 arm64 编译 + 链接 0 错误（reports/H4-intel-mac.md）；运行要 Apple 芯片 Mac |
-| H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 完成：改为补 6 个入口（kirby/host/hle_audio_kirby.c），Mac 编译链接通过 |
+| H2 | AudioRenderer：参数更新解析、命令生成、接进宿主 | 高 | K10* | 完成：改为补 6 个入口（host/hle_audio_kirby.c），Mac 编译链接通过 |
 | H3 | 着色器作答表（facts）方案 | 高 | K07 | 完成：按机器码定键出库 16985 份，不需要作答表（docs/shaders.md）；alpha 测试与几何着色器留 H4 |
 | H4 | Mac / iOS 上启动调试，直到出第一帧 | 高 | H1, K04 | 主线程（要 Mac） |
 | I1 | 卡比的 iOS 外壳（kirby/ios）：出包、签名、装机、推 RomFS、拉日志 | 高 | H1 | 完成：真机（iOS 27.2）签名、装机、启动、拉日志已走通；待拷来游戏数据后跑带游戏内容的包（reports/I1.md） |
@@ -50,7 +50,7 @@
 
 ## K01 完整解出 RomFS ｜ 低
 
-**背景**：`kirby/tools/xci_extract.py` 已经能解 XCI、解出 ExeFS、列出 RomFS 清单，但还不能解出 RomFS 文件本身。
+**背景**：`tools/xci_extract.py` 已经能解 XCI、解出 ExeFS、列出 RomFS 清单，但还不能解出 RomFS 文件本身。
 
 **要做**
 1. 给 `xci_extract.py` 加 `--romfs-out <目录>` 参数，把程序 NCA（type=0）第 1 段 RomFS 的全部文件按原路径写出来。
@@ -73,7 +73,7 @@
 
 **要做**
 1. 装 LLVM（`scoop install llvm`），用 `llvm-cxxfilt` 还原符号名。
-2. 用 `kirby/tools/imports.py` 出 `sdk` 和 `subsdk0` 的导出表（映像在 `D:\kirby-work\img\`）。
+2. 用 `tools/imports.py` 出 `sdk` 和 `subsdk0` 的导出表（映像在 `D:\kirby-work\img\`）。
 3. 生成 `analysis/imports_main.tsv` 和 `analysis/imports_subsdk0.tsv`，每个导入一行，列为：
    - `mangled`、`demangled`
    - `ns`：命名空间，取到二级，如 `nn::audio`、`nn::os::detail`；C 函数记为 `libc`
@@ -93,7 +93,7 @@
 **要做**
 1. 每种扩展名抽 3 到 5 个文件，记下开头 32 字节和可以认出的魔数。
 2. 重点是 `.cmp`（7201 个，4.5 GB）和 `.cmpbin`（430 个）：判断压缩格式。依次试 zstd（魔数 `28 B5 2F FD`）、zlib、raw deflate、LZ4 block 和 frame、Yaz0、LZ77 变体；也看看头部有没有「解压后大小」字段。可以搜一下社区对这款游戏的资料（HAL 研究所的文件格式）。
-3. 认出来以后，写 `kirby/tools/cmp_unpack.py <输入> <输出>`，并解几个样本，看里面是什么容器（`BFRES`、`SARC`、`BNTX`、`FSHA`、`BNSH`……）。
+3. 认出来以后，写 `tools/cmp_unpack.py <输入> <输出>`，并解几个样本，看里面是什么容器（`BFRES`、`SARC`、`BNTX`、`FSHA`、`BNSH`……）。
 4. 统计全部 `.cmp` 解压后的内层魔数分布。只读头部，不用把文件全解到盘上。
 
 **产出**：`docs/romfs_formats.md`（每种扩展名：用途猜测、魔数、压缩、内层格式）；`tools/cmp_unpack.py`；报告。
@@ -110,7 +110,7 @@
 1. `python -m pip install lz4 capstone unicorn`
 2. 新建一个 `kirby/out/`（加进 `.gitignore`）或者用 `D:\kirby-work\patched\`，对 `main`、`sdk`、`subsdk0` 分别运行：
    `python dm/tools/patch_nso.py D:\kirby-work\exefs\<模块> <输出目录> <模块>`
-   出错时，先确认是不是 D2R 的构建号断言或硬编码地址造成的。**不许改 `dm/tools/patch_nso.py`**：复制成 `kirby/tools/patch_nso_kirby.py`，只去掉 D2R 专属的部分，并在报告里逐条说明改了什么、为什么。
+   出错时，先确认是不是 D2R 的构建号断言或硬编码地址造成的。**不许改 `dm/tools/patch_nso.py`**：复制成 `tools/patch_nso_kirby.py`，只去掉 D2R 专属的部分，并在报告里逐条说明改了什么、为什么。
 3. 对三个模块跑 `structck.py` 和 `equiv.py`。
 4. 报告里写：每个模块各类改写点（x18、tpidr_el0、tpidrro_el0、svc 按编号、cntpct_el0）的数量，以及卡比用到了哪些 D2R 没用过的 svc 编号（D2R 的列表见 `dm/host/hle_svc.c` 和 `dm/host/hle_thread.c` 里的分派）。
 
@@ -123,7 +123,7 @@
 **背景**：`dm/gfx/tools/nvn_slots.py` 用来找游戏主程序的 NVN 加载函数（按名字取地址，存进全局槽），再扫全部 .text，统计每个槽有多少调用点。D2R 实现了 216 个（`dm/gfx/nvn/nvn_slots.tsv`），其中 13 个是空实现（`dm/gfx/nvn/hle_nvn.c` 里的 `g_nops`）。卡比的 `main` 里有 524 个 `nvn*` 名字串。
 
 **要做**
-1. 复制成 `kirby/tools/nvn_slots_kirby.py`，把 `LOADER` 和 `TEXT_END` 改成参数。
+1. 复制成 `tools/nvn_slots_kirby.py`，把 `LOADER` 和 `TEXT_END` 改成参数。
 2. 在卡比的 `main` 映像（`D:\kirby-work\img\main.img`）里定位加载函数：先找 `nvnDeviceInitialize` 这类名字串的地址，再找用 `adrp` + `add` 引用这些名字的那个大函数。
    注意：卡比走的是 nn::gfx 的 NVN 后端，取址的写法可能和 D2R 不同，比如存进结构体而不是全局槽，或者分成多个加载函数。要是模式对不上，就如实描述实际的代码形态（附反汇编片段），不要硬套。
 3. 输出 `analysis/nvn_slots_kirby.tsv`（名字、槽、调用点数、首个调用点）。
@@ -141,7 +141,7 @@
 1. 先读懂 `dmsh_build.py`、`shader_map.py`、`maxwell_refs.py`，弄清 D2R 是从什么样的输入里取控制段和机器码的。报告里写清楚输入格式。
 2. 找出 RomFS 里所有着色器：`shader/*.bfsha` 的 24 个，加上 K03 的名单 `docs/cmp_shader_containers.tsv`（3554 个容器，偏移相对于解压后的内容）。解压用 `tools/cmp_unpack.py` 里的函数，在内存里解压后直接解析，**不要把 11 GB 解压结果落盘**。有 326 个容器只有 BNSH、没有 FSHA，这些要直接解析 BNSH。
    一共约 19412 个 BNSH 头，大量是重复的。按键去重后，每个键只写一份文件；`kirby_shaders.tsv` 里记下每个键第一次出现的位置和总出现次数。
-3. 写 `kirby/tools/bnsh_extract.py`：解析 BFSHA 和 BNSH，把每个着色器变体的控制段和机器码写到 `D:\kirby-work\shaders\<键>.ctrl` 和 `<键>.code`。键的算法和 D2R 一致。
+3. 写 `tools/bnsh_extract.py`：解析 BFSHA 和 BNSH，把每个着色器变体的控制段和机器码写到 `D:\kirby-work\shaders\<键>.ctrl` 和 `<键>.code`。键的算法和 D2R 一致。
    格式资料：社区 Switch-Toolbox 的 BfshaLibrary 和 BNSH 解析代码、各类 nn::gfx 逆向资料。参考可以，**不要整段复制有许可证限制的代码**。
 4. 输出 `analysis/kirby_shaders.tsv`，列为：键、阶段（顶点 / 片元 / 计算 / 几何 / 曲面细分）、来源文件、程序名或变体号、机器码大小。
 
@@ -183,7 +183,7 @@
    - 不要返回会让游戏 abort 的错误码；
    - 每条都要写依据。
 3. 输出 `docs/offline_stubs.tsv`（函数、demangle 后的名字、行为、依据）。
-4. 按 `dm/host/hle.h` 里 `HLE` 宏的写法起草 `kirby/host/hle_offline.c`。**卡比宿主会同时编入 D2R 的 `hle_net.c`、`hle_friends.c`、`hle_misc.c`、`hle_account.c`（见 `docs/host_split.md`）**，这几个文件已经接管的名字一律不能再写，否则强制接管表重名，装载时会中止。写之前先用 `analysis/d2r_hle_in_kirby.tsv` 把它们排除掉；判断某个强制接管会不会命中，以 `D:\kirby-work\reloc_refs.txt` 为准（生成方法见 `docs/host_split.md`）（被重定位引用的才会命中）。这个文件暂时编译不了（要 Mac），所以写完要对照 D2R 现有文件逐行核对宏的用法和类型。
+4. 按 `dm/host/hle.h` 里 `HLE` 宏的写法起草 `host/hle_offline.c`。**卡比宿主会同时编入 D2R 的 `hle_net.c`、`hle_friends.c`、`hle_misc.c`、`hle_account.c`（见 `docs/host_split.md`）**，这几个文件已经接管的名字一律不能再写，否则强制接管表重名，装载时会中止。写之前先用 `analysis/d2r_hle_in_kirby.tsv` 把它们排除掉；判断某个强制接管会不会命中，以 `D:\kirby-work\reloc_refs.txt` 为准（生成方法见 `docs/host_split.md`）（被重定位引用的才会命中）。这个文件暂时编译不了（要 Mac），所以写完要对照 D2R 现有文件逐行核对宏的用法和类型。
 
 **验收**：清单覆盖到上面所有命名空间的全部导入；C 草稿每个函数都有依据注释。
 

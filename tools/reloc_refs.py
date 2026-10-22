@@ -2,7 +2,7 @@
 The host's HLE_FORCE entries are matched while resolving these relocations (dm/host/loader.c force_init / stubs):
 an entry whose name never shows up here is reported "强制接管条目无任何引用" and the host aborts at load.
 
-usage: python -I reloc_refs.py <out.txt> <module.img>...   (images from kirby/tools/nso_info.py)
+usage: python -I reloc_refs.py <out.txt> <module.img>...   (images from tools/nso_info.py)
 """
 import struct, sys
 

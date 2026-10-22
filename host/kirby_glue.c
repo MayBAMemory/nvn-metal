@@ -1,10 +1,10 @@
 // 卡比宿主的垫片：共用的 dm/host、dm/gfx 文件会调到一些定义在 D2R 专属文件里的函数（diag.c、dm_*.c、hle_tact.c、touch_mac.c 等），
-// 卡比不编这些文件，这里给出中性的实现。清单由 kirby/docs/host_split.md 的依赖扫描得出；链接报缺符号时往这里补，并在文档里记一笔。
+// 卡比不编这些文件，这里给出中性的实现。清单由 docs/host_split.md 的依赖扫描得出；链接报缺符号时往这里补，并在文档里记一笔。
 // 原则：不碰游戏内存，不写任何 D2R 地址；返回「没有这项功能」的值。
 // 图形层 nvn_mtl.m / hle_nvn.c 已有弱定义缺省的（dm_bright_k、dm_fps_setting、dm_prof_ribbon_ns、dm_shot_written、dm_perf_present、
 // dm_longframe_note、dm_thermal_now、dm_brightness_now）这里不重复定义。
 // Kirby host shims: shared dm/host and dm/gfx files call some functions defined in D2R-only files (diag.c, dm_*.c, hle_tact.c, touch_mac.c etc.).
-// Kirby does not build those files, so neutral implementations are given here. The list comes from the dependency scan in kirby/docs/host_split.md; when linking reports a missing symbol, add it here and note it in the doc.
+// Kirby does not build those files, so neutral implementations are given here. The list comes from the dependency scan in docs/host_split.md; when linking reports a missing symbol, add it here and note it in the doc.
 // Rules: never touch game memory, never write any D2R address; return the "this feature does not exist" value.
 // Symbols that already have weak defaults in the graphics layer nvn_mtl.m / hle_nvn.c (dm_bright_k, dm_fps_setting, dm_prof_ribbon_ns, dm_shot_written, dm_perf_present,
 // dm_longframe_note, dm_thermal_now, dm_brightness_now) are not redefined here.

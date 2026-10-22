@@ -48,7 +48,7 @@ HLE_FORCE("_ZN5movie17GetThreadPriorityEv", "过场：只作 Decoder 构造参�
 // ---- Extractor / Decoder: first word of the object = host vtable ----
 static void kmv_dtor(void *self) { (void)self; }
 static void kmv_delete(void *self) { if (!g_free) die("movie(卡比)：未登记分配器"); g_free(self, g_user); }
-#define TRAP(cls, slot, what) static void kmv_trap_##cls##_##slot(void) { die("movie(卡比)：%s 槽%d %s 被调用（还没接，见 kirby/host/hle_movie_kirby.c）", #cls, slot, what); }
+#define TRAP(cls, slot, what) static void kmv_trap_##cls##_##slot(void) { die("movie(卡比)：%s 槽%d %s 被调用（还没接，见 host/hle_movie_kirby.c）", #cls, slot, what); }
 
 // ---- 空播状态（同一时刻只有一段视频；照 D2R）| no-op playback state (one video at a time; as in D2R) ----
 typedef struct { int64_t dur_ns, deadline; void *ev_in, *ev_out; int eos_out; int64_t last_pts_us; } mv_t;

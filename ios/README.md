@@ -1,6 +1,6 @@
-# kirby/ios — 卡比的 iOS App
+# ios/ — 卡比的 iOS App
 
-把卡比宿主（`kirby/host` + 共用的 `dm/host`、`dm/gfx`）和改写后的三个模块装进一个 iPhone App。做法和 D2R 的 `dm/ios` 相同，原理先读 [../../dm/ios/README.zh-CN.md](../../dm/ios/README.zh-CN.md)「构建时把什么装进 App」。这里只写卡比不同的地方和怎么用。
+把卡比宿主（`host/` + 上游 d2r-mobile 共用的 `dm/host`、`dm/gfx`）和改写后的三个模块装进一个 iPhone App。做法和 D2R 的 `dm/ios` 相同，原理先读 [d2r-mobile 的 iOS 说明](https://github.com/jhaizhou-ops/d2r-mobile/blob/main/dm/ios/README.zh-CN.md)「构建时把什么装进 App」。这里只写卡比不同的地方和怎么用。
 
 **Intel Mac 也能用**：出包、签名、装机都在 Mac 上做，游戏在手机上跑，Mac 是什么芯片无关紧要。
 
@@ -10,7 +10,7 @@
 |---|---|
 | `Sources/main.m` | 入口：日志写到 `Documents/boot.txt`，找 RomFS，设宿主的环境变量，场景到前台后在 64 MB 栈的线程上调 `dm_main`（`kirby_main.c` 以 `-Dmain=dm_main` 编入） |
 | `Sources/front_ios_kirby.m` | `front.h` 的 iOS 实现：16:9 居中的 Metal 视图、触屏、+/− 小钮、屏幕手柄、生命周期 |
-| `tools/gen_build.py` | 从 `kirby/host/Makefile` 展开的编译命令取源文件和头路径（改自 `dm/ios/tools/gen_build.py`） |
+| `tools/gen_build.py` | 从 `host/Makefile` 展开的编译命令取源文件和头路径（改自 `dm/ios/tools/gen_build.py`） |
 | `tools/shlib_ios.py` | 把 Windows 上出的着色器库编成 iOS 版 metallib（编译参数用 `dm/ios/tools/ios_metal.py` 那一份） |
 | `run.sh` | 出包 / 编着色器 / 装机 / 推 RomFS / 启动拉日志 |
 | `project.yml` | XcodeGen 工程描述；工程文件和 `Gen/` 不进仓库，每次构建重新生成 |
@@ -45,15 +45,15 @@
 ## 使用
 
 ```bash
-kirby/ios/run.sh shaders          # Windows 的着色器库 → iOS metallib（约 1.7 万个，第一次要一阵子；以后只编变了的）
-kirby/ios/run.sh build            # 出包
-kirby/ios/run.sh install          # 装到手机
-kirby/ios/run.sh romfs            # 推 RomFS（只需一次；App 先装过才有容器）
-kirby/ios/run.sh run 300          # 启动，并把手机上的 Documents/boot.txt 持续拉回来显示
-kirby/ios/run.sh log              # 只拉一次日志
+ios/run.sh shaders          # Windows 的着色器库 → iOS metallib（约 1.7 万个，第一次要一阵子；以后只编变了的）
+ios/run.sh build            # 出包
+ios/run.sh install          # 装到手机
+ios/run.sh romfs            # 推 RomFS（只需一次；App 先装过才有容器）
+ios/run.sh run 300          # 启动，并把手机上的 Documents/boot.txt 持续拉回来显示
+ios/run.sh log              # 只拉一次日志
 ```
 
-没有游戏文件时：`KIRBY_NO_GAME=1 kirby/ios/run.sh build` 只编外壳和宿主，用来检查编译、链接和签名。这样出的包装上也起不来。
+没有游戏文件时：`KIRBY_NO_GAME=1 ios/run.sh build` 只编外壳和宿主，用来检查编译、链接和签名。这样出的包装上也起不来。
 
 RomFS 也可以不用 `run.sh romfs`：手机连 Mac，在 Finder 里选中手机 →「文件」→ 把整个 RomFS 文件夹拖进 Kirby Host。App 会在文稿目录下 3 层以内找根目录里有 `gfx/` 和 `shader/` 的文件夹。
 

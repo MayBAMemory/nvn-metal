@@ -1,6 +1,6 @@
 """Apple arm64 syntax / type check of the Kirby host's C sources on Windows (no macOS SDK needed).
 
-System headers come from kirby/tools/applestub/ (minimal stand-ins: declarations only, written for this check) plus clang's
+System headers come from tools/applestub/ (minimal stand-ins: declarations only, written for this check) plus clang's
 own freestanding headers (stdint, stdatomic, stddef, stdarg). Repo headers (dm/host, dm/gfx) are the real ones.
 It catches syntax errors, undeclared identifiers, wrong argument counts / types, printf format mismatches and the
 compile-time HLE / NVN signature checks. It is NOT a full Mac build: Objective-C (.m) and assembly (.S) are not checked,
@@ -12,21 +12,24 @@ hle_table.c, hle_thread.c, plus a harmless unused-variable warning in hle.c) are
 signals, GCD sources and ctype; their failures are missing stub declarations, not source errors. Extend the stubs if one of them changes.
 
 usage: python -I syntax_check.py [--clang <clang.exe>] [file.c ...]
-       (no files = every .c the Kirby host build compiles, per kirby/host/Makefile: dm/host generic files + dm/gfx + kirby/host)
+       (no files = every .c the Kirby host build compiles, per host/Makefile: dm/host generic files + dm/gfx + kirby/host)
 """
 import argparse, shutil, subprocess, sys
+import os
 from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]                                       # 本仓库根 | this repository
+DMROOT = Path(os.environ.get('D2R_MOBILE', ROOT.parent / 'd2r-mobile')).resolve()   # 上游 d2r-mobile 检出 | upstream checkout
 
-repo = Path(__file__).resolve().parents[2]
+repo = DMROOT
 stub = Path(__file__).resolve().parent / 'applestub'
 HOST_EXCL = {'main.c', 'diag.c', 'hle_tact.c', 'hle_granny.c', 'hle_charname.c', 'hle_target.c', 'hle_private_aim.c',
-             'hle_hid.c', 'hle_movie.c', 'touch_mac.c', 'romfs_validate.c'}   # same as kirby/host/Makefile HOST_EXCL
+             'hle_hid.c', 'hle_movie.c', 'touch_mac.c', 'romfs_validate.c'}   # same as host/Makefile HOST_EXCL
 
 def kirby_build_sources():
-    host = [repo / 'dm/host' / n for n in ('loader.c', 'hle.c', 'crash.c', 'thread.c')]
-    host += [p for p in sorted((repo / 'dm/host').glob('hle_*.c')) if p.name not in HOST_EXCL]
-    gfx = sorted((repo / 'dm/gfx').glob('*.c')) + sorted((repo / 'dm/gfx/nvn').glob('*.c')) + sorted((repo / 'dm/gfx/tex').glob('*.c'))
-    return host + gfx + sorted((repo / 'kirby/host').glob('*.c'))
+    host = [DMROOT / 'dm/host' / n for n in ('loader.c', 'hle.c', 'crash.c', 'thread.c')]
+    host += [p for p in sorted((DMROOT / 'dm/host').glob('hle_*.c')) if p.name not in HOST_EXCL]
+    gfx = sorted((DMROOT / 'dm/gfx').glob('*.c')) + sorted((DMROOT / 'dm/gfx/nvn').glob('*.c')) + sorted((DMROOT / 'dm/gfx/tex').glob('*.c'))
+    return host + gfx + sorted((ROOT / 'host').glob('*.c'))
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -37,8 +40,8 @@ def main():
     nbad = nwarn = 0
     for f in files:
         cmd = [a.clang, '--target=arm64-apple-macos13', '-std=gnu11', '-fblocks', '-ffreestanding', '-fsyntax-only', '-Wall',
-               '-Wno-unused-function', '-ferror-limit=0', '-isystem', str(stub), '-I', str(f.parent), '-I', str(repo / 'dm/host'),
-               '-I', str(repo / 'dm/gfx/nvn'), '-I', str(repo / 'dm/gfx/nvn/include'), str(f)]
+               '-Wno-unused-function', '-ferror-limit=0', '-isystem', str(stub), '-I', str(f.parent), '-I', str(DMROOT / 'dm/host'),
+               '-I', str(DMROOT / 'dm/gfx/nvn'), '-I', str(DMROOT / 'dm/gfx/nvn/include'), str(f)]
         r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
         warn = 'warning:' in r.stderr
         status = 'FAIL' if r.returncode else ('WARN' if warn else 'OK  ')

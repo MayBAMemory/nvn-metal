@@ -1,11 +1,14 @@
 # 卡比宿主 kirbyhost（Mac，Apple 芯片原生跑；Intel Mac 上可加 -arch arm64 只做编译检查）。
 # 组成 = dm/host 的通用部分（原样编，不复制）+ dm/gfx 全部 + 本目录（卡比入口、手柄、垫片，以及之后的卡比专属接管）。
 # 不编 D2R 专属文件：HOST_EXCL 里的，以及全部 dm/host/dm_*.c。拆分依据见 kirby/docs/host_split.md。
-# 用法：make -C kirby/host        运行：kirbyhost <改写产物目录> [main sdk subsdk0] [-- 游戏参数]
+# 用法：make -C host              运行：host/kirbyhost <改写产物目录> [main sdk subsdk0] [-- 游戏参数]
 # Kirby host kirbyhost (Mac, runs natively on Apple silicon; on an Intel Mac add -arch arm64 for compile checking only).
 # Made of = the generic part of dm/host (compiled in place, not copied) + all of dm/gfx + this directory (Kirby entry, controller, shims, and later Kirby-only takeovers).
-# D2R-only files are not built: those in HOST_EXCL, and all of dm/host/dm_*.c. See kirby/docs/host_split.md for the split.
-DM=../../dm
+# D2R-only files are not built: those in HOST_EXCL, and all of dm/host/dm_*.c. See docs/host_split.md for the split.
+# dm/ 不在本仓库：上游 d2r-mobile 检出默认放在兄弟目录 ../d2r-mobile；放在别处就 make D2R_MOBILE=/绝对路径/d2r-mobile（相对路径是相对 host/）
+# dm/ is not in this repository: the upstream d2r-mobile checkout defaults to the sibling ../d2r-mobile; override with D2R_MOBILE=... (relative to host/)
+D2R_MOBILE?=../../d2r-mobile
+DM=$(D2R_MOBILE)/dm
 CFLAGS?=-O1 -g -Wall -Wno-unused-function
 ARCH?=
 HOST_EXCL=main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c hle_movie.c touch_mac.c romfs_validate.c

@@ -12,16 +12,19 @@ usage: python -I kirby_xlate.py --shaders D:/kirby-work/shaders --out D:/kirby-w
 outputs: <out>/dryrun.tsv (one row per control+code combination), <out>/summary.txt, <out>/spv/, <out>/msl/
 """
 import argparse, collections, concurrent.futures as cf, csv, json, os, re, struct, subprocess, sys
+import os
 from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]                                       # 本仓库根 | this repository
+DMROOT = Path(os.environ.get('D2R_MOBILE', ROOT.parent / 'd2r-mobile')).resolve()   # 上游 d2r-mobile 检出 | upstream checkout
 
-repo = Path(__file__).resolve().parents[2]
+repo = DMROOT
 XC = ['--msl', '--msl-version', '20300', '--msl-argument-buffers', '--msl-texture-buffer-native', '--msl-pad-fragment-output']   # = dmsh_build.py XC
 
 def load_index():
-    parts = (repo / 'kirby/analysis/shader_index_parts.txt').read_text(encoding='utf-8').split()
+    parts = (ROOT / 'analysis/shader_index_parts.txt').read_text(encoding='utf-8').split()
     rows = []
     for p in parts:
-        with open(repo / 'kirby/analysis' / p, encoding='utf-8') as f:
+        with open(ROOT / 'analysis' / p, encoding='utf-8') as f:
             rows += list(csv.DictReader(f, delimiter='\t'))
     return rows
 

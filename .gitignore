@@ -1,9 +1,41 @@
-out/
-*.img
+# 密钥：只在本地作为参数传给脚本，永不入库 | keys: local only, never committed
+prod.keys
+title.keys
+*.keys
 
+# 游戏文件与从游戏里提取出来的东西 | game files and anything extracted from them
+*.xci
+*.nsp
+*.nca
+*.nro
+*.kip
+RomFS/
+exefs/
+img/
+patched/
+xci_out/
+*.patched.bin
+*.img
+*.bfsha
+*.bnsh
+
+# 工作区与体积大的衍生文件 | work directory and large derived files
+kirby-work/
+shlib/
+shlib_ios/
+run/
+
+# 本机配置 | local config
+ios/local.env
+
+# 构建产物 | build output
+build/
+out/
+Gen/
+*.xcodeproj/
+*.dSYM/
+kirbyhost
+.iosdd*/
 __pycache__/
 *.py[cod]
-
-# 卡比宿主的构建产物
-host/kirbyhost
-host/*.dSYM/
+.DS_Store

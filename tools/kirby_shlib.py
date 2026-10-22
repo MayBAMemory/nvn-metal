@@ -21,9 +21,12 @@ outputs: <out>/b-<V>/<key>_b.{metallib,metal,json}   (V = DMSH_CHAIN from dm/gfx
          <out>/build.tsv        (per key: result / reason)
 """
 import argparse, collections, concurrent.futures as cf, csv, json, os, re, struct, subprocess, sys
+import os
 from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]                                       # 本仓库根 | this repository
+DMROOT = Path(os.environ.get('D2R_MOBILE', ROOT.parent / 'd2r-mobile')).resolve()   # 上游 d2r-mobile 检出 | upstream checkout
 
-repo = Path(__file__).resolve().parents[2]
+repo = DMROOT
 XC = ['--msl', '--msl-version', '20300', '--msl-argument-buffers', '--msl-texture-buffer-native', '--msl-pad-fragment-output']   # = dmsh_build.py XC
 STAGE_ZH = {'vs': '顶点', 'ps': '像素', 'cs': '计算'}   # nvn_mtl.m stage_of()
 COMB_BASE, COMB_END, IMG_BASE, IMG_END, TEX_BASE, SAMP_BASE = 0x20, 0x120, 0x120, 0x168, 0x168, 0x568
@@ -134,12 +137,12 @@ def unfillable(dr):
 
 def load_index():
     rows = []
-    for p in (repo / 'kirby/analysis/shader_index_parts.txt').read_text(encoding='utf-8').split():
-        with open(repo / 'kirby/analysis' / p, encoding='utf-8') as f: rows += list(csv.DictReader(f, delimiter='\t'))
+    for p in (ROOT / 'analysis/shader_index_parts.txt').read_text(encoding='utf-8').split():
+        with open(ROOT / 'analysis' / p, encoding='utf-8') as f: rows += list(csv.DictReader(f, delimiter='\t'))
     return rows
 
 def chain_version():
-    m = re.search(r'#define DMSH_CHAIN "([0-9a-f]+)"', (repo / 'dm/gfx/nvn/dmsh_chain.h').read_text(encoding='utf-8'))
+    m = re.search(r'#define DMSH_CHAIN "([0-9a-f]+)"', (DMROOT / 'dm/gfx/nvn/dmsh_chain.h').read_text(encoding='utf-8'))
     if not m: sys.exit('读不出 dm/gfx/nvn/dmsh_chain.h 的 DMSH_CHAIN')
     return m.group(1)
 
@@ -211,7 +214,7 @@ def main():
 
     stage_of = {j['key']: j['stage'] for j in jobs}
     with open(a.out / 'shader_map.tsv', 'w', encoding='utf-8', newline='\n') as f:
-        f.write(f'# 卡比着色器映射表（kirby/tools/kirby_shlib.py）：键 = 机器码 sha256 前 16 位；库 b-{V}\n')
+        f.write(f'# 卡比着色器映射表（tools/kirby_shlib.py）：键 = 机器码 sha256 前 16 位；库 b-{V}\n')
         for k, st, _ in res:
             if st in ('ok', '绑定解析不全', '驱动段读不可填'): f.write(f"kirby\t{meta[k]['src']}\t{STAGE_ZH[stage_of[k]]}\t{k}\n")
     with open(a.out / 'build.tsv', 'w', encoding='utf-8', newline='\n') as f:
