@@ -101,6 +101,7 @@ static uint64_t script_buttons(void) {
     return m & ~(1ull << 63);
 }
 static void fill(NpadState *s, uint32_t id, uint32_t style) {
+    void kirby_fps_tick(void); kirby_fps_tick();   // 每帧在游戏主线程上：60 帧开关（kirby_fps.c）| once per frame on the game main thread: the 60 fps switch (kirby_fps.c)
     memset(s, 0, sizeof *s);
     s->sampling = atomic_fetch_add(&g_sampling, 1) + 1;
     if (!(style_of(id) & style)) return;   // 这个号没接这种样式：全 0（未连接） | this id does not have this style connected: all zero (not connected)
