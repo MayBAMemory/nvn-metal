@@ -27,7 +27,7 @@ The approach and the base code come from [d2r-mobile](https://github.com/jhaizho
 
 1. **Your own Switch copy of Kirby and the Forgotten Land v1.0.0** (title ID `01004D300C5AE000`) and its `prod.keys`.
 2. **An upstream d2r-mobile checkout, pinned to commit `6a2474d`**: the host compiles the generic parts of its `dm/host` and all of `dm/gfx` in place — those files are not in this repository.
-3. **The upstream changes Kirby needs**: `patches/d2r-mobile-kirby.patch` (11 files, ~520 lines; see [patches/README.md](patches/README.md)). The patch is against `6a2474d` and **does not apply to the latest upstream `main`** (checked 2026-10-22: upstream has since changed 6 of those files).
+3. **The upstream changes Kirby needs**: `patches/d2r-mobile-kirby.patch` (11 files, ~630 lines; see [patches/README.md](patches/README.md)). The patch is against `6a2474d` and **does not apply to the latest upstream `main`** (checked 2026-10-22: upstream has since changed 6 of those files).
 4. Xcode on a Mac; for device builds also `brew install xcodegen` and `xcodebuild -downloadComponent MetalToolchain`.
 
 ```bash
@@ -64,6 +64,8 @@ host/run_mac.sh 60       # headless, stops after 60 s; log in ~/kirby-work/mac/r
 - Saves go to `~/kirby-work/mac/save`. Missing-variant lists and `pso_user.tsv` are written to `~/kirby-work/mac/`.
 - Why a separate library: the Mac host (no `DM_SHELL`) loads real metallibs. `kirby_shlib.py` output holds MSL source, and `shlib_ios/` targets iOS.
 - The compile is slow: about 38,000 `metal` invocations at about 1 s each, nearly all in the compiler's optimizer. It took 62 minutes on the M5. Don't measure performance while it runs, because it saturates every core.
+- First-use stutter (a new enemy or move freezing the game for up to a second or more) comes from building Metal render pipelines on first use, not from shaders. Pipelines are now built **asynchronously** by default: a missing one compiles in the background and that draw is skipped. In an A/B test (same save copy, same key script, warm-up off, 100 s each), stall time went from 527 to 79 ms, frames over 200 ms from 2 to 0, and the worst frame from 348 to 94 ms. Set `DM_PSO_ASYNC=0` to go back. Pipelines you've played through are recorded in `~/kirby-work/mac/pso_user.tsv` and prewarmed at the next launch.
+- The 30 fps cap is the game's own (Kirby runs at 30 natively).
 - Redoing everything from the XCI on a Mac, with no Windows (Homebrew `dotnet spirv-cross llvm`): see the Chinese [README.md](README.md#只有-xci-时全在-mac-上从头重做不用-windows). Verified 2026-10-22; every number matched the original reports.
 
 ## Continuing on another computer

@@ -188,10 +188,18 @@ index d64e95f..a2b1196 100644
  // Commands that only affect GPU state / only execute on the GPU: the null device only counts them (the thunk has already counted)
  static void nvn_nop(void) {}
 diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
-index 156a3ca..8ba6435 100644
+index 156a3ca..e7e51b6 100644
 --- a/dm/gfx/nvn/nvn_mtl.m
 +++ b/dm/gfx/nvn/nvn_mtl.m
-@@ -65,6 +65,13 @@
+@@ -49,6 +49,7 @@
+ 
+ static void warm_start(void);
+ static void warm_claim(void);
++static void pso_pend_drain(void);
+ 
+ static id<MTLDevice> g_dev;
+ static NSMutableArray *g_l3_gpu_leaks;
+@@ -65,6 +66,13 @@
  static id<MTL4ArgumentTable> g_vt, g_ft, g_ct, g_up_ct;
  static id<MTL4ArgumentTable> g_present_args;
  static id<MTLBuffer> g_present_uv[3];
@@ -205,7 +213,7 @@ index 156a3ca..8ba6435 100644
  int g_bloom_q = -1;   // 泛光 1/4 起点（非 static：真机同进程交替直接改 0 / 1） | Bloom 1/4 starting point (non-static: real-device same-process alternation sets it to 0 / 1 directly)
  static id<MTL4ArgumentTable> g_bloomq_args;
  static id<MTLBuffer> g_bloomq_const[3];
-@@ -374,15 +381,22 @@ int mtl_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off) {
+@@ -374,15 +382,22 @@ int mtl_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off) {
      pthread_mutex_unlock(&g_mu);
      return ok;
  }
@@ -234,7 +242,15 @@ index 156a3ca..8ba6435 100644
  }
  
  // ---------- 提交 ----------
-@@ -755,7 +769,7 @@ static void mtl_finish_gpu(void) {
+@@ -469,6 +484,7 @@ void mtl_sub_begin(void) {
+     defer_drain();
+     defer_reset();
+     warm_claim();
++    pso_pend_drain();
+     if (g_cb) MDIE("提交重入");
+     g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
+     atomic_store(&g_last_commit_error, 0);
+@@ -755,7 +771,7 @@ static void mtl_finish_gpu(void) {
  // ================= 渲染回放 =================
  // ================= Render replay =================
  #include "../../host/front.h"
@@ -243,7 +259,7 @@ index 156a3ca..8ba6435 100644
  #define RED_ONCE(k, ...) do { if (!g_red_once[k]++) MLOG("【红】" __VA_ARGS__); } while (0)
  
  // ---------- 贴图 → MTLTexture ----------
-@@ -793,16 +807,28 @@ static int tex_need_pfv(MTLPixelFormat base, MTLPixelFormat view) {
+@@ -793,16 +809,28 @@ static int tex_need_pfv(MTLPixelFormat base, MTLPixelFormat view) {
  static void serial_del(uint64_t k) { pthread_mutex_lock(&g_smu); id old = hm_get_id(&g_by_serial, &k); if (old) defer_obj_release(old); hm_del_id(&g_by_serial, &k); g_ser_gen++; pthread_mutex_unlock(&g_smu); }
  // 预排布贴图的宿主记录：当前 MTLTexture、上传戳、上次检查时的全局写代号
  // Host record of a packaged texture: the current MTLTexture, the upload stamp, and the global write generation at the last check
@@ -274,7 +290,7 @@ index 156a3ca..8ba6435 100644
  // 显卡不支持 BC 压缩格式（A15 / A16 等）：BC 贴图建成解压后的格式，上传 / 缓冲→贴图拷贝时在 CPU 上解压（nvn_bcdec.c）。
  // 游戏贴图里的 BC3 由老机型补充包离线换成了 ASTC（dm/tools/astc_pack.py），走到这里的是剩下的少量 BC。测试开关 DM_TEST_NO_BC=1 在任何机器上强制走这条路
  // The GPU does not support BC compressed formats (A15 / A16 etc.): BC textures are created in the decompressed format and decompressed on the CPU at upload / buffer→texture copy time (nvn_bcdec.c).
-@@ -1171,6 +1197,32 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+@@ -1171,6 +1199,32 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
      up_flush();
      return mt;
  }
@@ -307,7 +323,7 @@ index 156a3ca..8ba6435 100644
  static id<MTLTexture> tex_mtl(const tex_t *ct) {
      tex_t *t = (tex_t *)ct;
      if (!t || !t->serial) return nil;
-@@ -1178,10 +1230,15 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+@@ -1178,10 +1232,15 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
      id have = serial_get(t->serial);
      if (packaged) {
          NvPkg *pk = have;
@@ -324,7 +340,7 @@ index 156a3ca..8ba6435 100644
              pk->seen = now;
              if (clean && atomic_load_explicit(&g_up_lost_n, memory_order_relaxed) && up_lost_take(pk->tex)) { clean = 0; uint64_t k = atomic_load(&g_up_lost_redo); if (k <= 3 || !atomic_load(&g_up_lost_n)) MLOG("上传被丢的贴图 ser=%llu 重传（累计 %llu 张，记录里还剩 %d 张）", (unsigned long long)t->serial, (unsigned long long)k, atomic_load(&g_up_lost_n)); }
              if (clean) {
-@@ -1189,14 +1246,17 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+@@ -1189,14 +1248,17 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
                      MLOG("【红】脏页漏检：贴图 ser=%llu 池内容已变但未检出", t->serial);
                  return pk->tex;
              }
@@ -344,7 +360,7 @@ index 156a3ca..8ba6435 100644
          serial_put(t->serial, pk);
          return pk->tex;
      }
-@@ -1218,6 +1278,33 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+@@ -1218,6 +1280,33 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
          serial_put(t->serial, mt);
          return mt;
      }
@@ -378,7 +394,7 @@ index 156a3ca..8ba6435 100644
      MTLTextureDescriptor *d = tex_desc(t, 0);
      if (!d) return nil;
      id<MTLTexture> mt = [g_dev newTextureWithDescriptor:d];
-@@ -1259,6 +1346,19 @@ void mtl_mem_stat(unsigned long long frame, unsigned long long rss_mb, int heap_
+@@ -1259,6 +1348,19 @@ void mtl_mem_stat(unsigned long long frame, unsigned long long rss_mb, int heap_
  #endif
      MLOG("内存 至帧 %llu：常驻 %llu MB，显卡已分配 %llu MB，延迟释放队列 %lu，驻留集 %lu 个，内存池 %d 个（峰值 %d / 跟踪表容量 %d），贴图重传累计 %llu 次；游戏堆 %llu MB，余量 %llu MB，最大可分配块 %llu KB%s；离系统内存上限还有 %s", frame, rss_mb, gpu, nd, nr, live, peak, cap, (unsigned long long)g_pkg_reuploads,
          heap_mb, heap_free_mb, heap_maxblk_kb, heap_ok ? "" : "（未读到）", avail);
@@ -398,7 +414,7 @@ index 156a3ca..8ba6435 100644
  }
  void mtl_pkg_stats(uint64_t *uploads, uint64_t *reuploads) { *uploads = g_pkg_uploads; *reuploads = g_pkg_reuploads; }
  uint64_t mtl_pkg_miss(void) { return g_pkg_miss; }
-@@ -1889,7 +1989,9 @@ @interface NvShader : NSObject { @public id<MTLFunction> fn; nvn_refl rf; id<MTL
+@@ -1889,7 +1991,9 @@ @interface NvShader : NSObject { @public id<MTLFunction> fn; nvn_refl rf; id<MTL
      // 上次编好的参数缓冲
      // The argument buffer encoded last time
      id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass;   // ab_pass：编这块参数的渲染通道序号——只在同一通道内复用（跨通道 / 跨提交的块所在 arena 可能已回收重写） | ab_pass: serial of the render pass that encoded this argument block - reused only within the same pass (the arena holding a block from another pass / another submission may already have been reclaimed and rewritten)
@@ -409,7 +425,7 @@ index 156a3ca..8ba6435 100644
  @implementation NvShader @end
  #include "nvn_pso_skey.h"
  @interface NvProg : NSObject { @public NvShader *sh[6]; } @end
-@@ -2033,6 +2135,7 @@ static void pso_user_record(const char *fmt, ...) {
+@@ -2033,6 +2137,7 @@ static void pso_user_record(const char *fmt, ...) {
      if (nvn_refl_from_json(j, &o->rf, err, sizeof err)) { MLOG("【红】着色器 %s 反射转换失败：%s", pc.UTF8String, err); return nil; }
      if (rt_range_on()) o->range_ro=rt_range_bindings_ro(j);
      o->fn = [lib newFunctionWithName:j[@"entry"]]; o->stage = stage; strlcpy(o->key, pc.UTF8String, sizeof o->key);
@@ -417,7 +433,7 @@ index 156a3ca..8ba6435 100644
      if (o->rf.nb) {
          o->ae = [o->fn newArgumentEncoderWithBufferIndex:o->rf.abi];
          int max_aid = -1;
-@@ -2103,6 +2206,18 @@ static int rt_range_pr_ro(NvProg *p) {
+@@ -2103,6 +2208,18 @@ static int rt_range_pr_ro(NvProg *p) {
      }
      return nil;
  }
@@ -436,7 +452,7 @@ index 156a3ca..8ba6435 100644
  static __unsafe_unretained NvProg *prog_get(const prog_t *cp) {   // 只在提交线程调用 | Called only on the submit thread
      prog_t *p = (prog_t *)cp;
      static const prog_t *lp; static uint64_t lser, lgen; static NvProg *lpr;   // 上次结果：同一对象、同一序号且序号表未变即直接用 | Last result: same object, same serial and unchanged serial table means it is used directly
-@@ -2113,7 +2228,7 @@ static int rt_range_pr_ro(NvProg *p) {
+@@ -2113,7 +2230,7 @@ static int rt_range_pr_ro(NvProg *p) {
      shmap_load();
      NvProg *o = [NvProg new];
      for (unsigned i = 0; i < p->nstage; i++) {
@@ -445,7 +461,7 @@ index 156a3ca..8ba6435 100644
          NSString *k = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x", md[0], md[1], md[2], md[3], md[4], md[5], md[6], md[7]];
          NSString *zh = g_shmap[k];
          if (!zh) {   // 不在包里：查 main 本体内嵌的计算核（nvn_builtin.h） | Not in the package: look up the compute kernels embedded in the main body (nvn_builtin.h)
-@@ -2190,11 +2305,14 @@ static MTLTextureType ttype(int target, int fallback) {
+@@ -2190,11 +2307,14 @@ static MTLTextureType ttype(int target, int fallback) {
      id<MTLTexture> base = tex_mtl(&rp->t);
      if (!base) return nil;
      v = base;
@@ -462,7 +478,7 @@ index 156a3ca..8ba6435 100644
              base = tex_upgrade_pfv(&rp->t, base, (MTLPixelFormat)pf);
              sg = g_ser_gen;
          }
-@@ -2203,8 +2321,12 @@ static MTLTextureType ttype(int target, int fallback) {
+@@ -2203,8 +2323,12 @@ static MTLTextureType ttype(int target, int fallback) {
          NSUInteger ns = base.textureType == MTLTextureType3D ? 1 : (r.v.set_layers && r.v.nlayers ? r.v.nlayers : base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1) - s0);
          MTLTextureType tt = r.v.set_target ? ttype(r.v.target, base.textureType) : base.textureType;
          if (tt == MTLTextureType2D && ns > 1) ns = 1;
@@ -476,7 +492,7 @@ index 156a3ca..8ba6435 100644
      }
      rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_ser = sg; rp->view_dirty = dg;
      return v;
-@@ -2327,7 +2449,8 @@ static MTLVertexFormat vfmt(int f) {
+@@ -2327,7 +2451,8 @@ static MTLVertexFormat vfmt(int f) {
          case 0x25: return MTLVertexFormatUChar4Normalized; case 0x26: return MTLVertexFormatChar4Normalized; case 0x27: return MTLVertexFormatUChar4; case 0x28: return MTLVertexFormatChar4;
          case 0x29: return MTLVertexFormatHalf4; case 0x2A: return MTLVertexFormatUShort4Normalized; case 0x2B: return MTLVertexFormatShort4Normalized; case 0x2C: return MTLVertexFormatUShort4;
          case 0x2D: return MTLVertexFormatShort4; case 0x2E: return MTLVertexFormatFloat4; case 0x2F: return MTLVertexFormatUInt4; case 0x30: return MTLVertexFormatInt4;
@@ -486,7 +502,7 @@ index 156a3ca..8ba6435 100644
      }
      return MTLVertexFormatInvalid;
  }
-@@ -2348,6 +2471,74 @@ static MTLBlendFactor bfac(int f) {
+@@ -2348,6 +2473,74 @@ static MTLBlendFactor bfac(int f) {
  static NSMutableDictionary<NSString *, id<MTLFunction>> *g_bf_fn_cache;
  static NSMutableDictionary<NSString *, id<MTLLibrary>> *g_bf_lib_cache;
  static nvn_hmap g_pso = {.klen = sizeof(pso_key)}, g_dss;
@@ -561,7 +577,7 @@ index 156a3ca..8ba6435 100644
  static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged) {
      MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
      d.vertexFunction = vs->fn; d.fragmentFunction = fsfn ? fsfn : fs ? fs->fn : nil;
-@@ -2364,6 +2555,8 @@ static MTLBlendFactor bfac(int f) {
+@@ -2364,6 +2557,8 @@ static MTLBlendFactor bfac(int f) {
                  if (!hl) MLOG("【红】HILITE 着色器编译失败 %s", e.localizedDescription.UTF8String); }
              if (hl) d.fragmentFunction = [hl newFunctionWithName:[NSString stringWithFormat:@"hl%d", i]];
              break; } }
@@ -570,7 +586,7 @@ index 156a3ca..8ba6435 100644
      d.rasterSampleCount = k->samples ? k->samples : 1;
      d.alphaToCoverageEnabled = k->a2c;
      for (int i = 0; i < 8; i++) {
-@@ -2383,6 +2576,17 @@ static MTLBlendFactor bfac(int f) {
+@@ -2383,6 +2578,17 @@ static MTLBlendFactor bfac(int f) {
      d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt;
      MTLVertexDescriptor *vd = [MTLVertexDescriptor vertexDescriptor];
      const nvn_refl *rf = &vs->rf;
@@ -588,7 +604,7 @@ index 156a3ca..8ba6435 100644
      for (int v = 0; v < rf->nv; v++) {
          int loc = rf->v[v].loc, a = rf->v[v].nvn;   // Metal 槽 loc ← NVN 属性 a | Metal slot loc ← NVN attribute a
          MTLVertexFormat vf = a < 16 ? vfmt(k->attr[a].fmt) : MTLVertexFormatInvalid;
-@@ -2390,7 +2594,7 @@ static MTLBlendFactor bfac(int f) {
+@@ -2390,7 +2596,7 @@ static MTLBlendFactor bfac(int f) {
          // When a >= S.nattr, k.attr[a] keeps the 0 from memset, vfmt(0) is Invalid, the same fallback branch is taken and the RED_ONCE condition of fmt being non-0 does not hold.
          if (a < 16 && k->attr[a].fmt && vf == MTLVertexFormatInvalid) RED_ONCE(15, "顶点属性格式 %#x 未映射", k->attr[a].fmt);
          if (vf == MTLVertexFormatInvalid) {
@@ -597,32 +613,125 @@ index 156a3ca..8ba6435 100644
              vd.attributes[loc].format = ct == NVN_CT_UINT ? MTLVertexFormatUInt4 : ct == NVN_CT_INT ? MTLVertexFormatInt4 : MTLVertexFormatFloat4;
              vd.attributes[loc].offset = 0; vd.attributes[loc].bufferIndex = 30;
              vd.layouts[30].stride = 16; vd.layouts[30].stepFunction = MTLVertexStepFunctionConstant; vd.layouts[30].stepRate = 0;
-@@ -2457,6 +2661,10 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
+@@ -2422,25 +2628,50 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
+ // ---- Parallel precompile: pipelines met for the first time used to be compiled synchronously one by one on the submit thread; 9 misses in a row in one frame = 284 ms (heavy scene on a real device).
+ // Now: on the first pipeline miss in a submission, scan ahead once along the remaining commands (replaying state only, no drawing) and kick all the normal-pass pipelines that will also miss later to the background to compile in parallel;
+ // when the submit thread reaches that draw it only waits for 'the remaining time not yet compiled'. The compiled pipelines are identical to synchronously compiled ones (same descriptor). Pipeline keys of merged passes / specialized fragments depend on the planning result at replay time, are not predicted, and are compiled synchronously as before.
++// ---- 异步建管线（缺省：非 D2R 的游戏开，D2R 关；DM_PSO_ASYNC=0 / 1 强制）：上面的并行预编仍要在绘制处等编完，新敌人 / 新招式第一次出现时一次冻 0.3–3.6 秒
++// （Mac 实测 6 分钟里 90 个 >200 ms 的长帧有 85 个在建管线）。打开后普通通道缺管线不再等：丢后台编，这次绘制跳过（同上面建不出管线时的跳过），
++// 编完的在下一次提交开头收进「已编好」表，再用到时取走、记清单、进缓存。代价是这个东西第一次出现时少画一两帧；只画一次的绘制（一次性烘焙）会缺，所以留了开关。
++// 合并通道 / 特化片元的管线照旧同步编。
++// ---- Async pipeline creation (default: on for non-D2R games, off for D2R; DM_PSO_ASYNC=0 / 1 forces it): the parallel precompile above still waits at the draw, so a new enemy / move
++// froze for 0.3-3.6 s on first appearance (Mac: 85 of 90 frames over 200 ms in 6 minutes were pipeline builds). When on, a normal-pass miss no longer waits: it goes to the background and
++// this draw is skipped (the same skip as a pipeline that fails to build); finished ones are collected into a 'ready' table at the start of the next submission and taken, recorded and cached on
++// next use. Cost: the thing is missing for a frame or two on first appearance; a draw issued only once (a one-off bake) would be lost, hence the switch. Merged-pass / specialized-fragment pipelines are still built synchronously.
++static int pso_async_on(void) {
++    static int on = -1;
++    if (on < 0) { const char *e = getenv("DM_PSO_ASYNC"); on = e && *e ? atoi(e) != 0 : !dm_game_d2r(); MLOG("异步建管线：%s（DM_PSO_ASYNC）", on ? "开" : "关"); }
++    return on;
++}
+ #define PSO_PEND_MAX 384
+ static struct { pso_key k; id<MTLRenderPipelineState> ps; int used, done; } g_pp[PSO_PEND_MAX];
+ static pthread_mutex_t g_pp_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_pp_cv = PTHREAD_COND_INITIALIZER;
+-static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken;   // 本次提交是否已预测过（按提交序号）；累计丢出 / 领用条数 | Whether this submission has already been predicted (by submission serial); cumulative kicked / taken counts
++static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_skipped;   // 本次提交是否已预测过（按提交序号）；累计丢出 / 领用 / 异步跳过的绘制数 | Whether this submission has already been predicted (by submission serial); cumulative kicked / taken / async-skipped draws
++static nvn_hmap g_pso_ready = {.klen = sizeof(pso_key)};   // 后台编完、还没被绘制用到的管线（提交开头从 g_pp 收进来，释放槽位） | Pipelines finished in the background but not yet used by a draw (collected from g_pp at submission start, freeing the slot)
++// 建不出的管线记下来，同一组状态不再每次绘制都重试（真机：一个建不出的管线每帧被重试上千次，52 万次报错、白占 CPU）
++// Remember pipelines that failed so the same state is not retried on every draw (on device: one failing pipeline was retried thousands of times per frame, 520k errors and wasted CPU)
++static uint64_t g_pso_failed[4096];
++static uint64_t pso_kh(const pso_key *k) { uint64_t h = 1469598103934665603ull; for (size_t i = 0; i < sizeof *k; i++) h = (h ^ ((const uint8_t *)k)[i]) * 1099511628211ull; return h | 1; }
++static int pso_failed_has(uint64_t kh) { for (unsigned i = (unsigned)(kh % 4096), n = 0; n < 4096 && g_pso_failed[i]; i = (i + 1) % 4096, n++) if (g_pso_failed[i] == kh) return 1; return 0; }
++static void pso_failed_add(uint64_t kh) { for (unsigned i = (unsigned)(kh % 4096), n = 0; n < 4096; i = (i + 1) % 4096, n++) if (!g_pso_failed[i]) { g_pso_failed[i] = kh; break; } }
+ static void pso_predict_rest(void);
+ static int pso_pend_find(const pso_key *k) { for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && !memcmp(&g_pp[i].k, k, sizeof *k)) return i; return -1; }
+-static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 提交线程调：没在缓存、没在表里才丢 | Called by the submit thread: kick only if it is neither in the cache nor in the table
+-    if (hm_get_id(&g_pso, k)) return;
++// 提交线程调：没在缓存、没在表里才丢；返回 1 = 现在表里有它（刚丢的或早丢的），0 = 已编好 / 表满没丢
++// Called by the submit thread: kick only if it is neither in the cache nor in the table; returns 1 = it is in the table now (just kicked or earlier), 0 = already built / table full, not kicked
++static int pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {
++    if (hm_get_id(&g_pso, k) || hm_get_id(&g_pso_ready, k)) return 0;
+     pthread_mutex_lock(&g_pp_mu);
+     int at = pso_pend_find(k), slot = -1;
+     if (at < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (!g_pp[i].used) { slot = i; break; }
+     if (at < 0 && slot >= 0) { g_pp[slot].k = *k; g_pp[slot].ps = nil; g_pp[slot].done = 0; g_pp[slot].used = 1; }
+     pthread_mutex_unlock(&g_pp_mu);
+-    if (at >= 0 || slot < 0) return;
++    if (at >= 0) return 1;
++    if (slot < 0) return 0;
+     MTLRenderPipelineDescriptor *d = pso_desc(k, vs, fs, nil, 0); g_pp_kicked++;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+         NSError *e = nil; id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
++        if (!ps) { static _Atomic int nf; if (nf++ < 16) MLOG("【红】后台建渲染管线失败：%s", e.localizedDescription.UTF8String); }
+         pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
+     });
++    return 1;
+ }
+ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k) {   // 提交线程调：表里有就等它编完并取走；没有返回 nil | Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil
+     pthread_mutex_lock(&g_pp_mu);
+@@ -2449,6 +2680,17 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
+     pthread_mutex_unlock(&g_pp_mu);
+     return ps;
+ }
++// 提交开头调：编完的条目挪进「已编好」表（建不出的进失败表）、释放槽位——预测会丢出永远用不上的挂法变体，不收的话 384 个槽会被占满，异步就退回同步
++// Called at submission start: move finished entries into the 'ready' table (failures into the failed table) and free their slots -- prediction kicks attach-mode variants that are never used; without this the 384 slots fill up and async falls back to sync
++static void pso_pend_drain(void) {
++    pthread_mutex_lock(&g_pp_mu);
++    for (int i = 0; i < PSO_PEND_MAX; i++) {
++        if (!g_pp[i].used || !g_pp[i].done) continue;
++        if (g_pp[i].ps) hm_put_id(&g_pso_ready, &g_pp[i].k, g_pp[i].ps); else pso_failed_add(pso_kh(&g_pp[i].k));
++        g_pp[i].ps = nil; g_pp[i].used = 0;
++    }
++    pthread_mutex_unlock(&g_pp_mu);
++}
+ static __unsafe_unretained id<MTLRenderPipelineState> pso_get(NvProg *pr, MTLRenderPassDescriptor *unused) {
+     (void)unused;
+     __unsafe_unretained NvShader *vs = pr->sh[0], *fs = pr->sh[1];
+@@ -2457,17 +2699,37 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
      if (g_pso_lmap) { memcpy(k.lmap, g_pso_lmap, 8); k.fsfn = (__bridge void *)g_pso_fsfn; }
      __unsafe_unretained id<MTLRenderPipelineState> cached = hm_get_id(&g_pso, &k);
      if (cached) return cached;
-+    // 建不出的管线记下来，同一组状态不再每次绘制都重试（真机：一个建不出的管线每帧被重试上千次，52 万次报错、白占 CPU）
-+    // Remember pipelines that failed so the same state is not retried on every draw (on device: one failing pipeline was retried thousands of times per frame, 520k errors and wasted CPU)
-+    static uint64_t failed[4096]; uint64_t kh = 1469598103934665603ull; for (size_t i = 0; i < sizeof k; i++) kh = (kh ^ ((const uint8_t *)&k)[i]) * 1099511628211ull; kh |= 1;
-+    for (unsigned i = (unsigned)(kh % 4096), n = 0; n < 4096 && failed[i]; i = (i + 1) % 4096, n++) if (failed[i] == kh) return nil;
-     id<MTLRenderPipelineState> ps;
+-    id<MTLRenderPipelineState> ps;
++    uint64_t kh = pso_kh(&k);
++    if (pso_failed_has(kh)) return nil;
++    id<MTLRenderPipelineState> ps = hm_get_id(&g_pso_ready, &k);
      NSError *e = nil; uint64_t bt = bp_now();
-     ps = g_pso_lmap ? nil : pso_pend_take(&k);
-@@ -2467,7 +2675,12 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
-         ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+-    ps = g_pso_lmap ? nil : pso_pend_take(&k);
+-    if (ps) g_pp_taken++;
++    if (ps) { hm_del_id(&g_pso_ready, &k); g_pp_taken++; }
++    else if (!g_pso_lmap && pso_async_on()) {
++        if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; pso_predict_rest(); }
++        if (pso_pend_kick(&k, vs, fs)) {   // 在后台编：这次绘制跳过，下一次提交开头收进已编好表 | Building in the background: skip this draw; collected into the ready table at the next submission start
++            if (g_pp_skipped++ % 500 == 0) MLOG("异步建管线：丢后台 %llu 条、领用 %llu 条、跳过绘制 %llu 次", g_pp_kicked, g_pp_taken, g_pp_skipped);
++            return nil;
++        }
++        ps = pso_pend_take(&k);   // 表满没丢进去：照旧同步 | Table full, not kicked: synchronous as before
++        if (ps) g_pp_taken++;
++        else { MTLRenderPipelineDescriptor *d = pso_desc(&k, vs, fs, g_pso_fsfn, 0); ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e]; }
++    }
+     else {
+-        if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; pso_predict_rest(); }   // 本次提交第一次缺：先把后面的丢出去并行编，再同步编眼前这条 | First miss in this submission: first kick the later ones out to compile in parallel, then synchronously compile the one at hand
+-        MTLRenderPipelineDescriptor *d = pso_desc(&k, vs, fs, g_pso_fsfn, g_pso_lmap != NULL);
+-        ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
++        ps = g_pso_lmap ? nil : pso_pend_take(&k);
++        if (ps) g_pp_taken++;
++        else {
++            if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; pso_predict_rest(); }   // 本次提交第一次缺：先把后面的丢出去并行编，再同步编眼前这条 | First miss in this submission: first kick the later ones out to compile in parallel, then synchronously compile the one at hand
++            MTLRenderPipelineDescriptor *d = pso_desc(&k, vs, fs, g_pso_fsfn, g_pso_lmap != NULL);
++            ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
++        }
      }
      g_bp_pso_n++; g_bp_pso_ns += bp_now() - bt;
 -    if (!ps) { MLOG("【红】建渲染管线失败：%s", e.localizedDescription.UTF8String); return nil; }
 +    if (!ps) {
 +        static int nf; if (nf++ < 16) MLOG("【红】建渲染管线失败：%s（顶点 %s 片元 %s，颜色附件格式 %u,%u,%u,%u 深度 %u 模板 %u）", e.localizedDescription.UTF8String, vs->key, fs ? fs->key : "-",
 +            k.cfmt[0], k.cfmt[1], k.cfmt[2], k.cfmt[3], k.dfmt, k.sfmt);
-+        for (unsigned i = (unsigned)(kh % 4096), n = 0; n < 4096; i = (i + 1) % 4096, n++) if (!failed[i]) { failed[i] = kh; break; }
++        pso_failed_add(kh);
 +        return nil;
 +    }
      pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
      pso_record("R\t%s\n", shex);
      pso_user_record("R\t%s\n", shex);
-@@ -2557,10 +2770,13 @@ static void warm_start(void) {
+@@ -2557,10 +2819,13 @@ static void warm_start(void) {
          paths = @[@(e)];
      } else {
          NSString *seed = [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"];
@@ -638,7 +747,7 @@ index 156a3ca..8ba6435 100644
          paths = all;
      }
      if (!g_warm_items) g_warm_items = [NSMutableArray array];
-@@ -2747,6 +2963,9 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
+@@ -2747,6 +3012,9 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
                         (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.depth,
                         (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
                         (unsigned long)(t.parentTexture ? t.parentRelativeSlice : 0), (unsigned long)t.arrayLength, (unsigned long)t.textureType);
@@ -648,7 +757,7 @@ index 156a3ca..8ba6435 100644
              if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 7][b->dpf & 3]; }
              slots[aid] = trid;
              USE(t, MTLResourceUsageRead);
-@@ -4396,7 +4615,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+@@ -4396,7 +4664,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
      enc_r_scissor(en, sc);
      if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) return;
      enc_r_cull(en, S.poly.cull == NVN_FACE_FRONT ? MTLCullModeFront : S.poly.cull == NVN_FACE_BACK ? MTLCullModeBack : MTLCullModeNone);
@@ -657,7 +766,7 @@ index 156a3ca..8ba6435 100644
      enc_r_fill(en, S.poly.mode == NVN_POLYGON_MODE_LINE ? MTLTriangleFillModeLines : MTLTriangleFillModeFill);
      if (S.poly.offset_en & 4) enc_r_depth_bias(en, S.po.units, S.po.factor, S.po.clamp); else enc_r_depth_bias(en, 0, 0, 0);
      enc_r_blend_color(en, S.blend_color[0], S.blend_color[1], S.blend_color[2], S.blend_color[3]);
-@@ -4483,14 +4702,27 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+@@ -4483,14 +4751,27 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
              for (uint32_t q = 0; q < n; q++) { uint32_t b = q * 4; uint32_t v[6] = {b, b + 1, b + 2, b, b + 2, b + 3}; memcpy(ix + q * 6, v, 24); }
              g_quad_ib = [g_dev newBufferWithBytes:ix length:n * 24 options:MTLResourceStorageModeShared]; g_quad_gpu = g_quad_ib.gpuAddress; res_add(g_quad_ib); free(ix);
          }
@@ -688,7 +797,7 @@ index 156a3ca..8ba6435 100644
          if (!mtl_gpu_addr(di->ibuf, 1, &mb, &mo, &gpu)) { RED_ONCE(22, "索引缓冲不在内存池里"); return; }
          use_rec("buf", di->ibuf, (uint64_t)di->count * (di->itype == 1 ? 2 : 4), 0, NULL);
          if (di->count) enc_r_draw_indexed(en, mp, di->count, di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32, gpu, ((__bridge id<MTLBuffer>)mb).length - mo,
-@@ -4664,6 +4896,42 @@ void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNc
+@@ -4664,6 +4945,42 @@ void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNc
      enc_b_end(b); [cb commit]; [cb waitUntilCompleted];
      for (int z = 0; z < nz; z++) for (size_t y = 0; y < hb; y++) memcpy(dst + z * img + y * row, (uint8_t *)buf.contents + z * wb * hb + y * wb, wb);
  }
@@ -731,7 +840,7 @@ index 156a3ca..8ba6435 100644
  static void copy_b2t(const p_copy_b2t *c) {
      if (c->tex) zskip_del(c->tex->serial);
      id<MTLTexture> t = tex_mtl(c->tex);
-@@ -5491,6 +5759,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+@@ -5491,6 +5808,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
      [g_present_args setSamplerState:g_blit_samp.gpuResourceID atIndex:0];
      float *uv = g_present_uv[uv_i].contents;
      uv[0] = (float)cx / src.width; uv[1] = (float)cy / src.height; uv[2] = (float)cw / src.width; uv[3] = (float)ch / src.height;
@@ -739,7 +848,7 @@ index 156a3ca..8ba6435 100644
      uv[4] = (cx + 0.5f) / src.width; uv[5] = (cy + 0.5f) / src.height; uv[6] = (cx + cw - 0.5f) / src.width; uv[7] = (cy + ch - 0.5f) / src.height;
      [g_present_args setAddress:g_present_uv[uv_i].gpuAddress atIndex:0];
      [en setViewport:vp]; [en setRenderPipelineState:g_blit_pso];
-@@ -5545,6 +5814,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -5545,6 +5863,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
          nshot = 0; const char *e = getenv("DM_NVN_SHOT"), *c = e ? strchr(e, ':') : NULL;
          if (c) { shot_path = c + 1; for (const char *q = e; q < c && nshot < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : c) shots[nshot++] = atol(q); }
      }

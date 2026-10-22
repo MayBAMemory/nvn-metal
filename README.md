@@ -27,7 +27,7 @@ English: [README.en.md](README.en.md)
 
 1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`）和对应的 `prod.keys`。
 2. **上游 d2r-mobile 的一份检出，固定在提交 `6a2474d`**：宿主编译的是它的 `dm/host` 通用部分和整个 `dm/gfx`（原样编，不复制），这些文件不在本仓库里。
-3. **卡比要用的上游改动**：`patches/d2r-mobile-kirby.patch`（11 个文件、约 520 行，见 [patches/README.md](patches/README.md)）。补丁是对 `6a2474d` 做的，**套不上上游最新的 `main`**（2026-10-22 核对：上游之后改过其中 6 个文件，补丁冲突）。
+3. **卡比要用的上游改动**：`patches/d2r-mobile-kirby.patch`（11 个文件、约 630 行，见 [patches/README.md](patches/README.md)）。补丁是对 `6a2474d` 做的，**套不上上游最新的 `main`**（2026-10-22 核对：上游之后改过其中 6 个文件，补丁冲突）。
 4. Mac 上有 Xcode；iOS 出包还要 `brew install xcodegen` 和 `xcodebuild -downloadComponent MetalToolchain`。
 
 ```bash
@@ -68,6 +68,9 @@ host/run_mac.sh 60       # 不开窗口跑 60 秒就停，日志在 ~/kirby-work
 - 存档在 `~/kirby-work/mac/save`。运行时缺的变体清单（`uint_masks.tsv`、`iattr_masks.tsv`）和管线清单 `pso_user.tsv` 写在 `~/kirby-work/mac/`；合并进 `~/kirby-work/` 下的同名清单后，重跑上面的编译命令就只补编缺的。
 - 为什么要单独编一份：Mac 上的宿主没有 `DM_SHELL`，读的是真正编好的 metallib（`newLibraryWithData`）；`kirby_shlib.py` 出的 `_b.metallib` 里装的是 MSL 源码，`shlib_ios/` 是 iOS 目标的，都不能直接用。
 - 编译要很久：约 3.8 万次 `metal` 编译（主库 16985 + 全整数输出 `_u` 约 8500 + 部分整数输出 `_um` 约 4400 + 整数属性 `_ia` 约 2300），每次约 1 秒，几乎全花在编译器的优化阶段（`xcrun` 的开销、合并成一个进程批量编都量过，省不了）。M5 上 62 分钟。**编着色器时别测性能**：它占满所有核，系统负载到 100 左右，测出来的长帧不能算数。
+- **新动作 / 新敌人第一次出现时的卡顿**：预编的只是着色器函数（AIR），真正在 GPU 上跑的「管线」（顶点 + 片元 + 顶点格式 + 渲染目标格式 + 混合）要到游戏第一次用这个组合时才知道，当场由 Metal 编成 M5 的机器码；原来提交线程会停下等它编完。第一次玩 6 分钟：90 个超过 200 ms 的长帧里 85 个在建管线，共约 64 秒，最长一次 3.6 秒。现在默认**异步建管线**：没编过的丢给后台编，这次绘制跳过、不等，代价是那个东西第一次出现时少画一两帧。A/B（同一份存档副本、同一份按键脚本、关预热、各 100 秒）：建管线卡住的总时间 527 → 79 ms，>200 ms 的帧 2 → 0，最长一帧 348 → 94 ms。剩下的是合并通道 / 特化片元的管线，仍是同步。`DM_PSO_ASYNC=0` 退回原来的做法。
+- 玩过的管线记在 `~/kirby-work/mac/pso_user.tsv`，下次启动在后台先编好，同一处第二次基本不卡。
+- 帧数最高 30：卡比原生就是 30 帧，是游戏自己按 30 帧出图（帧时间中位数 33.3 ms）；每帧的活对 M5 很轻，所以机器不热。要 60 帧得先查游戏逻辑是不是按帧走的，没做。
 - 已知：窗口标题和菜单是上游 Mac 外壳的（「D2R Mobile」、`dmAppMenuView`），不影响玩。
 
 ### 只有 XCI 时，全在 Mac 上从头重做（不用 Windows）
@@ -186,6 +189,8 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 | `DM_NVN_SHOT="帧号:shot_%d.png"` | 按帧截图到 Documents，再用 `xcrun devicectl device copy from` 拉回来。**截出来是上下颠倒的**，看之前 `sips -f vertical` |
 | `MTL_DEBUG_LAYER=1` | Metal 验证层，出错时会指出具体哪一条 |
 | `DM_OPMODE=0 / 1` | 掌机 720p / 主机 1080p。App 里也能切，会保存 |
+| `DM_PSO_ASYNC=0` | 关掉异步建管线，退回「等编完再画」（卡比缺省开）。疑心哪个画面缺东西时用它对照 |
+| `DM_PSO_MANIFEST=off` | 关掉启动时的管线预热（测卡顿 / 测异步时用） |
 
 例：走动加分析器
 `DEVICECTL_CHILD_KIRBY_PROF=2 DEVICECTL_CHILD_KIRBY_KEYS="A@12,A@16,A@20,A@30,A@40,A@50,SU@60+20" ios/run.sh run 100 > ~/kirby-work/run/run35.txt`
@@ -216,7 +221,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 
 | 问题 | 查到的原因 / 打算 |
 |---|---|
-| 走动卡顿 | 管线在提交线程上同步创建，一个 30–140 ms，走一段有约 250 个长帧。已加清单预编；下一步做异步建管线：没编好的这一帧先跳过这个绘制，不等 |
+| 走动卡顿 | 管线在提交线程上同步创建，一个 30–140 ms，走一段有约 250 个长帧。已加清单预编；2026-10-22 加了异步建管线（见「在 Mac 上直接跑」），真机还没验证 |
 | 进城后贴图乱飞、帧数低 | 怀疑带骨骼的模型选错了变体（用了浮点版），还没核实。先用截图和 `MTL_DEBUG_LAYER` 定位 |
 | 内存 | 余量只有约 145 MB。游戏自己的内存池占 2.1 GB；预排布贴图的 GPU 副本累计涨到 271 MB，已加回收。`nvnTextureInitialize` 重新初始化时不释放旧的序号，有泄漏，未修。付费账号的内存权限能缓解 |
 | 其他没做的 | 截图上下颠倒；深度截断（depth clamp）没实现；缺 `c1_full.tsv`；几何着色器（10 份）跳过；过场视频只放黑帧 |
