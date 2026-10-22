@@ -26,13 +26,14 @@ The approach and the base code come from [d2r-mobile](https://github.com/jhaizho
 ## Requirements
 
 1. **Your own Switch copy of Kirby and the Forgotten Land v1.0.0** (title ID `01004D300C5AE000`) and its `prod.keys`.
-2. **An upstream d2r-mobile checkout**: the host compiles the generic parts of its `dm/host` and all of `dm/gfx` in place — those files are not in this repository.
-3. **The upstream changes Kirby needs**: `patches/d2r-mobile-kirby.patch` (11 files, ~520 lines; see [patches/README.md](patches/README.md)).
+2. **An upstream d2r-mobile checkout, pinned to commit `6a2474d`**: the host compiles the generic parts of its `dm/host` and all of `dm/gfx` in place — those files are not in this repository.
+3. **The upstream changes Kirby needs**: `patches/d2r-mobile-kirby.patch` (11 files, ~520 lines; see [patches/README.md](patches/README.md)). The patch is against `6a2474d` and **does not apply to the latest upstream `main`** (checked 2026-10-22: upstream has since changed 6 of those files).
 4. Xcode on a Mac; for device builds also `brew install xcodegen` and `xcodebuild -downloadComponent MetalToolchain`.
 
 ```bash
 # Upstream lives next to this repo by default; set D2R_MOBILE to the d2r-mobile root if it is elsewhere
 git clone https://github.com/jhaizhou-ops/d2r-mobile.git ../d2r-mobile
+git -C ../d2r-mobile checkout 6a2474d     # the patch's base; not the latest main
 git -C ../d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 
 # Mac host
@@ -44,6 +45,35 @@ ios/run.sh build && ios/run.sh install && ios/run.sh run
 ```
 
 Fill in device, signing and `KIRBY_WORK` in `ios/local.env` (sample: `ios/local.env.example`); it is not committed.
+
+## Continuing on another computer
+
+Git holds only code. The full checklist (work-directory table, signing, test variables, current status) is in the Chinese [README.md](README.md#换一台电脑接着做); the short version:
+
+1. **Code**: clone `nvn-metal` and `d2r-mobile` side by side, `git -C d2r-mobile checkout 6a2474d`, apply the patch. Verified 2026-10-22: the result matches the old `kirby` branch byte for byte and `make -C host check` has 0 errors. **Do not run d2r-mobile's `setup.sh`**: it rewrites `dm/gfx/nvn/dmsh_chain.h`, which changes the shader-chain version (`15cf7ca29eaf`) and invalidates `shlib/` and `shlib_ios/`. After editing `dm/`, regenerate the patch with `git -C ../d2r-mobile add -N dm && git -C ../d2r-mobile diff 6a2474d -- dm > patches/d2r-mobile-kirby.patch`.
+2. **Tools**: Xcode 26 (Metal 4 SDK), `brew install xcodegen`, `xcodebuild -downloadComponent MetalToolchain`, Python 3 with `capstone lz4 zstandard unicorn` for `tools/`. Intel and Apple silicon Macs both build and install; only running `host/kirbyhost` on the Mac needs Apple silicon.
+3. **Work directory `~/kirby-work`** (copy from the old machine, e.g. `rsync -a --exclude build --exclude run`). Required:
+   - `patched/{main,sdk,subsdk0}.{patched.bin,fixups.tsv,gates.tsv}`;
+   - `shlib_ios/` (462 MB of compiled iOS metallibs), or `shlib/` and then rerun `ios/run.sh shaders`;
+   - the three device-recorded lists `pso_manifest.tsv`, `uint_masks.tsv`, `iattr_masks.tsv`.
+
+   `RomFS/` (5.7 GB) is only needed if the app has to be reinstalled under a new bundle ID. Keys are only needed to re-extract from the XCI; copy them privately and never commit them.
+4. **Phone and signing**:
+   - Phone: iPhone 16 Pro Max on iOS 27.2. App bundle ID `io.github.maybamemory.kirbyhost`, with the RomFS already in its container.
+   - Keep the same bundle ID and the same Apple ID (team) so the install overwrites in place.
+   - Re-query `KIRBY_DEVICE` with `xcrun devicectl list devices`.
+   - It is a free account (`KIRBY_FREE_ACCOUNT=1`): profiles expire after 7 days. With a paid account, clear it to get the memory entitlements.
+5. **Testing**:
+   - Use a USB cable, since Wi-Fi installs drop. Keep the phone unlocked.
+   - Pass variables with a `DEVICECTL_CHILD_` prefix: `KIRBY_KEYS` (key script, sticks `SU/SD/SL/SR`), `KIRBY_PROF=2` (sampling profiler), `DM_NVN_SHOT` (screenshots come out upside down), `MTL_DEBUG_LAYER=1`.
+   - Never interrupt guest threads with signals: guest code uses x18 and XNU does not preserve it.
+6. **Status**:
+   - Level 1 renders and holds 30 fps (native) when standing.
+   - The build on the phone (commit `d64b879`: integer-attribute variant fix, packaged-texture eviction, pipeline warm-up) is not yet verified on device.
+   - Open issues:
+     - walking stutter from synchronous pipeline creation (next: async PSOs);
+     - garbled textures and low fps in the city;
+     - tight memory (~145 MB headroom).
 
 ## Layout
 
