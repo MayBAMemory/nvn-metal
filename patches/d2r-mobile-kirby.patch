@@ -953,10 +953,20 @@ index 8c3eed0..07d644e 100644
      aout *a = ao(g);
      pthread_mutex_lock(&a->m); int was = atomic_load_explicit(&a->state, memory_order_relaxed); atomic_store_explicit(&a->state, STATE_STARTED, memory_order_release); pthread_mutex_unlock(&a->m);
 diff --git a/dm/host/hle_fs.c b/dm/host/hle_fs.c
-index ff8e772..e87432e 100644
+index ff8e772..8f1b3b1 100644
 --- a/dm/host/hle_fs.c
 +++ b/dm/host/hle_fs.c
-@@ -381,9 +381,11 @@ HLE_FORCE("_ZN2nn2fs13MountSaveDataEPKcRKNS_7account3UidE", "fsp-srv；存档 
+@@ -218,6 +218,9 @@ static int host_path_ex(const char *p, char *out, size_t n, int *ro, int create)
+     errno = ENOENT; return 0;
+ }
+ static int host_path(const char *p, char *out, size_t n, int *ro) { return host_path_ex(p, out, n, ro, 0); }
++// 给宿主其他模块用（卡比的视频解码要按 content:/mov/... 打开 RomFS 里的文件）：客体路径 → 宿主路径，找不到返回 0
++// For other host modules (Kirby's video decoding opens content:/mov/... in the RomFS): guest path → host path, 0 if not found
++int dm_fs_host_path(const char *guest, char *out, size_t n) { PATH_LOCK(); return host_path(guest, out, n, NULL); }
+ static int set_guest_name(const char *hp, const char *path) {
+     const char *end = path + strlen(path); while (end > path && end[-1] == '/') end--;
+     const char *start = end; while (start > path && start[-1] != '/' && start[-1] != ':') start--;
+@@ -381,9 +384,11 @@ HLE_FORCE("_ZN2nn2fs13MountSaveDataEPKcRKNS_7account3UidE", "fsp-srv；存档 
      const char *d = getenv("DM_SAVE");
      if (!d) die("未设 DM_SAVE：请指向一份存档目录的可写副本");
      char dd[1024]; strlcpy(dd, d, sizeof dd); size_t L = strlen(dd); while (L > 1 && dd[L - 1] == '/') dd[--L] = 0;   // 去掉结尾斜杠（.work / .new 拼在同级） | strip trailing slashes (.work / .new are appended at the same level)
@@ -971,7 +981,7 @@ index ff8e772..e87432e 100644
      // 掉落过滤的规则文件（原版启动时载入，dm_lootfilter.c 用构造函数登记这个钩子；只链 hle_fs.c 的单测里它是空的）。与 settings_seed 同一个开关：
      // iOS 上缺省写；Mac 宿主的对拍闸门（存档要和真机真值逐文件相同）不写
      // Rule files for the loot filter (the game loads them at startup; dm_lootfilter.c registers this hook from a constructor; it is null in unit tests that link only hle_fs.c). Same switch as settings_seed:
-@@ -696,3 +698,28 @@ HLE_FORCE("_ZN2nn2fs13ReadDirectoryEPlPNS0_14DirectoryEntryENS0_15DirectoryHandl
+@@ -696,3 +701,28 @@ HLE_FORCE("_ZN2nn2fs13ReadDirectoryEPlPNS0_14DirectoryEntryENS0_15DirectoryHandl
  HLE_FORCE("_ZN2nn2fs14CloseDirectoryENS0_15DirectoryHandleE", "fsp-srv → closedir(3)", void, h_fs_CloseDirectory, uint64_t hh) {
      dirh_t *h = (dirh_t *)hh; closedir(h->d); if (h->od) closedir(h->od); free(h->snap); free(h);
  }

@@ -21,7 +21,7 @@ HDR=$(wildcard *.h) $(DM)/host/dm.h $(DM)/host/hle.h $(DM)/host/front.h $(DM)/ho
 .DEFAULT_GOAL := kirbyhost
 kirbyhost: $(KIRBY) $(HOST) $(GFX) $(HDR)
 	clang $(ARCH) $(CFLAGS) -I. -I$(DM)/host -I$(DM)/gfx/nvn/include -fobjc-arc -o $@ $(KIRBY) $(HOST) $(GFX) \
-	  -framework Cocoa -framework QuartzCore -framework Metal -framework AudioToolbox -framework ImageIO -framework UniformTypeIdentifiers -framework GameController
+	  -framework Cocoa -framework QuartzCore -framework Metal -framework AudioToolbox -framework ImageIO -framework UniformTypeIdentifiers -framework GameController -framework VideoToolbox -framework CoreMedia -framework CoreVideo
 # 只编译不链接：Intel Mac 上 make -C kirby/host check（逐个文件 -fsyntax-only，报出所有编译错误）
 # Compile without linking: make -C kirby/host check on an Intel Mac (-fsyntax-only file by file, reports every compile error)
 check:

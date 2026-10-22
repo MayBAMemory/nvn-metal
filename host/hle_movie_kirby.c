@@ -9,6 +9,9 @@
 // → AcquireOutputBufferIndex 交出标志 4 项。和 D2R 一样，过场动画内容不在本移植范围内。
 // 其余虚槽一律「被调到即中止并报名」（与 D2R 同一原则：不靠返回 0 侥幸通过），运行时撞到哪个就补哪个。
 // Buffer / MediaData：宿主自定布局，库里所有被卡比导入的成员函数都在这里接管，避免宿主布局与库里真实实现混用。
+// 2026-10-23 起本机能硬解 VP9 时（Mac，kirby_vp9.c）真放：解封装 kirby_webm.c，游戏送输入时当场同步解码，出帧进 MV_NOUT 格的输出队列，
+// 播放器取帧时拷进它给的内存（NV12：Y 行距 = 宽，UV 紧跟，见 main+0x771fbc 起：SetDataAndCapacity 给游戏自己的内存 → GetOutputBufferFormat 读
+// width / height / nv12-y-offset / nv12-uv-offset → GetOutputBuffer）。队列满就不给输入缓冲，节奏由播放器按时间戳定。音轨还没报给游戏（过场无声）。不能解时照旧空播。
 // Cutscenes (movie:: = Nintendo's movie library in subsdk0): Kirby version. Replaces D2R's dm/host/hle_movie.c (the Kirby build does not compile that one).
 // Why not share D2R's: Kirby's player (main+0x76a000–0x773000, written by HAL) uses a different protocol --
 //   main+0x76dce0 constructs the Extractor → slot 2 SetDataSource(char const* path) (D2R uses slot 15; in D2R's file slot 2 aborts when called)
@@ -20,7 +23,11 @@
 // "input available" → Read reports EOS → Send(flag 4) signals "output available" → AcquireOutputBufferIndex hands over the flag-4 item. As in D2R, cutscene content is out of scope.
 // Every other virtual slot aborts and reports its name when called (same principle as D2R: no passing by luck with a 0 return); whichever one is hit at runtime gets implemented.
 // Buffer / MediaData: host-defined layouts; every member function Kirby imports is taken over here, so the host layout is never mixed with the library's real implementation.
+// Since 2026-10-23, when the host can hardware-decode VP9 (Mac, kirby_vp9.c) videos really play: demux in kirby_webm.c, synchronous decode when the game submits input, frames go to an
+// MV_NOUT-slot output queue and are copied into the memory the player hands over (NV12: Y stride = width, UV right after; from main+0x771fbc: SetDataAndCapacity gives the game's own memory →
+// GetOutputBufferFormat reads width / height / nv12-y-offset / nv12-uv-offset → GetOutputBuffer). No input buffer while the queue is full, so the player paces by timestamp. The audio track is not reported yet (silent cutscenes). Otherwise no-op playback as before.
 #include "hle.h"
+#include "kirby_video.h"
 #include <pthread.h>
 #include <time.h>
 
@@ -50,8 +57,16 @@ static void kmv_dtor(void *self) { (void)self; }
 static void kmv_delete(void *self) { if (!g_free) die("movie(卡比)：未登记分配器"); g_free(self, g_user); }
 #define TRAP(cls, slot, what) static void kmv_trap_##cls##_##slot(void) { die("movie(卡比)：%s 槽%d %s 被调用（还没接，见 host/hle_movie_kirby.c）", #cls, slot, what); }
 
-// ---- 空播状态（同一时刻只有一段视频；照 D2R）| no-op playback state (one video at a time; as in D2R) ----
-typedef struct { int64_t dur_ns, deadline; void *ev_in, *ev_out; int eos_out; int64_t last_pts_us; } mv_t;
+// ---- 播放状态（同一时刻只有一段视频；照 D2R）| playback state (one video at a time; as in D2R) ----
+#define MV_NOUT 4                // 真放时的输出队列格数 | output queue slots when really playing
+#define MV_INCAP (4 << 20)       // 输入缓冲：1080p 关键帧也放得下 | input buffer: fits a 1080p keyframe
+typedef struct { uint8_t *buf; int64_t pts; int state; uint64_t seq; } mv_out;   // state 0 空 1 解好待取 2 播放器拿着 | state 0 free 1 decoded, waiting 2 held by the player
+typedef struct {
+    int64_t dur_ns, deadline; void *ev_in, *ev_out; int eos_out; int64_t last_pts_us;
+    // 真放 | real playback
+    int real; kw_file *f; int vt; size_t cur; int w, h; size_t fsz;
+    kv_dec *kv; uint8_t *in; mv_out o[MV_NOUT]; uint64_t seq; int eos_in, eos_pending, ext_gone;
+} mv_t;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_cv = PTHREAD_COND_INITIALIZER;
 static mv_t *g_pending, *g_armed; static void (*g_signal_event)(void *);
 static int64_t mono_ns(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return t.tv_sec * 1000000000ll + t.tv_nsec; }
@@ -67,9 +82,13 @@ static void timer_main(void *arg) {   // 客体线程（nn::os::CreateThread 建
         g_armed = NULL; KMVLOG("到时长，发输入可用"); g_signal_event(m->ev_in);
     }
 }
+static void signal_ensure(void) {
+    if (!g_signal_event) g_signal_event = guest_sym("_ZN2nn2os11SignalEventEPNS0_9EventTypeE");
+    if (!g_signal_event) die("movie(卡比)：缺 nn::os::SignalEvent");
+}
 static void timer_ensure(void) {
     static int started; if (started) return; started = 1;
-    g_signal_event = guest_sym("_ZN2nn2os11SignalEventEPNS0_9EventTypeE"); if (!g_signal_event) die("movie(卡比)：缺 nn::os::SignalEvent");
+    signal_ensure();
     void *dm_guest_thread_spawn(void (*fn)(void *), void *arg, int prio, size_t stack_size);
     dm_guest_thread_spawn(timer_main, NULL, NN_OS_DEFAULT_THREAD_PRIORITY, 0x10000);
 }
@@ -80,8 +99,18 @@ static int ext_SetDataSourcePath(void *self, const char *path) {
     if (path) for (; n < sizeof shown - 1 && path[n] >= 0x20 && path[n] < 0x7f; n++) shown[n] = path[n];
     shown[n] = 0;
     mv_t *m = calloc(1, sizeof *m); m->dur_ns = MV_SKIP_NS;
+    char hp[1024]; int dm_fs_host_path(const char *guest, char *out, size_t n);
+    const char *noop = getenv("KIRBY_MOVIE_NOOP");   // =1 强制空播（对照用）| =1 forces no-op playback (for comparison)
+    if (n && !(noop && *noop == '1') && kv_available() && dm_fs_host_path(path, hp, sizeof hp) && (m->f = kw_open(hp))) {
+        m->vt = kw_find(m->f, KW_VIDEO);
+        if (m->vt >= 0 && !strcmp(m->f->tracks[m->vt].codec, "V_VP9")) {
+            m->real = 1; m->w = m->f->tracks[m->vt].width; m->h = m->f->tracks[m->vt].height; m->fsz = (size_t)m->w * m->h * 3 / 2;
+            m->dur_ns = m->f->duration_us * 1000;
+        } else { kw_close(m->f); m->f = NULL; }
+    }
     pthread_mutex_lock(&g_lock); ((mv_t **)self)[1] = m; g_pending = m; pthread_mutex_unlock(&g_lock);
-    LOG("movie(卡比)：打开视频 %s → 空播 %.1f 秒（报 1 条视频轨，不解码）", n ? shown : "(非文本参数)", MV_SKIP_NS / 1e9);
+    if (m->real) LOG("movie(卡比)：打开视频 %s → 播放 %dx%d %.1f 秒（VP9 硬解，音轨未接）", shown, m->w, m->h, m->dur_ns / 1e9);
+    else LOG("movie(卡比)：打开视频 %s → 空播 %.1f 秒（报 1 条视频轨，不解码）", n ? shown : "(非文本参数)", MV_SKIP_NS / 1e9);
     return ST_OK;
 }
 static int ext_GetTrackCount(void *self, int *n) { (void)self; *n = 1; return ST_OK; }
@@ -93,28 +122,53 @@ static int ext_GetTrackConfiguration(void *self, int idx, void **md) {   // 唯�
     if (idx != 0) return ST_EOS;
     free(*md); kmd *m = calloc(1, sizeof *m); *md = m;
     md_put(m, "mime", 1, 0, "video/x-vnd.on2.vp9"); md_put(m, "durationUs", 64, M(self)->dur_ns / 1000, NULL);
-    md_put(m, "width", 32, 1920, NULL); md_put(m, "height", 32, 1080, NULL);
+    md_put(m, "width", 32, M(self)->real ? M(self)->w : 1920, NULL); md_put(m, "height", 32, M(self)->real ? M(self)->h : 1080, NULL);
     return ST_OK;
 }
 static int ext_SelectTrack(void *self, int idx) { (void)self; KMVLOG("SelectTrack %d", idx); return ST_OK; }
+// 真放：从当前位置往后找下一个视频样本的下标（没有了返回样本总数）| real playback: index of the next video sample from the cursor on (the sample count if none left)
+static size_t vnext(mv_t *m) { size_t i = m->cur; while (i < m->f->ns && m->f->s[i].track != m->vt) i++; return i; }
 static int ext_SeekTo(void *self, int64_t us, int mode) {
-    (void)us; (void)mode; mv_t *m = M(self); KMVLOG("SeekTo");
+    (void)mode; mv_t *m = M(self); KMVLOG("SeekTo %lld", (long long)us);
+    if (m->real) {   // 退到不晚于目标的最近关键帧 | back to the nearest keyframe not after the target
+        size_t at = 0; for (size_t i = 0; i < m->f->ns; i++) { kw_sample *s = &m->f->s[i]; if (s->track != m->vt) continue; if (s->pts_us > us) break; if (s->key) at = i; }
+        m->cur = at; m->last_pts_us = 0; return ST_OK;
+    }
     pthread_mutex_lock(&g_lock); arm(m, mono_ns() + m->dur_ns); m->last_pts_us = 0; pthread_mutex_unlock(&g_lock); return ST_OK;
 }
 // 卡比的读取循环（main+0x76ad88）先问「哪条轨道有数据」：返回 0x2000 就按本轨道到头处理、等到输入缓冲后送流尾（标志 4）；
 // 空播没有样本可读，所以一律回流尾——到点时解码器发「输入可用」，播放器拿到输入缓冲就送流尾
 // Kirby's reader loop (main+0x76ad88) first asks "which track has data": 0x2000 means this track is at its end, and it sends end-of-stream (flag 4) once it has an
 // input buffer; no-op playback has no samples, so it always answers end-of-stream -- at the deadline the decoder signals "input available" and the player sends EOS
-static int ext_GetTrackIndexForAvailableData(void *self, int *idx) {
-    (void)self; *idx = -1; static int n; if (n++ < 3) KMVLOG("GetTrackIndexForAvailableData → 流尾"); return ST_EOS;
+// 输出参数是 64 位：读取循环先填 -1（8 字节）、回来按 64 位和自己的轨道号比（main+0x76ad88），只写低 32 位会永远对不上
+// The out parameter is 64-bit: the reader loop pre-fills -1 (8 bytes) and compares all 64 bits with its own track index (main+0x76ad88); writing only the low 32 bits never matches
+static int ext_GetTrackIndexForAvailableData(void *self, int64_t *idx) {
+    mv_t *m = M(self);
+    if (m->real) { static int n; if (n++ < 3) KMVLOG("GetTrackIndexForAvailableData（真放）样本 %zu", vnext(m)); if (vnext(m) >= m->f->ns) { *idx = -1; return ST_EOS; } *idx = 0; return ST_OK; }
+    *idx = -1; static int n; if (n++ < 3) KMVLOG("GetTrackIndexForAvailableData → 流尾"); return ST_EOS;
 }
-static int ext_Read(void *self, void *buf) { (void)buf; mv_t *m = M(self); m->last_pts_us = m->dur_ns / 1000; KMVLOG("Read → 流尾"); return ST_EOS; }
-static int ext_Advance(void *self) { (void)self; KMVLOG("Advance"); return ST_OK; }
-static int ext_GetSampleTime(void *self, int64_t *us) { *us = M(self)->last_pts_us; KMVLOG("GetSampleTime"); return ST_OK; }
+static int ext_Read(void *self, kbuf *b) {
+    mv_t *m = M(self);
+    if (m->real) {
+        size_t i = vnext(m); if (i >= m->f->ns) { m->last_pts_us = m->dur_ns / 1000; return ST_EOS; }
+        kw_sample *s = &m->f->s[i]; uint32_t n = s->size;
+        if (n > b->cap) { LOG("movie(卡比)：样本 %u 字节放不下输入缓冲 %llu，截断", n, (unsigned long long)b->cap); n = (uint32_t)b->cap; }
+        memcpy(b->base, m->f->data + s->off, n); b->off = 0; b->size = (int32_t)n; b->i64 = s->pts_us; m->last_pts_us = s->pts_us;
+        return ST_OK;
+    }
+    m->last_pts_us = m->dur_ns / 1000; KMVLOG("Read → 流尾"); return ST_EOS;
+}
+static int ext_Advance(void *self) { mv_t *m = M(self); if (m->real) m->cur = vnext(m) + 1; KMVLOG("Advance"); return ST_OK; }
+static int ext_GetSampleTime(void *self, int64_t *us) {
+    mv_t *m = M(self);
+    if (m->real) { size_t i = vnext(m); *us = i < m->f->ns ? m->f->s[i].pts_us : m->dur_ns / 1000; return ST_OK; }
+    *us = m->last_pts_us; KMVLOG("GetSampleTime"); return ST_OK;
+}
 TRAP(ext, 3, "SetDataSource(void const*, int)") TRAP(ext, 7, "UnselectTrack") TRAP(ext, 13, "GetSampleMetaData") TRAP(ext, 14, "GetBufferedRange")
 TRAP(ext, 15, "SetDataSource(ClientStreamReader*, char const*)")
 static void kmv_ext_delete(void *self) {
     pthread_mutex_lock(&g_lock); mv_t *m = M(self); if (m && g_pending == m) g_pending = NULL; pthread_mutex_unlock(&g_lock);
+    if (m) { m->ext_gone = 1; if (m->f && !m->kv) { kw_close(m->f); m->f = NULL; m->real = 0; } }   // 解码器还在就留着文件，由解码器删时关 | keep the file while the decoder lives; it is closed when the decoder is deleted
     kmv_delete(self);
 }
 static void *const g_ext_vt[16] = {
@@ -126,21 +180,60 @@ HLE_FORCE("_ZN5movie9ExtractorC1ENS_13ContainerTypeE", "过场空播：Extractor
 
 static int dec_Configure(void *self, void *md) { (void)self; (void)md; KMVLOG("Decoder Configure"); return ST_OK; }
 static int dec_RegisterClientEvents(void *self, void **ev) { mv_t *m = M(self); m->ev_in = ev[0]; m->ev_out = ev[1]; KMVLOG("RegisterClientEvents %p %p %p %p", ev[0], ev[1], ev[2], ev[3]); return ST_OK; }
+// 真放：数格子 | real playback: count slots
+static int out_busy(mv_t *m) { int n = 0; for (int i = 0; i < MV_NOUT; i++) n += m->o[i].state != 0; return n; }
+static int out_ready(mv_t *m) { int n = 0; for (int i = 0; i < MV_NOUT; i++) n += m->o[i].state == 1; return n; }
 static int dec_Start(void *self) {
-    timer_ensure(); mv_t *m = M(self); KMVLOG("Decoder Start");
+    mv_t *m = M(self); KMVLOG("Decoder Start");
     if (!m->ev_in) die("movie(卡比)：Start 前没登记事件（播放器协议与 D2R 不同，见 hle_movie_kirby.c）");
+    if (m->real && !m->kv) {
+        m->kv = kv_open(m->w, m->h); m->in = malloc(MV_INCAP);
+        for (int i = 0; i < MV_NOUT; i++) m->o[i].buf = malloc(m->fsz);
+        if (!m->kv) { LOG("movie(卡比)：建 VP9 解码会话失败，退回空播"); m->real = 0; }
+    }
+    // 「输入可用」不能在 Start 里当场发：实测播放器在 Start 返回后会把事件清掉，读取线程就永远等不到。照空播的做法交给计时线程稍后发
+    // "Input available" cannot be signalled inside Start: measured, the player clears the events after Start returns and the reader then waits forever. As in no-op playback, the timer thread signals it shortly after
+    timer_ensure();
+    if (m->real) { pthread_mutex_lock(&g_lock); arm(m, mono_ns() + 1000000); pthread_mutex_unlock(&g_lock); return ST_OK; }
     pthread_mutex_lock(&g_lock); arm(m, mono_ns() + m->dur_ns); pthread_mutex_unlock(&g_lock); return ST_OK;
 }
 static int dec_Stop(void *self) { mv_t *m = M(self); pthread_mutex_lock(&g_lock); m->deadline = 0; if (g_armed == m) g_armed = NULL; pthread_mutex_unlock(&g_lock); KMVLOG("Decoder Stop"); return ST_OK; }
-static int dec_Flush(void *self) { (void)self; KMVLOG("Decoder Flush"); return ST_OK; }
+static int dec_Flush(void *self) {
+    mv_t *m = M(self); KMVLOG("Decoder Flush");
+    if (m->real) { pthread_mutex_lock(&g_lock); for (int i = 0; i < MV_NOUT; i++) m->o[i].state = 0; m->eos_in = m->eos_pending = 0; pthread_mutex_unlock(&g_lock); signal_ensure(); g_signal_event(m->ev_in); }
+    return ST_OK;
+}
 static int dec_AcquireInputBufferIndex(void *self, int *idx, int *remaining) {
-    mv_t *m = M(self); pthread_mutex_lock(&g_lock); int due = m->deadline && mono_ns() >= m->deadline; pthread_mutex_unlock(&g_lock);
+    mv_t *m = M(self);
+    if (m->real) {   // 输入同步解完立即可用；输出队列满了就先不给 | input is free again as soon as it is decoded synchronously; none while the output queue is full
+        pthread_mutex_lock(&g_lock); int ok = !m->eos_in && out_busy(m) < MV_NOUT; pthread_mutex_unlock(&g_lock);
+        *idx = ok ? 0 : -1; *remaining = 0; static int n; if (n++ < 6) KMVLOG("AcquireInputBufferIndex（真放）→ %s", ok ? "0" : "暂无"); return ok ? ST_OK : ST_TRY_AGAIN;
+    }
+    pthread_mutex_lock(&g_lock); int due = m->deadline && mono_ns() >= m->deadline; pthread_mutex_unlock(&g_lock);
     *idx = due ? 0 : -1; *remaining = 0; KMVLOG("AcquireInputBufferIndex → %s", due ? "0" : "暂无"); return due ? ST_OK : ST_TRY_AGAIN;
 }
 static uint8_t g_inbuf[16];
-static int dec_GetInputBuffer(void *self, int idx, kbuf *b) { (void)self; KMVLOG("GetInputBuffer %d", idx); memset(b, 0, sizeof *b); b->base = g_inbuf; b->cap = sizeof g_inbuf; return ST_OK; }
+static int dec_GetInputBuffer(void *self, int idx, kbuf *b) {
+    mv_t *m = M(self); KMVLOG("GetInputBuffer %d", idx); memset(b, 0, sizeof *b);
+    if (m->real) { b->base = m->in; b->cap = MV_INCAP; } else { b->base = g_inbuf; b->cap = sizeof g_inbuf; }
+    return ST_OK;
+}
 static int dec_SendInputBufferForDecode(void *self, int idx, int off, int size, int64_t pts, int flags) {
-    (void)idx; (void)off; (void)size; (void)pts; mv_t *m = M(self); KMVLOG("SendInputBufferForDecode 标志 %#x", flags);
+    (void)idx; mv_t *m = M(self); KMVLOG("SendInputBufferForDecode 标志 %#x", flags);
+    if (m->real) {
+        if (size > 0 && off >= 0 && off + size <= MV_INCAP) {
+            mv_out *o = NULL; pthread_mutex_lock(&g_lock); for (int i = 0; i < MV_NOUT && !o; i++) if (!m->o[i].state) o = &m->o[i]; pthread_mutex_unlock(&g_lock);
+            int r = o ? kv_decode(m->kv, m->in + off, (size_t)size, o->buf) : -2;
+            static int n; if (n++ < 6) KMVLOG("解码 %d 字节 pts %lld → %d", size, (long long)pts, r);
+            if (r > 0) {
+                pthread_mutex_lock(&g_lock); o->pts = pts; o->seq = ++m->seq; o->state = 1; pthread_mutex_unlock(&g_lock);
+                g_signal_event(m->ev_out);
+            }
+        }
+        if (flags & FLAG_EOS) { pthread_mutex_lock(&g_lock); m->eos_in = m->eos_pending = 1; pthread_mutex_unlock(&g_lock); KMVLOG("输入到流尾"); g_signal_event(m->ev_out); }
+        else g_signal_event(m->ev_in);
+        return ST_OK;
+    }
     if (flags & FLAG_EOS) { pthread_mutex_lock(&g_lock); m->eos_out = MV_OUT_ITEMS; m->deadline = 0; pthread_mutex_unlock(&g_lock); KMVLOG("播完"); g_signal_event(m->ev_out); }
     return ST_OK;
 }
@@ -150,6 +243,15 @@ static int dec_SendInputBufferForDecode(void *self, int idx, int off, int size, 
 // playback clock once ≥2 frames are queued; with a single EOS item it never starts and so never ends (grey screen on device). Each hand-over reports what is left and re-signals "output available"
 static int dec_AcquireOutputBufferIndex(void *self, int *idx, int64_t *pts, int *flags, int *remaining) {
     mv_t *m = M(self);
+    if (m->real) {   // 按解出的顺序交；都交完了再交流尾项（下标 MV_NOUT，不带数据）| hand over in decode order; the EOS item (index MV_NOUT, no data) only after all of them
+        pthread_mutex_lock(&g_lock);
+        int at = -1; for (int i = 0; i < MV_NOUT; i++) if (m->o[i].state == 1 && (at < 0 || m->o[i].seq < m->o[at].seq)) at = i;
+        int rc = ST_OK;
+        if (at >= 0) { m->o[at].state = 2; *idx = at; *pts = m->o[at].pts; *flags = 0; *remaining = out_ready(m) + m->eos_pending; }
+        else if (m->eos_pending) { m->eos_pending = 0; *idx = MV_NOUT; *pts = m->dur_ns / 1000; *flags = FLAG_EOS; *remaining = 0; KMVLOG("交出流尾"); }
+        else { *remaining = 0; rc = ST_TRY_AGAIN; }
+        pthread_mutex_unlock(&g_lock); static int n; if (n++ < 6) KMVLOG("AcquireOutputBufferIndex（真放）→ %s", rc == ST_OK ? "有" : "暂无"); return rc;
+    }
     pthread_mutex_lock(&g_lock); int n = m->eos_out; if (n) m->eos_out--; pthread_mutex_unlock(&g_lock);
     if (!n) { *remaining = 0; return ST_TRY_AGAIN; }
     int k = MV_OUT_ITEMS - n;
@@ -158,17 +260,29 @@ static int dec_AcquireOutputBufferIndex(void *self, int *idx, int64_t *pts, int 
     if (n > 1) g_signal_event(m->ev_out);
     return ST_OK;
 }
-static int dec_ReleaseOutputBufferIndex(void *self, int idx) { (void)self; KMVLOG("ReleaseOutputBufferIndex %d", idx); return ST_OK; }
+static int dec_ReleaseOutputBufferIndex(void *self, int idx) {
+    mv_t *m = M(self); KMVLOG("ReleaseOutputBufferIndex %d", idx);
+    if (m->real && idx >= 0 && idx < MV_NOUT) { pthread_mutex_lock(&g_lock); m->o[idx].state = 0; pthread_mutex_unlock(&g_lock); g_signal_event(m->ev_in); }   // 腾出一格，读取线程可以接着送 | a slot is free, the reader can continue
+    return ST_OK;
+}
 static int dec_GetOutputBufferFormat(void *self, int idx, void **md) {
-    (void)self; KMVLOG("GetOutputBufferFormat %d", idx);
-    free(*md); kmd *m = calloc(1, sizeof *m); *md = m; md_put(m, "width", 32, 1920, NULL); md_put(m, "height", 32, 1080, NULL); return ST_OK;
+    mv_t *v = M(self); KMVLOG("GetOutputBufferFormat %d", idx);
+    int w = v->real ? v->w : 1920, h = v->real ? v->h : 1080;
+    free(*md); kmd *m = calloc(1, sizeof *m); *md = m; md_put(m, "width", 32, w, NULL); md_put(m, "height", 32, h, NULL);
+    md_put(m, "nv12-y-offset", 32, 0, NULL); md_put(m, "nv12-uv-offset", 32, (int64_t)w * h, NULL); return ST_OK;
 }
 static int dec_GetOutputFormat(void *self, void **md) {   // 视频解码线程 main+0x770790 只读 width / height | the video decode thread (main+0x770790) reads only width / height
-    (void)self; KMVLOG("Decoder GetOutputFormat");
-    free(*md); kmd *m = calloc(1, sizeof *m); *md = m; md_put(m, "width", 32, 1920, NULL); md_put(m, "height", 32, 1080, NULL); return ST_OK;
+    mv_t *v = M(self); KMVLOG("Decoder GetOutputFormat");
+    free(*md); kmd *m = calloc(1, sizeof *m); *md = m; md_put(m, "width", 32, v->real ? v->w : 1920, NULL); md_put(m, "height", 32, v->real ? v->h : 1080, NULL); return ST_OK;
 }
 // 流尾输出项的缓冲：一帧黑的 NV12（1920x1080；Y=0、UV=128），万一被拿去上屏也只是一帧黑 | buffer of the EOS output item: one black NV12 frame, harmless if it is ever presented
 static int dec_GetOutputBuffer(void *self, int idx, kbuf *b) {
+    mv_t *m = M(self);
+    if (m->real && idx >= 0 && idx < MV_NOUT) {   // 播放器给了自己的内存（SetDataAndCapacity）就拷进去，没给就指向我们的格子 | copy into the player's own memory if it gave some, else point at our slot
+        mv_out *o = &m->o[idx];
+        if (b->base && b->cap >= m->fsz) memcpy(b->base, o->buf, m->fsz); else { b->base = o->buf; b->cap = m->fsz; }
+        b->off = 0; b->size = (int32_t)m->fsz; b->i64 = o->pts; return ST_OK;
+    }
     static uint8_t *frame; enum { W = 1920, H = 1088, N = W * H * 3 / 2 };
     if (!frame) { frame = malloc(N); memset(frame, 0, W * H); memset(frame + W * H, 128, N - W * H); }
     KMVLOG("GetOutputBuffer %d", idx); memset(b, 0, sizeof *b); b->base = frame; b->cap = N; b->size = N; b->i64 = (int64_t)idx * 33333; return ST_OK;
@@ -177,6 +291,9 @@ TRAP(dec, 7, "Reset") TRAP(dec, 14, "GetOutputBufferSize")
 TRAP(dec, 16, "GetLastError") TRAP(dec, 17, "GetOutputBuffer(MediaData)")
 static void kmv_dec_delete(void *self) {
     pthread_mutex_lock(&g_lock); mv_t *m = M(self); if (m && g_armed == m) g_armed = NULL; pthread_mutex_unlock(&g_lock);
+    if (m && m->kv) { kv_close(m->kv); m->kv = NULL; }
+    if (m && m->ext_gone && m->f) { kw_close(m->f); m->f = NULL; m->real = 0; }
+    if (m) { free(m->in); m->in = NULL; for (int i = 0; i < MV_NOUT; i++) { free(m->o[i].buf); m->o[i].buf = NULL; m->o[i].state = 0; } }
     kmv_delete(self);
 }
 static void *const g_dec_vt[19] = {
