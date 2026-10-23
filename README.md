@@ -18,7 +18,7 @@ English: [README.en.md](README.en.md)
 | 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | 基本完成，真机已进第一关 3D 场景；Mac 上直接跑已到难易度选择画面（见「在 Mac 上直接跑」） |
 | 着色器离线翻译（BNSH → GLSL → MSL → metallib） | 完成，iOS 版 metallib 在 Mac 上预编 |
 | iOS App（签名、装机、推 RomFS、拉日志） | 走通，iOS 27.2 真机 |
-| 音频（nn::audio AudioRenderer）、过场视频（VP9） | 音频部分完成；视频在 Mac 上已能播（VideoToolbox 硬解 VP9，过场暂时无声）；iOS 上仍是空播 |
+| 音频（nn::audio AudioRenderer）、过场视频（VP9） | 音频部分完成；游戏声音在 Mac 上已出声（设备输出旁路）；过场 / 教程视频在 Mac 上能播，过场带声音（VideoToolbox 硬解 VP9 + stb_vorbis）；iOS 上仍是空播 |
 | 触屏 / 手柄 | 屏幕手柄 + 实体手柄（Xbox / PS / Switch Pro） |
 
 `TASKS.md` 是任务清单，`reports/` 里每个任务一份报告（做了什么、怎么复现、结果数字、遗留问题）。
@@ -72,7 +72,7 @@ host/run_mac.sh 60       # 不开窗口跑 60 秒就停，日志在 ~/kirby-work
 - 玩过的管线记在 `~/kirby-work/mac/pso_user.tsv`，下次启动在后台先编好，同一处第二次基本不卡。
 - **声音**：游戏的音响系统（Atk2）用的渲染器本来交给系统 DSP 跑，宿主把它改成在本进程用 CPU 渲染，而这种模式下最后一步「设备输出」（DeviceSink）不出声，所以以前整局都没声音。现在游戏 `AddDeviceSink`（`MainAudioOut`，5.1 声道）时，宿主在同一个最终混音上加挂一个循环缓冲输出，每执行一帧就读出来、缩混成立体声送进 AudioUnit（`host/hle_audio_kirby.c`「设备输出旁路」）。`run_mac.sh` 开窗口时缺省 `DM_AUDIO=1`（宿主在 Mac 上缺省静音，无窗口测试仍静音）。`KIRBY_SOUND_BYPASS=0` 关旁路，`KIRBY_SOUND_DUMP=文件` 导出原始 6 声道数据。两个坑：循环缓冲输出要等它的内存池真挂上（状态 1）再加；交给它的大小必须是整数帧（SDK 算的 23040），按 4 KB 取整的 24576 会让最后一帧越界写坏宿主的堆。
 - **画面偏暗、偏浓**：卡比的交换链是 sRGB 格式，出图时采样得到线性值，原样写进 Mac 窗口（非 sRGB）少了一次编码。出图着色器现在在这种情况下重新编码 sRGB（上游 `nvn_mtl.m` 的 `fs_enc`，D2R 不受影响）。
-- **过场动画和右下角的教程视频**：`mov/EventMovie/`（4 段，1920×1080 VP9 + Vorbis 音轨）和 `mov/GuideMovie/`（30 多段，480×270 VP9，无声）。Mac 上用 VideoToolbox 硬解 VP9（M5 上 1080p 每帧约 2.8 ms），宿主自己解 WebM（`host/kirby_webm.c`、`host/kirby_vp9.c`），按游戏的 movie:: 协议交 NV12 帧（`host/hle_movie_kirby.c` 开头有协议说明）。过场的声音还没接（Vorbis 要另带解码器）。iOS 没有 VP9 解码入口，仍是空播。
+- **过场动画和右下角的教程视频**：`mov/EventMovie/`（4 段，1920×1080 VP9 + Vorbis 音轨）和 `mov/GuideMovie/`（30 多段，480×270 VP9，无声）。Mac 上用 VideoToolbox 硬解 VP9（M5 上 1080p 每帧约 2.8 ms），宿主自己解 WebM（`host/kirby_webm.c`、`host/kirby_vp9.c`），按游戏的 movie:: 协议交 NV12 帧（`host/hle_movie_kirby.c` 开头有协议说明）。过场的 Vorbis 音轨也报给游戏：`host/kirby_vorbis.c` 用 stb_vorbis（`host/third_party/stb_vorbis.c`，公有领域 / MIT）解成 16 位 PCM，游戏自己经 AudioOut 出声（Mac 上要 `DM_AUDIO=1`，`run_mac.sh` 开窗口时已设）。iOS 没有 VP9 解码入口，仍是空播。
 - **60 帧（Mac 缺省开）**：关卡里的 30 帧不是图形跟不上，是游戏自己的帧率框架在等——可变帧率模式规定「每帧至少等 2 拍（1/60 秒）」。这个模式的时间步长本来就是实测的（最近 4 帧实际过了几拍取平均，游戏逻辑按「倍数 × 1/60 秒」走），所以把「至少 2 拍」改成 1 拍，帧就每拍出一张，倍数自然变成 1.0，速度不变。实测帧时间 p50 33.33 → 16.67 ms，游戏自己的步长倍数 2.000 → 1.000，GPU 每帧约 4 ms。改的是数据不是代码，见 `host/kirby_fps.c`。`KIRBY_FPS=30` 退回原版。iOS 缺省仍是 30（真机 GPU 每帧约 18.6 ms）。
 - 已知：窗口标题和菜单是上游 Mac 外壳的（「D2R Mobile」、`dmAppMenuView`），不影响玩。
 
@@ -232,7 +232,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 | 走动卡顿 | 管线在提交线程上同步创建，一个 30–140 ms，走一段有约 250 个长帧。已加清单预编；2026-10-22 加了异步建管线（见「在 Mac 上直接跑」），真机还没验证 |
 | 进城后贴图乱飞、帧数低 | 怀疑带骨骼的模型选错了变体（用了浮点版），还没核实。先用截图和 `MTL_DEBUG_LAYER` 定位 |
 | 内存 | 余量只有约 145 MB。游戏自己的内存池占 2.1 GB；预排布贴图的 GPU 副本累计涨到 271 MB，已加回收。`nvnTextureInitialize` 重新初始化时不释放旧的序号，有泄漏，未修。付费账号的内存权限能缓解 |
-| 其他没做的 | 截图上下颠倒；深度截断（depth clamp）没实现；缺 `c1_full.tsv`；几何着色器（10 份）跳过；过场视频在 iOS 上只放黑帧（Mac 已能播，见「在 Mac 上直接跑」）；过场的 Vorbis 音轨没接 |
+| 其他没做的 | 截图上下颠倒；深度截断（depth clamp）没实现；缺 `c1_full.tsv`；几何着色器（10 份）跳过；过场视频在 iOS 上只放黑帧（Mac 已能播，见「在 Mac 上直接跑」） |
 
 日志里以「内存 至帧」「内存池 共」开头的两行是内存统计（常驻、余量、离系统上限还有多少，预排布贴图现存 / 累计 / 回收），查内存先看它们。
 
