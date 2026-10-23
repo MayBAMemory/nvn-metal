@@ -2,6 +2,8 @@
 // 真机上这些接口经 hid 服务的进程间通信和共享内存取数；宿主没有 hid 服务，全部强制接管。
 // 输入来源与 D2R 相同：前端键盘写 dm_input_set，手柄（dm/ios/Sources/dm_gamepad.m）写 dm_pad_set；两路按键按位或，摇杆键盘优先。
 // 接的手柄跟运行模式走（hle_oe.c dm_opmode）：主机模式 = 1 号全键手柄（Pro 手柄），掌机模式 = 掌机手柄。别的号、别的样式一律「未连接」。
+// 本地双人（2026-10-23）：2P 有输入来源时（kirby_input.m 给它分了键位或手柄，或按键脚本里有 2P 的键）2 号手柄报全键手柄已连接。
+// Mac 上 kirby_input.m 自己读键盘和手柄、按玩家分好交给 kirby_input_set，这时不再用上游合成的那份（dm_input_set / dm_pad_set，所有手柄合在一起）。
 // 体感：给静止状态（重力朝下、无角速度、方向为单位阵）。震动：设备数 0。
 // 只在客户端算的接口（ParseVibrationFile、RetrieveVibrationValue、ControllerSupportArg::SetDefault、SetExplainText、
 // SixAxisSensorState::GetQuaternion）不接管，照原样跑 SDK 自己的实现。
@@ -9,6 +11,8 @@
 // On the real device these go through the hid service's IPC and shared memory; the host has no hid service, so all of them are force-taken over.
 // Input sources are the same as D2R: the front-end keyboard writes dm_input_set, the controller (dm/ios/Sources/dm_gamepad.m) writes dm_pad_set; buttons are ORed, the keyboard stick wins.
 // The connected controller follows the operation mode (hle_oe.c dm_opmode): console = No.1 full-key controller (Pro Controller), handheld = handheld controller. Every other id / style is "not connected".
+// Local co-op (2026-10-23): when 2P has an input source (kirby_input.m gave it keys or a controller, or the key script has 2P keys) the No.2 controller reports as a connected full-key controller.
+// On the Mac kirby_input.m reads the keyboard and controllers itself and hands them per player to kirby_input_set; the upstream merged input (dm_input_set / dm_pad_set, all controllers together) is then ignored.
 // Motion: a resting state (gravity down, no angular velocity, identity direction). Vibration: zero devices.
 // Client-side-only interfaces (ParseVibrationFile, RetrieveVibrationValue, ControllerSupportArg::SetDefault, SetExplainText,
 // SixAxisSensorState::GetQuaternion) are not taken over and run the SDK's own implementation.
@@ -16,7 +20,7 @@
 #include "dm_input.h"
 #include <stdatomic.h>
 
-enum { NPAD_NO1 = 0, NPAD_HANDHELD = 0x20 };
+enum { NPAD_NO1 = 0, NPAD_NO2 = 1, NPAD_HANDHELD = 0x20 };
 enum { STYLE_FULLKEY = 1u << 0, STYLE_HANDHELD = 1u << 1, STYLE_JOYDUAL = 1u << 2, STYLE_JOYLEFT = 1u << 3, STYLE_JOYRIGHT = 1u << 4 };
 enum { ATTR_CONNECTED = 1u << 0 };
 
@@ -62,9 +66,27 @@ void dm_pad_set(uint64_t buttons, int32_t lx, int32_t ly, int32_t rx, int32_t ry
 }
 uint64_t dm_input_samples(void) { return (uint64_t)atomic_load(&g_sampling); }
 
+// ---- 按玩家的输入（kirby_input.m 写）：玩家 0 = 1P、1 = 2P；来源 0 = 键盘、1 = 手柄 ----
+// ---- Per-player input (written by kirby_input.m): player 0 = 1P, 1 = 2P; source 0 = keyboard, 1 = controller ----
+static struct { _Atomic uint64_t b, latch, axes; } g_pp[2][2];
+static struct { uint64_t mask, t0, t1; int player; } g_ks[32]; static int g_nks = -1;   // 按键脚本（下面解析）| key script (parsed below)
+static _Atomic int g_own_input;          // kirby_input.m 接管了输入：不再用上游合成的那份 | kirby_input.m took over input: the upstream merged input is ignored
+static _Atomic int g_p2_source;          // 2P 有输入来源（键位或手柄）| 2P has an input source (keys or a controller)
+static uint64_t g_p2_script;             // 按键脚本里 2P 第一次按键前 2 秒（模拟中途插上第二个手柄），0 = 没有 2P | 2 s before the script's first 2P key (simulates plugging in a second controller mid-game), 0 = no 2P
+void kirby_input_set(int player, int source, uint64_t buttons, int32_t lx, int32_t ly, int32_t rx, int32_t ry) {
+    if (player < 0 || player > 1 || source < 0 || source > 1) return;
+    atomic_store(&g_own_input, 1);
+    uint64_t old = atomic_exchange(&g_pp[player][source].b, buttons); atomic_fetch_or(&g_pp[player][source].latch, buttons & ~old);
+    atomic_store(&g_pp[player][source].axes, (uint64_t)(uint16_t)lx | (uint64_t)(uint16_t)ly << 16 | (uint64_t)(uint16_t)rx << 32 | (uint64_t)(uint16_t)ry << 48);
+}
+void kirby_input_p2_available(int on) { if (atomic_exchange(&g_p2_source, on) != on) LOG("hid：2P %s", on ? "有输入来源 → 2 号手柄已连接" : "没有输入来源 → 2 号手柄未连接"); }
+static uint64_t script_buttons_for(int player);
+static int p2_on(void) { if (g_nks < 0) script_buttons_for(0); return atomic_load(&g_p2_source) || (g_p2_script && now_ns() >= g_p2_script); }
+
 static uint32_t connected_id(void) { return dm_opmode() == 0 ? NPAD_HANDHELD : NPAD_NO1; }
+static int player_of(uint32_t id) { return id == connected_id() ? 0 : id == NPAD_NO2 && p2_on() ? 1 : -1; }
 static uint32_t style_of(uint32_t id) {
-    if (id != connected_id()) return 0;
+    int p = player_of(id); if (p < 0) return 0;
     return id == NPAD_HANDHELD ? STYLE_HANDHELD : STYLE_FULLKEY;
 }
 
@@ -79,8 +101,7 @@ static uint32_t style_of(uint32_t id) {
 #define KS_SL (1ull << 58)
 #define KS_SR (1ull << 59)
 #define KS_STICK (KS_SU | KS_SD | KS_SL | KS_SR)
-static struct { uint64_t mask, t0, t1; } g_ks[32]; static int g_nks = -1;
-static uint64_t script_buttons(void) {
+static uint64_t script_buttons_for(int player) {
     if (g_nks < 0) {
         g_nks = 0; const char *e = getenv("KIRBY_KEYS"); if (!e) return 0;
         static const struct { const char *n; uint64_t m; } k[] = {{"A", DM_BTN_A}, {"B", DM_BTN_B}, {"X", DM_BTN_X}, {"Y", DM_BTN_Y}, {"L", DM_BTN_L}, {"R", DM_BTN_R},
@@ -89,15 +110,17 @@ static uint64_t script_buttons(void) {
         char buf[1024]; snprintf(buf, sizeof buf, "%s", e);
         for (char *sv, *tok = strtok_r(buf, ",", &sv); tok && g_nks < 32; tok = strtok_r(NULL, ",", &sv)) {
             char *at = strchr(tok, '@'); if (!at) die("KIRBY_KEYS 项「%s」缺 @秒", tok); *at = 0;
+            int pl = 0; if (tok[0] == '2' && tok[1]) { pl = 1; tok++; }   // 「2A@30」= 2P 按 A | "2A@30" = 2P presses A
             uint64_t m = 0; for (unsigned i = 0; i < sizeof k / sizeof *k; i++) if (!strcmp(tok, k[i].n)) m = k[i].m;
             if (!m) die("KIRBY_KEYS 未知键名「%s」", tok);
             char *plus = strchr(at + 1, '+'); double t = atof(at + 1), d = plus ? atof(plus + 1) : 0.2;
-            g_ks[g_nks++] = (typeof(g_ks[0])){m, g_t0_ns + (uint64_t)(t * 1e9), g_t0_ns + (uint64_t)((t + d) * 1e9)};
+            g_ks[g_nks++] = (typeof(g_ks[0])){m, g_t0_ns + (uint64_t)(t * 1e9), g_t0_ns + (uint64_t)((t + d) * 1e9), pl};
+            if (pl) { uint64_t c = g_t0_ns + (uint64_t)((t > 2 ? t - 2 : 0) * 1e9); if (!g_p2_script || c < g_p2_script) g_p2_script = c; }
         }
         LOG("hid：按键脚本 %d 项（KIRBY_KEYS）", g_nks);
     }
     uint64_t now = now_ns(), m = 0;
-    for (int i = 0; i < g_nks; i++) if (now >= g_ks[i].t0 && now < g_ks[i].t1) { m |= g_ks[i].mask; if (!(g_ks[i].mask & 1ull << 63)) { g_ks[i].mask |= 1ull << 63; LOG("hid：脚本按键 %#llx（第 %.1f 秒）", (unsigned long long)(g_ks[i].mask & ~(1ull << 63)), (now - g_t0_ns) / 1e9); } }
+    for (int i = 0; i < g_nks; i++) if (g_ks[i].player == player && now >= g_ks[i].t0 && now < g_ks[i].t1) { m |= g_ks[i].mask; if (!(g_ks[i].mask & 1ull << 63)) { g_ks[i].mask |= 1ull << 63; LOG("hid：脚本按键 %#llx（第 %.1f 秒）", (unsigned long long)(g_ks[i].mask & ~(1ull << 63)), (now - g_t0_ns) / 1e9); } }
     return m & ~(1ull << 63);
 }
 static void fill(NpadState *s, uint32_t id, uint32_t style) {
@@ -105,13 +128,25 @@ static void fill(NpadState *s, uint32_t id, uint32_t style) {
     memset(s, 0, sizeof *s);
     s->sampling = atomic_fetch_add(&g_sampling, 1) + 1;
     if (!(style_of(id) & style)) return;   // 这个号没接这种样式：全 0（未连接） | this id does not have this style connected: all zero (not connected)
-    uint64_t sk = script_buttons();
-    s->buttons = atomic_load(&g_in.buttons) | atomic_exchange(&g_press_latch, 0) | atomic_load(&g_pad_btn) | atomic_exchange(&g_pad_latch, 0) | (sk & ~KS_STICK);
-    s->lx = atomic_load(&g_in.lx); s->ly = atomic_load(&g_in.ly); s->rx = atomic_load(&g_in.rx); s->ry = atomic_load(&g_in.ry);
-    if (sk & KS_STICK) { s->lx = sk & KS_SR ? 32767 : sk & KS_SL ? -32767 : 0; s->ly = sk & KS_SU ? 32767 : sk & KS_SD ? -32767 : 0; }
-    uint64_t ax = atomic_load(&g_pad_axes); int16_t plx = (int16_t)ax, ply = (int16_t)(ax >> 16), prx = (int16_t)(ax >> 32), pry = (int16_t)(ax >> 48);
-    if (!(s->lx || s->ly)) { s->lx = plx; s->ly = ply; }
-    if (!(s->rx || s->ry)) { s->rx = prx; s->ry = pry; }
+    int pl = player_of(id);
+    if (pl == 1) { static int once; if (!once++) LOG("hid：游戏第一次读 2P（手柄号 %#x，样式 %#x）", id, style); }
+    uint64_t sk = script_buttons_for(pl), b = sk & ~KS_STICK;
+    int32_t ax[3][4] = {{0}}; int na = 0;   // 摇杆候选，先到先得：脚本 > 键盘 > 手柄 | stick candidates, first non-zero wins: script > keyboard > controller
+    if (sk & KS_STICK) { ax[na][0] = sk & KS_SR ? 32767 : sk & KS_SL ? -32767 : 0; ax[na][1] = sk & KS_SU ? 32767 : sk & KS_SD ? -32767 : 0; na++; }
+    for (int src = 0; src < 2; src++) {
+        b |= atomic_load(&g_pp[pl][src].b) | atomic_exchange(&g_pp[pl][src].latch, 0);
+        uint64_t a = atomic_load(&g_pp[pl][src].axes); ax[na][0] = (int16_t)a; ax[na][1] = (int16_t)(a >> 16); ax[na][2] = (int16_t)(a >> 32); ax[na][3] = (int16_t)(a >> 48); na++;
+    }
+    if (pl == 0 && !atomic_load(&g_own_input)) {   // 没有 kirby_input.m（iOS、无窗口）：照旧用上游合成的键盘 + 手柄 | no kirby_input.m (iOS, headless): the upstream merged keyboard + controller as before
+        b |= atomic_load(&g_in.buttons) | atomic_exchange(&g_press_latch, 0) | atomic_load(&g_pad_btn) | atomic_exchange(&g_pad_latch, 0);
+        uint64_t a = atomic_load(&g_pad_axes);
+        int32_t kb[4] = {atomic_load(&g_in.lx), atomic_load(&g_in.ly), atomic_load(&g_in.rx), atomic_load(&g_in.ry)}, pd[4] = {(int16_t)a, (int16_t)(a >> 16), (int16_t)(a >> 32), (int16_t)(a >> 48)};
+        int o = sk & KS_STICK ? 1 : 0;   // 脚本占了第一位时往后错一位 | shift by one when the script took the first candidate
+        for (int k = 0; k < 4; k++) { ax[o][k] = ax[o][k] ? ax[o][k] : kb[k]; ax[o + 1][k] = ax[o + 1][k] ? ax[o + 1][k] : pd[k]; }
+    }
+    s->buttons = b;
+    for (int i = 0; i < na; i++) if (ax[i][0] || ax[i][1]) { s->lx = ax[i][0]; s->ly = ax[i][1]; break; }
+    for (int i = 0; i < na; i++) if (ax[i][2] || ax[i][3]) { s->rx = ax[i][2]; s->ry = ax[i][3]; break; }
     s->attributes = ATTR_CONNECTED;
 }
 
@@ -119,15 +154,20 @@ static void fill(NpadState *s, uint32_t id, uint32_t style) {
 static _Atomic uint32_t g_supported_styles = STYLE_FULLKEY | STYLE_HANDHELD;
 static _Atomic int g_hold_type = 1;   // NpadJoyHoldType：0 竖握，1 横握（SDK 缺省） | NpadJoyHoldType: 0 vertical, 1 horizontal (SDK default)
 
-HLE_FORCE("_ZN2nn3hid14InitializeNpadEv", "连 hid 服务；宿主从前端取输入", void, kh_InitNpad, void) {}
-HLE_FORCE("_ZN2nn3hid22SetSupportedNpadIdTypeEPKjm", "支持的手柄号；宿主固定", void, kh_SetIds, const uint32_t *ids, uint64_t n) { (void)ids; (void)n; }
+HLE_FORCE("_ZN2nn3hid14InitializeNpadEv", "连 hid 服务；宿主从前端取输入（Mac 开窗口时由 kirby_input.m 接管键位 / 手柄）", void, kh_InitNpad, void) { void kirby_input_start(void); kirby_input_start(); }
+HLE_FORCE("_ZN2nn3hid22SetSupportedNpadIdTypeEPKjm", "支持的手柄号；宿主固定，记日志", void, kh_SetIds, const uint32_t *ids, uint64_t n) {
+    char t[128] = ""; for (uint64_t i = 0; i < n && i < 10; i++) snprintf(t + strlen(t), sizeof t - strlen(t), " %#x", ids[i]);
+    LOG("hid：游戏支持的手柄号%s", t);
+}
 // BitFlagSet<32> 按值传在 w 寄存器 | BitFlagSet<32> is passed by value in a w register
 HLE_FORCE("_ZN2nn3hid24SetSupportedNpadStyleSetENS_4util10BitFlagSetILi32ENS0_12NpadStyleTagEEE", "支持的手柄样式：记下，查询时原样返回", void, kh_SetStyles, uint32_t styles) {
     atomic_store(&g_supported_styles, styles);
     LOG("hid：游戏支持的手柄样式 %#x", styles);
 }
 HLE_FORCE("_ZN2nn3hid24GetSupportedNpadStyleSetEv", "支持的手柄样式：返回游戏设的值", uint32_t, kh_GetSupStyles, void) { return atomic_load(&g_supported_styles); }
-HLE_FORCE("_ZN2nn3hid15GetNpadStyleSetERKj", "手柄样式查询；跟运行模式走", uint32_t, kh_GetStyle, const uint32_t *id) { return style_of(*id); }
+HLE_FORCE("_ZN2nn3hid15GetNpadStyleSetERKj", "手柄样式查询；跟运行模式走", uint32_t, kh_GetStyle, const uint32_t *id) {
+    return style_of(*id);
+}
 HLE_FORCE("_ZN2nn3hid12GetNpadStateEPNS0_16NpadFullKeyStateERKj", "全键手柄状态", void, kh_StFullKey, NpadState *s, const uint32_t *id) { fill(s, *id, STYLE_FULLKEY); }
 HLE_FORCE("_ZN2nn3hid12GetNpadStateEPNS0_17NpadHandheldStateERKj", "掌机手柄状态", void, kh_StHandheld, NpadState *s, const uint32_t *id) { fill(s, *id, STYLE_HANDHELD); }
 HLE_FORCE("_ZN2nn3hid12GetNpadStateEPNS0_16NpadJoyDualStateERKj", "双 Joy-Con 状态：宿主不接这种样式", void, kh_StJoyDual, NpadState *s, const uint32_t *id) { fill(s, *id, STYLE_JOYDUAL); }
@@ -142,12 +182,13 @@ HLE_FORCE("_ZN2nn3hid18SwapNpadAssignmentERKjS2_", "交换手柄号：忽略", v
 HLE_FORCE("_ZN2nn3hid21StartLrAssignmentModeEv", "L/R 分配模式：忽略", void, kh_LrStart, void) {}
 HLE_FORCE("_ZN2nn3hid20StopLrAssignmentModeEv", "L/R 分配模式：忽略", void, kh_LrStop, void) {}
 
-// 手柄设置界面（系统小程序）：直接回「1 人，用当前接着的手柄」
-// Controller support applet (system applet): answer "1 player, using the currently connected controller" directly
-HLE_FORCE("_ZN2nn3hid21ShowControllerSupportEPNS0_27ControllerSupportResultInfoERKNS0_20ControllerSupportArgE", "手柄设置小程序：回 1 人、当前手柄", Result, kh_ShowSupport, SupportResult *out, const void *arg) {
-    (void)arg;
-    if (out) { out->players = 1; out->_pad[0] = out->_pad[1] = out->_pad[2] = 0; out->selected = connected_id(); }
-    LOG("hid：手柄设置小程序 → 1 人，手柄 %#x", connected_id());
+// 手柄设置界面（系统小程序）：直接回「几个人、当前接着的手柄」。ControllerSupportArg 开头两个字节 = 最少 / 最多人数；2P 有输入来源时回 2 人
+// Controller support applet (system applet): answer "N players, using the connected controllers" directly. The first two bytes of ControllerSupportArg = min / max players; 2 when 2P has an input source
+HLE_FORCE("_ZN2nn3hid21ShowControllerSupportEPNS0_27ControllerSupportResultInfoERKNS0_20ControllerSupportArgE", "手柄设置小程序：回人数（1 或 2）、当前手柄", Result, kh_ShowSupport, SupportResult *out, const int8_t *arg) {
+    int lo = arg ? arg[0] : 1, hi = arg ? arg[1] : 1, n = p2_on() ? 2 : 1;
+    if (hi > 0 && n > hi) n = hi; if (n < lo) n = lo;
+    if (out) { out->players = (int8_t)n; out->_pad[0] = out->_pad[1] = out->_pad[2] = 0; out->selected = connected_id(); }
+    LOG("hid：手柄设置小程序（%d–%d 人）→ %d 人，手柄 %#x", lo, hi, n, connected_id());
     return RES_OK;
 }
 HLE_FORCE("_ZN2nn3hid24ShowControllerStrapGuideEv", "腕带说明小程序：直接返回", Result, kh_ShowStrap, void) { return RES_OK; }

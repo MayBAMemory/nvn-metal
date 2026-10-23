@@ -15,7 +15,7 @@ HOST_EXCL=main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_
 HOST=$(DM)/host/loader.c $(DM)/host/hle.c $(DM)/host/crash.c $(DM)/host/thread.c $(DM)/host/memstat.m $(DM)/host/entry.S \
      $(DM)/host/front_mac.m $(DM)/host/app_mac.m $(DM)/ios/Sources/dm_gamepad.m \
      $(filter-out $(addprefix $(DM)/host/,$(HOST_EXCL)),$(sort $(wildcard $(DM)/host/hle_*.c)))
-KIRBY=$(sort $(wildcard *.c))
+KIRBY=$(sort $(wildcard *.c *.m))
 GFX=$(sort $(wildcard $(DM)/gfx/*.c $(DM)/gfx/nvn/*.c $(DM)/gfx/nvn/*.m $(DM)/gfx/nvn/*.S $(DM)/gfx/tex/*.c $(DM)/gfx/tex/*.m))
 HDR=$(wildcard *.h) $(DM)/host/dm.h $(DM)/host/hle.h $(DM)/host/front.h $(DM)/host/dm_input.h $(wildcard $(DM)/gfx/nvn/*.h $(DM)/gfx/tex/*.h)
 .DEFAULT_GOAL := kirbyhost
