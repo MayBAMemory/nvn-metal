@@ -81,7 +81,7 @@ See [docs/handoff.en.md](docs/handoff.en.md).
 The Mac build plays levels without major issues; the open problems below are on the iPhone.
 
 - Level 1 renders and holds 30 fps (native) when standing.
-- The build on the phone (commit `d64b879`: integer-attribute variant fix, packaged-texture eviction, pipeline warm-up) is not yet verified on device.
+- The build on the phone (commit `48c524b`: integer-attribute variant fix, packaged-texture eviction, pipeline warm-up) is not yet verified on device.
 - Open issues:
   - walking stutter from synchronous pipeline creation (async pipelines landed on 2026-10-22, see "Running directly on the Mac"; not yet verified on device);
   - garbled textures and low fps in the city;
