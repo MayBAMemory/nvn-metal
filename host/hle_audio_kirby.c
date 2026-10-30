@@ -92,7 +92,14 @@ static OSStatus sink_render(void *ctx, AudioUnitRenderActionFlags *f, const Audi
     for (uint32_t k = 0; k < n; k++) { o[2 * k] = g_ring[2 * ((rd + k) % RING)]; o[2 * k + 1] = g_ring[2 * ((rd + k) % RING) + 1]; }
     memset(o + 2 * n, 0, (frames - n) * 4); atomic_store(&g_rd, (rd + n) % RING); return noErr;
 }
-static void sink_au_open(void) {
+// 必须在够大的宿主栈上建：macOS 27 的 AudioComponentInstanceNew 会走 CFPrefs / XPC（assertXPCServiceReachable），
+// 栈用量超过 16 KB。游戏调 RequestUpdateAudioRenderer 的那条客体线程栈很小（实测只剩不到 16 KB），直接建会在
+// ___chkstk_darwin 探测 guard page 时 SIGBUS（pc=___chkstk_darwin，bt 到 CFPREFERENCES_IS_WAITING_FOR_SYSTEM_AND_USER_CFPREFSDS）。
+// Must run on a host stack with enough room: on macOS 27 AudioComponentInstanceNew goes through CFPrefs / XPC
+// (assertXPCServiceReachable) and uses more than 16 KB of stack. The guest thread that calls RequestUpdateAudioRenderer has a
+// tiny stack (under 16 KB left in practice), so creating it there faults in ___chkstk_darwin's guard-page probe (SIGBUS).
+static void *sink_au_open_thr(void *arg) {
+    (void)arg;
     AudioComponentDescription d = {.componentType = kAudioUnitType_Output, .componentManufacturer = kAudioUnitManufacturer_Apple,
 #if TARGET_OS_IPHONE
                                    .componentSubType = kAudioUnitSubType_RemoteIO};
@@ -106,6 +113,14 @@ static void sink_au_open(void) {
     if (!c || AudioComponentInstanceNew(c, &g_au) || AudioUnitSetProperty(g_au, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &fmt, sizeof fmt) ||
         AudioUnitSetProperty(g_au, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof cb) || AudioUnitInitialize(g_au) || AudioOutputUnitStart(g_au)) {
         LOG("【红】设备输出旁路：AudioUnit 建不出来，没有声音"); g_au = NULL; }
+    return NULL;
+}
+static void sink_au_open(void) {
+    pthread_attr_t a; pthread_attr_init(&a); pthread_attr_setstacksize(&a, 4 << 20);
+    pthread_t th; int rc = pthread_create(&th, &a, sink_au_open_thr, NULL);
+    pthread_attr_destroy(&a);
+    if (rc) { LOG("【红】设备输出旁路：起 AudioUnit 线程失败 %d，没有声音", rc); return; }
+    pthread_join(th, NULL);
 }
 static void sink_push(int16_t l, int16_t r) {
     uint32_t wr = atomic_load(&g_wr), rd = atomic_load(&g_rd);
