@@ -1,4 +1,4 @@
-"""Synthetic regressions for streaming, RomFS offsets, resume and CMP codecs.
+"""Synthetic regressions for dump import (streaming copy, resume), shader scanning, NVN slots and CMP codecs.
 Usage: python -I test_extractors.py
 No user keys or game data are read.
 """
@@ -18,63 +18,54 @@ def load(name):
     return module
 
 
-xci = load('xci_extract')
+dump = load('import_dump')
 cmp = load('cmp_unpack')
 formats = load('romfs_formats')
 nvn = load('nvn_slots_kirby')
 
 
-class Section:
-    def __init__(self, blob):
-        self.blob = blob
-        self.calls = []
-
-    def read(self, offset, size):
-        self.calls.append((offset, size))
-        return self.blob[offset:offset + size]
-
-
 class ExtractionTests(unittest.TestCase):
-    def test_ivfc_and_data_offsets(self):
-        fsh = bytearray(0x200)
-        level = 0x1300
-        data_off = 0x240
-        payload = b'offset check'
-        blob = bytearray(0x2000)
-        struct.pack_into('<QQ', fsh, 0x8 + 0x10 + 5 * 0x18, level, 0x500)
-        struct.pack_into('<10Q', blob, level, 0x50, 0, 0, 0x50, 24, 0, 0, 0x80, 36, data_off)
-        struct.pack_into('<6I', blob, level + 0x50, 0xffffffff, 0xffffffff, 0xffffffff, 0, 0xffffffff, 0)
-        struct.pack_into('<IIQQII', blob, level + 0x80, 0, 0xffffffff, 7, len(payload), 0xffffffff, 4)
-        blob[level + 0xa0:level + 0xa4] = b'file'
-        blob[level + data_off + 7:level + data_off + 7 + len(payload)] = payload
-        sec = Section(blob)
-        entries = xci.romfs_entries(fsh, sec)
-        self.assertEqual(entries, [('/file', len(payload), level + data_off + 7)])
+    def test_list_format_and_exefs_check(self):
         with tempfile.TemporaryDirectory() as td:
-            xci.extract_romfs(sec, entries, td)
-            self.assertEqual(Path(td, 'file').read_bytes(), payload)
+            exefs, romfs = Path(td, 'exefs'), Path(td, 'romfs')
+            (romfs / 'shader').mkdir(parents=True)
+            (romfs / 'shader' / 'a.bfsha').write_bytes(b'FSHA')
+            (romfs / 'empty').write_bytes(b'')
+            self.assertEqual(dump.romfs_entries(romfs), [('/empty', 0), ('/shader/a.bfsha', 4)])
+            exefs.mkdir()
+            for name in dump.NSO_MODULES: (exefs / name).write_bytes(b'NSO0' + bytes(12))
+            dump.check_exefs(exefs)
+            (exefs / 'sdk').write_bytes(b'\x8f' * 16)
+            with self.assertRaises(ValueError): dump.check_exefs(exefs)
+            (exefs / 'sdk').unlink()
+            with self.assertRaises(FileNotFoundError): dump.check_exefs(exefs)
 
     def test_chunks_resume_and_partial_replacement(self):
-        payload = bytes(range(256)) * (xci.CHUNK_SIZE // 256 + 1)
-        sec = Section(b'prefix' + payload)
-        entries = [('/nested/file', len(payload), 6), ('/empty', 0, 0)]
+        payload = bytes(range(256)) * (dump.CHUNK_SIZE // 256 + 1)
         with tempfile.TemporaryDirectory() as td:
-            target = Path(td, 'nested', 'file')
-            target.parent.mkdir()
+            src, out = Path(td, 'src'), Path(td, 'out')
+            (src / 'nested').mkdir(parents=True)
+            (src / 'nested' / 'file').write_bytes(payload)
+            (src / 'empty').write_bytes(b'')
+            entries = dump.romfs_entries(src)
+            target = out / 'nested' / 'file'
+            target.parent.mkdir(parents=True)
             target.write_bytes(b'partial')
-            self.assertEqual(xci.extract_romfs(sec, entries, td), (2, 0, len(payload)))
+            self.assertEqual(dump.copy_tree(src, entries, out), (2, 0, len(payload)))
             self.assertEqual(target.read_bytes(), payload)
-            self.assertEqual([n for _, n in sec.calls], [xci.CHUNK_SIZE, 256])
-            sec.calls.clear()
-            self.assertEqual(xci.extract_romfs(sec, entries, td), (0, 2, len(payload)))
-            self.assertFalse(sec.calls)
+            self.assertEqual(dump.copy_tree(src, entries, out), (0, 2, len(payload)))
 
     def test_short_read_never_publishes_and_paths_cannot_escape(self):
         with tempfile.TemporaryDirectory() as td:
-            with self.assertRaises(EOFError): xci.extract_romfs(Section(b'x'), [('/file', 2, 0)], td)
-            self.assertFalse(Path(td, 'file').exists())
+            src, out = Path(td, 'src'), Path(td, 'out')
+            src.mkdir()
+            (src / 'file').write_bytes(b'x')
+            with self.assertRaises(EOFError): dump.copy_tree(src, [('/file', 2)], out)
+            self.assertFalse((out / 'file').exists())
             for name in ['/../escape', '/C:/escape', '/a\\escape']:
-                with self.assertRaises(ValueError): xci.extract_romfs(Section(b'x'), [(name, 1, 0)], td)
+                with self.assertRaises(ValueError): dump.copy_tree(src, [(name, 1)], out)
+            (src / 'link').symlink_to(src / 'file')
+            with self.assertRaises(ValueError): dump.romfs_entries(src)
 
     def test_shader_signatures_chunk_boundary_and_bounds(self):
         import io

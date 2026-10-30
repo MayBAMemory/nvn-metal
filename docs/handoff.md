@@ -31,7 +31,7 @@ git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 | Xcode 里登录 Apple ID | 签名 | Xcode → Settings → Accounts |
 
 - Intel Mac 和 Apple 芯片的 Mac 都能出包、装机，游戏在手机上跑。只有想在 Mac 上直接跑 `host/kirbyhost` 才要 Apple 芯片。
-- 从零重出着色器库（`shlib/`）原来用 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](../reports/K07.md)、[docs/shaders.md](shaders.md)。现在 Mac 上也能做，见 README 的「[只有 XCI 时，全在 Mac 上从头重做](../README.md#只有-xci-时全在-mac-上从头重做不用-windows)」。拷旧电脑的 `shlib/` 就用不上它们。
+- 从零重出着色器库（`shlib/`）原来用 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](../reports/K07.md)、[docs/shaders.md](shaders.md)。现在 Mac 上也能做，见 README 的「[从自己的游戏导出开始，全在 Mac 上从头重做](../README.md#从自己的游戏导出开始全在-mac-上从头重做不用-windows)」。拷旧电脑的 `shlib/` 就用不上它们。
 
 ## 3. 工作区 `~/kirby-work`（不进 git，从旧电脑拷）
 
@@ -45,12 +45,11 @@ git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 | `pso_manifest.tsv` | 1 MB | **必须** | 真机记下的管线清单（约 2000 条），`build` 带进 App，启动时后台预编，走动少卡顿 |
 | `uint_masks.tsv`、`iattr_masks.tsv` | 很小 | **必须** | 真机记下的整数输出 / 整数顶点属性变体，`ios/run.sh shaders` 照着补编；丢了会重新出现模型拉伸 |
 | `RomFS/` | 5.7 GB | 看情况 | 手机上的 App 里已经有一份。只要新电脑用**同一个包名、同一个 Apple ID** 覆盖安装就不用再推；换包名或删过 App 才要 `ios/run.sh romfs` |
-| `xci_out/exefs/`、`img/` | 43 MB | 可选 | 原始模块和映像。重跑改写（`dm/tools/patch_nso.py`）、等价核对和 `tools/` 的分析时才要 |
-| `prod.keys`、`title.keys` | — | 可选 | 只有从 XCI 重新解包才要。**私下拷，绝不进 git、不贴到任何地方** |
+| `exefs/`、`img/` | 43 MB | 可选 | 原始模块和映像。重跑改写（`dm/tools/patch_nso.py`）、等价核对和 `tools/` 的分析时才要 |
 | `run/` | — | 不用 | 旧日志和截图 |
 | `build/` | 1.4 GB | 不用 | 每次 `build` 重新生成 |
 
-完全没有旧工作区时，从 XCI 重做一遍：K01（解包、RomFS）→ K04（改写三个模块）→ K06（提取着色器）→ K07 / H3（Windows 上翻译出库）→ `ios/run.sh shaders`。命令都在各自的报告里。这样做真机记下的三份清单也就没了。
+完全没有旧工作区时，从自己的游戏导出重做一遍：K01（`tools/import_dump.py` 导入 ExeFS / RomFS）→ K04（改写三个模块）→ K06（提取着色器）→ K07 / H3（Windows 上翻译出库）→ `ios/run.sh shaders`。命令都在各自的报告里。这样做真机记下的三份清单也就没了。
 
 ## 4. 手机和签名
 

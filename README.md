@@ -6,7 +6,7 @@
 
 思路和基础代码来自 [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile)（《暗黑破坏神 II：狱火重生》的 iOS 兼容层，MIT）。本仓库是它 `kirby` 分支里卡比相关的部分：卡比专属的宿主入口与 HLE、iOS 外壳、解包与着色器工具、分析表和报告。
 
-> **不含、也不分发任何游戏内容。** 仓库里没有游戏的程序、美术、文字、数据表或着色器。要跑起来得用你自己购买的 Switch 版游戏：程序在本地解包和改写，RomFS 从原版导出，密钥（`prod.keys`）只在你自己机器上作为参数传给脚本。
+> **不含、也不分发任何游戏内容。** 仓库里没有游戏的程序、美术、文字、数据表或着色器。要跑起来得用你自己购买的 Switch 版游戏：用外部工具从你自己的游戏导出 ExeFS 和 RomFS，程序在本地改写。**仓库不带解密代码，也不读取任何密钥。**
 
 English: [README.en.md](README.en.md)
 
@@ -14,7 +14,7 @@ English: [README.en.md](README.en.md)
 
 | 部分 | 状态 |
 |---|---|
-| 解包 XCI / ExeFS / RomFS、改写三个模块（`main`、`sdk`、`subsdk0`） | 完成，等价性已核对 |
+| 导入 ExeFS / RomFS、改写三个模块（`main`、`sdk`、`subsdk0`） | 完成，等价性已核对 |
 | 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | Mac 上能正常进关卡玩：关卡 60 帧、有声音、过场动画能播、可改键、本地双人（见「在 Mac 上直接跑」）；iPhone 真机已进第一关 3D 场景，还在解决卡顿和内存 |
 | 着色器离线翻译（BNSH → GLSL → MSL → metallib） | 完成，iOS 版 metallib 在 Mac 上预编 |
 | iOS App（签名、装机、推 RomFS、拉日志） | 走通，iOS 27.2 真机 |
@@ -25,7 +25,7 @@ English: [README.en.md](README.en.md)
 
 ## 跑起来需要什么
 
-1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`）和对应的 `prod.keys`。
+1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`），以及从它导出的 ExeFS 和 RomFS（已解密的目录）。仓库不负责解密：用外部工具导出，例如在你自己的 Switch 上用 nxdumptool。
 2. **上游 d2r-mobile 的一份检出，固定在提交 `6a2474d`**：宿主编译的是它的 `dm/host` 通用部分和整个 `dm/gfx`（原样编，不复制），这些文件不在本仓库里。
 3. **卡比要用的上游改动**：`patches/d2r-mobile-kirby.patch`（11 个文件、约 630 行，见 [patches/README.md](patches/README.md)）。补丁是对 `6a2474d` 做的，**套不上上游最新的 `main`**（2026-10-22 核对：上游之后改过其中 6 个文件，补丁冲突）。
 4. Mac 上有 Xcode；iOS 出包还要 `brew install xcodegen` 和 `xcodebuild -downloadComponent MetalToolchain`。
@@ -37,7 +37,7 @@ git -C ../d2r-mobile checkout 6a2474d     # 补丁的基线；不要用最新 ma
 git -C ../d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 
 # 游戏侧：解包、解 NSO、改写模块、出着色器库，产物都放 ~/kirby-work（不进 git）
-python -I tools/xci_extract.py <你的.xci> <你的 prod.keys> ~/kirby-work
+python -I tools/import_dump.py --exefs <导出的 ExeFS 目录> --romfs <导出的 RomFS 目录> ~/kirby-work --romfs-out ~/kirby-work/RomFS
 # ……完整流程见 docs/ 和 TASKS.md 里的任务
 
 # Mac 宿主
@@ -77,16 +77,16 @@ host/run_mac.sh 60       # 不开窗口跑 60 秒就停，日志在 ~/kirby-work
 - **60 帧（Mac 缺省开）**：关卡里的 30 帧不是图形跟不上，是游戏自己的帧率框架在等——可变帧率模式规定「每帧至少等 2 拍（1/60 秒）」。这个模式的时间步长本来就是实测的（最近 4 帧实际过了几拍取平均，游戏逻辑按「倍数 × 1/60 秒」走），所以把「至少 2 拍」改成 1 拍，帧就每拍出一张，倍数自然变成 1.0，速度不变。实测帧时间 p50 33.33 → 16.67 ms，游戏自己的步长倍数 2.000 → 1.000，GPU 每帧约 4 ms。改的是数据不是代码，见 `host/kirby_fps.c`。`KIRBY_FPS=30` 退回原版。iOS 缺省仍是 30（真机 GPU 每帧约 18.6 ms）。
 - 已知：窗口标题和菜单是上游 Mac 外壳的（「D2R Mobile」、`dmAppMenuView`），不影响玩。
 
-### 只有 XCI 时，全在 Mac 上从头重做（不用 Windows）
+### 从自己的游戏导出开始，全在 Mac 上从头重做（不用 Windows）
 
-2026-10-22 在 M5 上照下面做了一遍，每一步的数字都和原来 Windows 上的报告一致：K01 RomFS 9373 个文件；K04 三个模块 STRUCT / EQUIV 全 OK、站点数相同；K06 27239 组全部对上；H3 出库 16985、跳过 10 份几何着色器。
+2026-10-22 在 M5 上照下面做了一遍，每一步的数字都和原来 Windows 上的报告一致：K01 RomFS 9373 个文件；K04 三个模块 STRUCT / EQUIV 全 OK、站点数相同；K06 27239 组全部对上；H3 出库 16985、跳过 10 份几何着色器。当时 K01 用的是仓库自带的 XCI 解包脚本；2026-10-30 起仓库不再带解密代码，改用 `tools/import_dump.py` 导入外部工具导出的目录，核对过 `romfs_list.txt` 和三个模块与原来逐字节相同。
 
 ```bash
 brew install dotnet spirv-cross llvm xcodegen
-python3 -m venv ~/.venvs/kirby && ~/.venvs/kirby/bin/pip install capstone lz4 zstandard unicorn pycryptodomex
+python3 -m venv ~/.venvs/kirby && ~/.venvs/kirby/bin/pip install capstone lz4 zstandard unicorn
 PY=~/.venvs/kirby/bin/python; W=~/kirby-work; DM=../d2r-mobile/dm
-# K01 解包
-$PY -I tools/xci_extract.py <你的.xci> <你的 prod.keys> $W --romfs-out $W/RomFS
+# K01 导入（ExeFS / RomFS 先用外部工具从自己的游戏导出）
+$PY -I tools/import_dump.py --exefs <导出的 ExeFS 目录> --romfs <导出的 RomFS 目录> $W --romfs-out $W/RomFS
 $PY -I tools/verify_romfs.py $W/RomFS $W/romfs_list.txt
 # K04 改写三个模块并核对（核对要 Homebrew 的 LLVM：Xcode 里没有 llvm-objcopy）
 export DM_RULESET=native DM_ROOT=$W LLVM_BIN=$(brew --prefix llvm)/bin
@@ -181,7 +181,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 |---|---|
 | `host/` | 卡比宿主：入口、hid / 音频 / 杂项 HLE、垫片，Mac 上 `make` 出 `kirbyhost`，`run_mac.sh` 直接在 Mac 上跑 |
 | `ios/` | iOS 外壳：`Sources/`（入口、Metal 视图、触屏）、`tools/`（工程生成、着色器编 metallib）、`run.sh` |
-| `tools/` | 解包与改写脚本：XCI/NSO/RomFS、导入表、改写与等价核对、着色器翻译、离线接管清单、语法检查 |
+| `tools/` | 导入与改写脚本：ExeFS/NSO/RomFS、导入表、改写与等价核对、着色器翻译、离线接管清单、语法检查 |
 | `analysis/` | 从游戏里量出来的**描述性**数据：导入/导出符号、NVN 调用面、着色器键与统计、改写计数（单个文件不超过约 1 MB） |
 | `docs/` | 格式与设计说明：RomFS、着色器容器、图形、音频、宿主拆分、Intel Mac；换电脑交接见 `docs/handoff.md` |
 | `reports/` | 每个任务的报告 |
@@ -189,7 +189,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 
 ## 已知事实（2026-10-13 分析，v1.0.0）
 
-- 版本 v1.0.0（XCI 里没有更新包），SDK 11.4.0。改写规则和地址都按构建号绑定；换版本后地址类结论都得重做。**跟版本有关的常量（地址、构建号）一律写成参数或放在文件开头的表里。**
+- 版本 v1.0.0（没有更新包），SDK 11.4.0。改写规则和地址都按构建号绑定；换版本后地址类结论都得重做。**跟版本有关的常量（地址、构建号）一律写成参数或放在文件开头的表里。**
 - 构建号（NSO 头 0x40 起 16 字节）：`main` = `d9ba7db72ffafecd07f5f5535dec0573`，`sdk` = `b39add63421be525d352e576dab438d3`，`subsdk0` = `535249a546887cac875a099e9c8ef367`。
 - 模块：`main` 是游戏本体（.text 8.0 MB，含 PhysX 3.4、NintendoWare G3d/Vfx2/Ui2d/Font/Atk2、nn::gfx、NEX 4.6.5）；`sdk` 是 NintendoSDK 11.4 + NVN 驱动；`subsdk0` 是 NintendoSDK_movie。
 - 图形只走 NVN，没有 Vulkan；`main` 只导入一个 `nvnBootstrapLoader`。

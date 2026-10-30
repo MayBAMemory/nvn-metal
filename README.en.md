@@ -6,7 +6,7 @@ The game's own aarch64 code executes on the device — there is no CPU emulator.
 
 The approach and the base code come from [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile) (Diablo II: Resurrected on iOS, MIT). This repository is the Kirby part of its `kirby` branch: the Kirby host entry points and HLE, the iOS shell, unpacking and shader tools, analysis tables and reports.
 
-> **No game content is included or distributed.** There is no game executable, art, text, data table or shader here. To run it you need your own copy of the Switch game: the executable is unpacked and rewritten locally, the RomFS is exported from your copy, and `prod.keys` is only ever passed to scripts as an argument on your own machine.
+> **No game content is included or distributed.** There is no game executable, art, text, data table or shader here. To run it you need your own copy of the Switch game: you export its ExeFS and RomFS with an external tool and the executable is rewritten locally. **The repository contains no decryption code and reads no keys.**
 
 中文：[README.md](README.md)
 
@@ -14,7 +14,7 @@ The approach and the base code come from [d2r-mobile](https://github.com/jhaizho
 
 | Part | State |
 |---|---|
-| Unpack XCI / ExeFS / RomFS, rewrite the three modules (`main`, `sdk`, `subsdk0`) | done, equivalence checked |
+| Import ExeFS / RomFS, rewrite the three modules (`main`, `sdk`, `subsdk0`) | done, equivalence checked |
 | Host `kirbyhost` (Mac, Apple silicon): NVN graphics, hid, audio, files, time | plays levels on the Mac: 60 fps, sound, cutscenes, remappable keys, local co-op (see "Running directly on the Mac"); on iPhone it reaches the first 3D level, stutter and memory still being worked on |
 | Offline shader translation (BNSH → GLSL → MSL → metallib) | done; iOS metallibs precompiled on the Mac |
 | iOS app (sign, install, push RomFS, pull logs) | working on device (iOS 27.2) |
@@ -25,7 +25,7 @@ The approach and the base code come from [d2r-mobile](https://github.com/jhaizho
 
 ## Requirements
 
-1. **Your own Switch copy of Kirby and the Forgotten Land v1.0.0** (title ID `01004D300C5AE000`) and its `prod.keys`.
+1. **Your own Switch copy of Kirby and the Forgotten Land v1.0.0** (title ID `01004D300C5AE000`), with its ExeFS and RomFS exported as decrypted directories. The repository does no decryption: use an external tool, e.g. nxdumptool on your own Switch, then `python -I tools/import_dump.py --exefs <ExeFS dir> --romfs <RomFS dir> ~/kirby-work --romfs-out ~/kirby-work/RomFS`.
 2. **An upstream d2r-mobile checkout, pinned to commit `6a2474d`**: the host compiles the generic parts of its `dm/host` and all of `dm/gfx` in place — those files are not in this repository.
 3. **The upstream changes Kirby needs**: `patches/d2r-mobile-kirby.patch` (11 files, ~630 lines; see [patches/README.md](patches/README.md)). The patch is against `6a2474d` and **does not apply to the latest upstream `main`** (checked 2026-10-22: upstream has since changed 6 of those files).
 4. Xcode on a Mac; for device builds also `brew install xcodegen` and `xcodebuild -downloadComponent MetalToolchain`.
@@ -70,7 +70,7 @@ host/run_mac.sh 60       # headless, stops after 60 s; log in ~/kirby-work/mac/r
 - Keys are remappable: "Key Settings…" in the app menu (⌘,), shown automatically on first launch. Local co-op: 1P and 2P each get their own key bindings and controller (numbered by connection order; default 1P = controller 1, 2P = controller 2). When 2P has an input source the No.2 controller reports as connected and the controller applet answers 2 players; co-op starts from the pause menu, which keeps it greyed out early in the story. See `host/kirby_input.m`.
 - Cutscenes (`mov/EventMovie/`, 1080p VP9 + Vorbis) and the bottom-right tutorial clips (`mov/GuideMovie/`, 480×270 VP9) now play on the Mac: the host demuxes WebM itself and decodes VP9 with VideoToolbox (`host/kirby_webm.c`, `host/kirby_vp9.c`, `host/hle_movie_kirby.c`). Cutscene Vorbis audio is decoded with stb_vorbis (`host/kirby_vorbis.c`) and played by the game through AudioOut. `KIRBY_MOVIE_NOOP=1` falls back to the old no-op playback. iOS still uses no-op playback.
 - 60 fps (default on the Mac): levels ran at 30 because the game's variable-frame-rate mode waits for at least 2 ticks (1/60 s) per frame. That mode measures its own time step (the average ticks per frame, used as a multiplier of 1/60 s), so lowering the minimum to 1 tick gives a frame every tick and the multiplier becomes 1.0 by itself, keeping game speed unchanged. Measured frame time p50 33.33 → 16.67 ms and the game's step multiplier 2.000 → 1.000. See `host/kirby_fps.c`; `KIRBY_FPS=30` goes back to the original. iOS still defaults to 30.
-- Redoing everything from the XCI on a Mac, with no Windows (Homebrew `dotnet spirv-cross llvm`): see the Chinese [README.md](README.md#只有-xci-时全在-mac-上从头重做不用-windows). Verified 2026-10-22; every number matched the original reports.
+- Redoing everything from your own dump on a Mac, with no Windows (Homebrew `dotnet spirv-cross llvm`): see the Chinese [README.md](README.md#从自己的游戏导出开始全在-mac-上从头重做不用-windows). Verified 2026-10-22; every number matched the original reports.
 
 ## Continuing on another computer
 
@@ -94,7 +94,7 @@ The Mac build plays levels without major issues; the open problems below are on 
 |---|---|
 | `host/` | Kirby host: entry, hid / audio / misc HLE, shims; `make` builds `kirbyhost` on the Mac |
 | `ios/` | iOS shell: `Sources/` (entry, Metal view, touch), `tools/` (project generation, metallib compilation), `run.sh` |
-| `tools/` | Unpacking and rewriting: XCI/NSO/RomFS, imports, rewriting and equivalence checks, shader translation, offline takeover inventory, syntax check |
+| `tools/` | Importing and rewriting: ExeFS/NSO/RomFS, imports, rewriting and equivalence checks, shader translation, offline takeover inventory, syntax check |
 | `analysis/` | Descriptive data measured from the game: imports/exports, NVN call surface, shader keys and counts, rewrite counts (each file under ~1 MB) |
 | `docs/` | Formats and design: RomFS, shader containers, graphics, audio, host split, Intel Mac; machine handoff in `docs/handoff.en.md` |
 | `reports/` | Per-task reports |

@@ -50,6 +50,8 @@
 
 ## K01 完整解出 RomFS ｜ 低
 
+> 2026-10-30：仓库不再带解密代码，`xci_extract.py` 已换成 `tools/import_dump.py`（导入外部工具导出的目录），见 `reports/K01.md`。
+
 **背景**：`tools/xci_extract.py` 已经能解 XCI、解出 ExeFS、列出 RomFS 清单，但还不能解出 RomFS 文件本身。
 
 **要做**
@@ -63,7 +65,7 @@
 **验收**
 - 文件数是 9373，总字节数是 6,140,261,775。
 - 抽查：`shader/` 下 `.bfsha` 的前 4 字节应为 `FSHA`；`mov/` 下 `.webm` 的前 4 字节应为 `1A 45 DF A3`；`msg/` 下 `.msbt` 应以 `MsgStdBn` 开头。
-- 选做：校验 IVFC 哈希树（参考 `<本地脚本>` 的写法）。
+- 选做：校验 IVFC 哈希树。
 
 ---
 
