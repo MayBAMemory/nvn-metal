@@ -49,7 +49,7 @@ git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 | `run/` | — | 不用 | 旧日志和截图 |
 | `build/` | 1.4 GB | 不用 | 每次 `build` 重新生成 |
 
-完全没有旧工作区时，从自己的游戏导出重做一遍：K01（`tools/import_dump.py` 导入 ExeFS / RomFS）→ K04（改写三个模块）→ K06（提取着色器）→ K07 / H3（Windows 上翻译出库）→ `ios/run.sh shaders`。命令都在各自的报告里。这样做真机记下的三份清单也就没了。
+完全没有旧工作区时，从自己的游戏导出重做一遍：K01（`tools/extract_game.sh` 从游戏包取，或 `tools/import_dump.py` 导入已导出的 ExeFS / RomFS）→ K04（改写三个模块）→ K06（提取着色器）→ K07 / H3（Windows 上翻译出库）→ `ios/run.sh shaders`。命令都在各自的报告里。这样做真机记下的三份清单也就没了。
 
 ## 4. 手机和签名
 

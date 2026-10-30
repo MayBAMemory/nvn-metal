@@ -9,7 +9,7 @@ Git holds only code. The full checklist (work-directory table, signing) is in th
    - `shlib_ios/` (462 MB of compiled iOS metallibs), or `shlib/` and then rerun `ios/run.sh shaders`;
    - the three device-recorded lists `pso_manifest.tsv`, `uint_masks.tsv`, `iattr_masks.tsv`.
 
-   `RomFS/` (5.7 GB) is only needed if the app has to be reinstalled under a new bundle ID. Without it, re-export ExeFS / RomFS from your own copy and run `tools/import_dump.py`.
+   `RomFS/` (5.7 GB) is only needed if the app has to be reinstalled under a new bundle ID. Without it, run `tools/extract_game.sh` on your own game dump, or `tools/import_dump.py` on an exported ExeFS / RomFS.
 4. **Phone and signing**:
    - Phone: iPhone 16 Pro Max on iOS 27.2. App bundle ID `io.github.maybamemory.kirbyhost`, with the RomFS already in its container.
    - Keep the same bundle ID and the same Apple ID (team) so the install overwrites in place.

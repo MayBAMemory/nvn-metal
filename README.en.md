@@ -19,7 +19,7 @@ Host screenshots as GitHub Release assets (as d2r-mobile does), then replace thi
 
 **You must own the game.** Use this project only with a game you bought and data dumped from your own Switch. This is an independent, non-commercial project. It is not affiliated with, endorsed by, or sponsored by Nintendo. Kirby and Nintendo Switch are trademarks of Nintendo.
 
-- **No game content is included or distributed**: no game program, art, text, audio, shaders or keys, and **no decryption code**. Everything the game needs is made on your own computer from files you dumped yourself.
+- **No game content is included or distributed**: no game program, art, text, audio, shaders or keys, and **no decryption code**: getting files out of a game dump is left to the external tool hactool, with keys from your own console. Everything the game needs is made on your own computer from files you dumped yourself.
 - What the repository holds is interface information that makes the port work: patch code, symbol names, addresses, shader keys and counts; see [`analysis/`](analysis) and [NOTICE.md](NOTICE.md).
 - The app and work directory you build contain game content. They are for your own use only; **do not share them**.
 - Whether dumping game data is legal depends on where you live; check and follow your local laws.
@@ -98,19 +98,19 @@ flowchart LR
 
 You need **your own copy of the game**: Kirby and the Forgotten Land v1.0.0 for Switch (title ID `01004D300C5AE000`, no update).
 
-> **Recommended: hand it to an AI assistant.** Open this repository in Claude Code, Codex or another assistant, tell it where your dumped ExeFS and RomFS are, and ask it to follow [docs/build.md](docs/build.md) and [docs/mac.en.md](docs/mac.en.md) step by step and to deal with whatever comes up on your Mac. There are many steps and every machine differs a little; it runs each step and checks the result.
+> **Recommended: hand it to an AI assistant.** Open this repository in Claude Code, Codex or another assistant, tell it where your own game dump and `prod.keys` (or an already exported ExeFS / RomFS) are, and ask it to follow [docs/build.md](docs/build.md) and [docs/mac.en.md](docs/mac.en.md) step by step and to deal with whatever comes up on your Mac. There are many steps and every machine differs a little; it runs each step and checks the result.
 
 | Step | What | How long |
 |---|---|---|
-| 1. Dump | Export the program's ExeFS and RomFS with an external tool (for example nxdumptool on your own Switch). This repository does no decryption | depends on the tool |
+| 1. Get the game files | With a game dump (`.xci` / `.nsp`) and `prod.keys`: `tools/extract_game.sh <dump> <prod.keys>` unpacks it with hactool, checks that it is v1.0.0 and imports it. With ExeFS / RomFS already exported by nxdumptool or similar: import with `tools/import_dump.py` | 10–20 minutes |
 | 2. Upstream | Check out d2r-mobile at `6a2474d` and apply `patches/d2r-mobile-kirby.patch` | 1 minute |
-| 3. Import and rewrite | Import with `tools/import_dump.py`, then rewrite and check the three modules | a few minutes |
+| 3. Rewrite | Rewrite and check the three modules | a few minutes |
 | 4. Shader library | Translate, then compile macOS metallibs (about 38,000 compiles) | about an hour on an M5, once |
 | 5. Play | Mac: `make -C host && host/run_mac.sh`; iPhone: `ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
 
 Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the commands themselves are language-neutral). Keys, saves, sound and video on the Mac: [docs/mac.en.md](docs/mac.en.md). iPhone signing and install: [ios/README.md](ios/README.md).
 
-**You need:** an Apple silicon Mac with Xcode 26 (the graphics layer uses Metal 4); Homebrew `dotnet spirv-cross llvm`; Python 3 with `capstone lz4 zstandard unicorn`. For the iPhone also `xcodegen`, the Metal toolchain and an Apple ID (a free one works; re-sign every 7 days).
+**You need:** an Apple silicon Mac with Xcode 26 (the graphics layer uses Metal 4); Homebrew `dotnet spirv-cross llvm`; Python 3 with `capstone lz4 zstandard unicorn`; to read a game dump also [hactool](https://github.com/SciresM/hactool) (build with `make`, put it on `PATH`). For the iPhone also `xcodegen`, the Metal toolchain and an Apple ID (a free one works; re-sign every 7 days).
 
 **Expect a brief hitch the first time you reach a new area**: render pipelines not seen before are built on the spot. On the Mac they are built in the background by default and that frame is skipped; pipelines you have played through are recorded and prebuilt at the next launch.
 
@@ -119,6 +119,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 | Item | Status |
 |---|---|
 | Game version | v1.0.0 only; rewrite rules and addresses are tied to the build ID |
+| `tools/extract_game.sh` | new on 2026-10-30, modeled on d2r-mobile, tested only against a mock hactool; the `.nsp` title-key step in particular is unverified, so reports either way are welcome. The verified path is an exported directory plus `import_dump.py` |
 | iPhone models | tested only on an iPhone 16 Pro Max; the build currently targets A18 |
 | iPhone memory | a free Apple ID lacks the increased-memory entitlement, so headroom is tight; a paid developer account helps |
 | iOS video | iOS has no VP9 hardware decoder entry point, so cutscenes are skipped for now |
@@ -174,6 +175,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 - **Ryujinx** (MIT): the upstream shader translator `dmsh_xlate` uses its shader translation code.
 - **[SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)** (Apache-2.0): SPIR-V to Metal Shading Language.
 - **[stb_vorbis](https://github.com/nothings/stb)** (public domain / MIT): Vorbis audio in cutscenes.
+- **[hactool](https://github.com/SciresM/hactool)** (ISC): `tools/extract_game.sh` uses it to read your game dump; it is not shipped with this repository.
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)**: another project built on d2r-mobile that brings several Switch games to the Mac; this README and the shared-list idea follow its lead.
 
 ## License

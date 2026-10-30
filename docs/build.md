@@ -4,7 +4,7 @@
 
 ## 需要什么
 
-1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`），以及从它导出的 ExeFS 和 RomFS（已解密的目录）。仓库不负责解密：用外部工具导出，例如在你自己的 Switch 上用 nxdumptool。
+1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`），的游戏包（`.xci` / `.nsp`）和你自己主机的 `prod.keys`，或者已经导出的 ExeFS 和 RomFS 目录（例如在你自己的 Switch 上用 nxdumptool 导出）。仓库不带解密代码：从游戏包取文件用外部工具 [hactool](https://github.com/SciresM/hactool)，按它的说明 `make` 出来放进 `PATH`，或设 `HACTOOL=<路径>`。
 2. **上游 d2r-mobile 的一份检出，固定在提交 `6a2474d`**：宿主编译的是它的 `dm/host` 通用部分和整个 `dm/gfx`（原样编，不复制），这些文件不在本仓库里。
 3. **卡比要用的上游改动**：`patches/d2r-mobile-kirby.patch`（11 个文件、约 630 行，见 [patches/README.md](../patches/README.md)）。补丁是对 `6a2474d` 做的，**套不上上游最新的 `main`**（2026-10-22 核对：上游之后改过其中 6 个文件，补丁冲突）。
 4. Mac 上有 Xcode；iOS 出包还要 `brew install xcodegen` 和 `xcodebuild -downloadComponent MetalToolchain`。
@@ -16,6 +16,8 @@ git -C ../d2r-mobile checkout 6a2474d     # 补丁的基线；不要用最新 ma
 git -C ../d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 
 # 游戏侧：解包、解 NSO、改写模块、出着色器库，产物都放 ~/kirby-work（不进 git）
+tools/extract_game.sh <你的游戏包> <你的 prod.keys>     # 有游戏包时：hactool 拆包、核对 v1.0.0、导入
+# 或者，已经导出了 ExeFS / RomFS 时：
 python -I tools/import_dump.py --exefs <导出的 ExeFS 目录> --romfs <导出的 RomFS 目录> ~/kirby-work --romfs-out ~/kirby-work/RomFS
 # ……之后的改写、着色器库见下一节「全在 Mac 上从头重做」
 
@@ -37,7 +39,8 @@ ios/run.sh build && ios/run.sh install && ios/run.sh run
 brew install dotnet spirv-cross llvm xcodegen
 python3 -m venv ~/.venvs/kirby && ~/.venvs/kirby/bin/pip install capstone lz4 zstandard unicorn
 PY=~/.venvs/kirby/bin/python; W=~/kirby-work; DM=../d2r-mobile/dm
-# K01 导入（ExeFS / RomFS 先用外部工具从自己的游戏导出）
+# K01 取出游戏文件：有游戏包用第一行（要 hactool，脚本里已经导入并核对）；已经导出了 ExeFS / RomFS 用后两行
+PYTHON=$PY tools/extract_game.sh <你的游戏包> <你的 prod.keys>
 $PY -I tools/import_dump.py --exefs <导出的 ExeFS 目录> --romfs <导出的 RomFS 目录> $W --romfs-out $W/RomFS
 $PY -I tools/verify_romfs.py $W/RomFS $W/romfs_list.txt
 # K04 改写三个模块并核对（核对要 Homebrew 的 LLVM：Xcode 里没有 llvm-objcopy）

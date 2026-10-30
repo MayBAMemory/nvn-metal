@@ -19,7 +19,7 @@ English: [README.en.md](README.en.md)
 
 **你必须拥有正版游戏。** 请只配合你自己购买的游戏、从你自己的 Switch 导出的数据使用本项目。这是一个独立的非商业项目，与任天堂没有关联，也未获其认可或赞助。《星之卡比》《Kirby》和 Nintendo Switch 是任天堂的商标。
 
-- **不含、也不分发任何游戏内容**：仓库里没有游戏程序、美术、文字、音频、着色器或密钥，也**不带任何解密代码**。游戏需要的一切，都在你自己的电脑上、用你自己导出的文件现做出来。
+- **不含、也不分发任何游戏内容**：仓库里没有游戏程序、美术、文字、音频、着色器或密钥，也**不带任何解密代码**：从游戏包取文件交给外部工具 hactool，用的是你自己主机的密钥。游戏需要的一切，都在你自己的电脑上、用你自己导出的文件现做出来。
 - 仓库里有的是让移植能运行的接口信息：补丁代码、符号名、地址、着色器的键和统计数字，见 [`analysis/`](analysis) 和 [NOTICE.md](NOTICE.md)。
 - 构建出的 App 和工作区里含有游戏内容，只供你自己使用，**请不要分享**。
 - 导出游戏数据是否合法取决于你所在地区的法律，请自行确认并遵守。
@@ -98,19 +98,19 @@ flowchart LR
 
 要先有**你自己购买的游戏**：Switch 版《星之卡比 探索发现》v1.0.0（Title ID `01004D300C5AE000`，没有更新包）。
 
-> **推荐交给 AI 助理。** 用 Claude Code、Codex 或其他 AI 助理打开这个仓库，告诉它你导出的 ExeFS 和 RomFS 在哪，让它按 [docs/build.md](docs/build.md) 和 [docs/mac.md](docs/mac.md) 一步步做，遇到这台 Mac 上的问题也交给它。步骤不少，每台机器都会有点差别，它会跑完每一步并检查结果。
+> **推荐交给 AI 助理。** 用 Claude Code、Codex 或其他 AI 助理打开这个仓库，告诉它你自己的游戏包和 `prod.keys`（或已经导出的 ExeFS / RomFS）在哪，让它按 [docs/build.md](docs/build.md) 和 [docs/mac.md](docs/mac.md) 一步步做，遇到这台 Mac 上的问题也交给它。步骤不少，每台机器都会有点差别，它会跑完每一步并检查结果。
 
 | 步骤 | 做什么 | 要多久 |
 |---|---|---|
-| 1. 导出 | 用外部工具（例如在你自己的 Switch 上用 nxdumptool）导出程序的 ExeFS 和 RomFS。本仓库不做解密 | 看工具 |
+| 1. 取出游戏文件 | 有游戏包（`.xci` / `.nsp`）和 `prod.keys`：`tools/extract_game.sh <游戏包> <prod.keys>`，由 hactool 拆包，自动核对是不是 v1.0.0 并导入工作区。已经用 nxdumptool 等工具导出了 ExeFS / RomFS：`tools/import_dump.py` 导入 | 十几分钟 |
 | 2. 准备上游 | 检出 d2r-mobile 的 `6a2474d`，套上 `patches/d2r-mobile-kirby.patch` | 1 分钟 |
-| 3. 导入与改写 | `tools/import_dump.py` 导入，再改写三个模块并核对 | 几分钟 |
+| 3. 改写 | 改写三个模块并核对 | 几分钟 |
 | 4. 着色器库 | 翻译出库，再编成 macOS 版 metallib（约 3.8 万次编译） | M5 上约 1 小时，只做一次 |
 | 5. 开玩 | Mac：`make -C host && host/run_mac.sh`；iPhone：`ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
 
 每一步的完整命令见 [docs/build.md](docs/build.md)；Mac 上的键位、存档位置、声音和视频的说明见 [docs/mac.md](docs/mac.md)；iPhone 的签名和装机见 [ios/README.md](ios/README.md)。
 
-**需要准备：** Apple 芯片的 Mac，Xcode 26（图形层用 Metal 4）；Homebrew 的 `dotnet spirv-cross llvm`；Python 3 和 `capstone lz4 zstandard unicorn`。装到 iPhone 还要 `xcodegen`、Metal 工具链和一个 Apple ID（免费的也行，每 7 天要重签）。
+**需要准备：** Apple 芯片的 Mac，Xcode 26（图形层用 Metal 4）；Homebrew 的 `dotnet spirv-cross llvm`；Python 3 和 `capstone lz4 zstandard unicorn`；从游戏包取文件还要 [hactool](https://github.com/SciresM/hactool)（按它的说明 `make`，放进 `PATH`）。装到 iPhone 还要 `xcodegen`、Metal 工具链和一个 Apple ID（免费的也行，每 7 天要重签）。
 
 **第一次玩到新场景时会卡一下**：没见过的渲染管线要当场编，Mac 上默认放到后台编、跳过这一帧，玩过的会记下来，下次启动先编好。
 
@@ -119,6 +119,7 @@ flowchart LR
 | 项 | 现状 |
 |---|---|
 | 游戏版本 | 只做了 v1.0.0；改写规则和地址按构建号绑定，别的版本要重新适配 |
+| `tools/extract_game.sh` | 2026-10-30 新加，照 d2r-mobile 的做法写，只用模拟的 hactool 测过；`.nsp` 的标题密钥那一步尤其没验过，跑通或跑不通都欢迎告诉我们。已经验过的路是导出目录再 `import_dump.py` |
 | iPhone 机型 | 只在 iPhone 16 Pro Max 上测过，编译目标目前是 A18 |
 | iPhone 内存 | 免费 Apple ID 没有「提高内存上限」权限，余量很紧；付费开发者账号能缓解 |
 | iOS 视频 | iOS 没有 VP9 硬解入口，过场动画先空播 |
@@ -175,6 +176,7 @@ flowchart LR
 - **Ryujinx**（MIT）：上游着色器翻译器 `dmsh_xlate` 用到它的着色器翻译代码。
 - **[SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)**（Apache-2.0）：把 SPIR-V 转成 Metal 着色语言。
 - **[stb_vorbis](https://github.com/nothings/stb)**（公有领域 / MIT）：过场动画的 Vorbis 音轨。
+- **[hactool](https://github.com/SciresM/hactool)**（ISC）：`tools/extract_game.sh` 用它从你的游戏包取文件；它不随本仓库提供。
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)**：同样基于 d2r-mobile、把多款 Switch 游戏带到 Mac 的项目，README 写法和共享清单的思路参考了它。
 
 ## 许可证
