@@ -15,10 +15,10 @@ The approach and the base code come from [d2r-mobile](https://github.com/jhaizho
 | Part | State |
 |---|---|
 | Unpack XCI / ExeFS / RomFS, rewrite the three modules (`main`, `sdk`, `subsdk0`) | done, equivalence checked |
-| Host `kirbyhost` (Mac, Apple silicon): NVN graphics, hid, audio, files, time | mostly done; reached the first 3D level on device; running directly on the Mac reaches the difficulty select (see "Running directly on the Mac") |
+| Host `kirbyhost` (Mac, Apple silicon): NVN graphics, hid, audio, files, time | plays levels on the Mac: 60 fps, sound, cutscenes, remappable keys, local co-op (see "Running directly on the Mac"); on iPhone it reaches the first 3D level, stutter and memory still being worked on |
 | Offline shader translation (BNSH → GLSL → MSL → metallib) | done; iOS metallibs precompiled on the Mac |
 | iOS app (sign, install, push RomFS, pull logs) | working on device (iOS 27.2) |
-| Audio (`nn::audio` AudioRenderer), cutscene video (VP9) | audio done; video plays as black frames, real decoding pending |
+| Audio (`nn::audio` AudioRenderer), cutscene video (VP9) | audio done; on the Mac game sound, cutscenes and tutorial clips all play (VideoToolbox VP9 + stb_vorbis); iOS still uses no-op video playback |
 | Touch / controller | on-screen pad and physical controllers (Xbox / PS / Switch Pro) |
 
 `TASKS.md` is the task list; `reports/` has one report per task (what was done, how to reproduce, numbers, open issues).
@@ -48,7 +48,7 @@ Fill in device, signing and `KIRBY_WORK` in `ios/local.env` (sample: `ios/local.
 
 ## Running directly on the Mac (Apple silicon)
 
-No phone and no signing: `host/kirbyhost` runs the game on the Mac itself. First run on 2026-10-22, on an M5 (10 cores): it reaches the new-save difficulty select with correct rendering and text. A 60 s headless run held 60 Hz (frame time p50 16.67 / p95 16.98 / max 17.7 ms), with about 1.6 ms of GPU per frame and about 1.5 GB resident. It has not entered a level yet.
+No phone and no signing: `host/kirbyhost` runs the game on the Mac itself. First run on 2026-10-22, on an M5 (10 cores): it reaches the new-save difficulty select with correct rendering and text. A 60 s headless run held 60 Hz (frame time p50 16.67 / p95 16.98 / max 17.7 ms), with about 1.6 ms of GPU per frame and about 1.5 GB resident. Since then it plays levels normally: 60 fps, sound, cutscenes, remappable keys and local co-op, each covered below.
 
 It needs `host/kirbyhost` from `make -C host`, plus `patched/`, `RomFS/` and a **macOS shader library `shlib_mac/`** in `$KIRBY_WORK` (default `~/kirby-work`).
 
@@ -74,32 +74,19 @@ host/run_mac.sh 60       # headless, stops after 60 s; log in ~/kirby-work/mac/r
 
 ## Continuing on another computer
 
-Git holds only code. The full checklist (work-directory table, signing, test variables, current status) is in the Chinese [README.md](README.md#换一台电脑接着做); the short version:
+See [docs/handoff.en.md](docs/handoff.en.md).
 
-1. **Code**: clone `nvn-metal` and `d2r-mobile` side by side, `git -C d2r-mobile checkout 6a2474d`, apply the patch. Verified 2026-10-22: the result matches the old `kirby` branch byte for byte and `make -C host check` has 0 errors. **Do not run d2r-mobile's `setup.sh`**: it rewrites `dm/gfx/nvn/dmsh_chain.h`, which changes the shader-chain version (`15cf7ca29eaf`) and invalidates `shlib/` and `shlib_ios/`. After editing `dm/`, regenerate the patch with `git -C ../d2r-mobile add -N dm && git -C ../d2r-mobile diff 6a2474d -- dm > patches/d2r-mobile-kirby.patch`.
-2. **Tools**: Xcode 26 (Metal 4 SDK), `brew install xcodegen`, `xcodebuild -downloadComponent MetalToolchain`, Python 3 with `capstone lz4 zstandard unicorn` for `tools/`. Intel and Apple silicon Macs both build and install; only running `host/kirbyhost` on the Mac needs Apple silicon.
-3. **Work directory `~/kirby-work`** (copy from the old machine, e.g. `rsync -a --exclude build --exclude run`). Required:
-   - `patched/{main,sdk,subsdk0}.{patched.bin,fixups.tsv,gates.tsv}`;
-   - `shlib_ios/` (462 MB of compiled iOS metallibs), or `shlib/` and then rerun `ios/run.sh shaders`;
-   - the three device-recorded lists `pso_manifest.tsv`, `uint_masks.tsv`, `iattr_masks.tsv`.
+## iPhone status (2026-10-22)
 
-   `RomFS/` (5.7 GB) is only needed if the app has to be reinstalled under a new bundle ID. Keys are only needed to re-extract from the XCI; copy them privately and never commit them.
-4. **Phone and signing**:
-   - Phone: iPhone 16 Pro Max on iOS 27.2. App bundle ID `io.github.maybamemory.kirbyhost`, with the RomFS already in its container.
-   - Keep the same bundle ID and the same Apple ID (team) so the install overwrites in place.
-   - Re-query `KIRBY_DEVICE` with `xcrun devicectl list devices`.
-   - It is a free account (`KIRBY_FREE_ACCOUNT=1`): profiles expire after 7 days. With a paid account, clear it to get the memory entitlements.
-5. **Testing**:
-   - Use a USB cable, since Wi-Fi installs drop. Keep the phone unlocked.
-   - Pass variables with a `DEVICECTL_CHILD_` prefix: `KIRBY_KEYS` (key script, sticks `SU/SD/SL/SR`), `KIRBY_PROF=2` (sampling profiler), `DM_NVN_SHOT` (screenshots come out upside down), `MTL_DEBUG_LAYER=1`.
-   - Never interrupt guest threads with signals: guest code uses x18 and XNU does not preserve it.
-6. **Status**:
-   - Level 1 renders and holds 30 fps (native) when standing.
-   - The build on the phone (commit `d64b879`: integer-attribute variant fix, packaged-texture eviction, pipeline warm-up) is not yet verified on device.
-   - Open issues:
-     - walking stutter from synchronous pipeline creation (next: async PSOs);
-     - garbled textures and low fps in the city;
-     - tight memory (~145 MB headroom).
+The Mac build plays levels without major issues; the open problems below are on the iPhone.
+
+- Level 1 renders and holds 30 fps (native) when standing.
+- The build on the phone (commit `d64b879`: integer-attribute variant fix, packaged-texture eviction, pipeline warm-up) is not yet verified on device.
+- Open issues:
+  - walking stutter from synchronous pipeline creation (async pipelines landed on 2026-10-22, see "Running directly on the Mac"; not yet verified on device);
+  - garbled textures and low fps in the city;
+  - tight memory (~145 MB headroom);
+  - cutscene video is still no-op playback on iOS.
 
 ## Layout
 
@@ -109,7 +96,7 @@ Git holds only code. The full checklist (work-directory table, signing, test var
 | `ios/` | iOS shell: `Sources/` (entry, Metal view, touch), `tools/` (project generation, metallib compilation), `run.sh` |
 | `tools/` | Unpacking and rewriting: XCI/NSO/RomFS, imports, rewriting and equivalence checks, shader translation, offline takeover inventory, syntax check |
 | `analysis/` | Descriptive data measured from the game: imports/exports, NVN call surface, shader keys and counts, rewrite counts (each file under ~1 MB) |
-| `docs/` | Formats and design: RomFS, shader containers, graphics, audio, host split, Intel Mac |
+| `docs/` | Formats and design: RomFS, shader containers, graphics, audio, host split, Intel Mac; machine handoff in `docs/handoff.en.md` |
 | `reports/` | Per-task reports |
 | `patches/` | Kirby changes to upstream d2r-mobile (as a patch, not a copy) |
 

@@ -15,7 +15,7 @@ English: [README.en.md](README.en.md)
 | 部分 | 状态 |
 |---|---|
 | 解包 XCI / ExeFS / RomFS、改写三个模块（`main`、`sdk`、`subsdk0`） | 完成，等价性已核对 |
-| 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | 基本完成，真机已进第一关 3D 场景；Mac 上直接跑已到难易度选择画面（见「在 Mac 上直接跑」） |
+| 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | Mac 上能正常进关卡玩：关卡 60 帧、有声音、过场动画能播、可改键、本地双人（见「在 Mac 上直接跑」）；iPhone 真机已进第一关 3D 场景，还在解决卡顿和内存 |
 | 着色器离线翻译（BNSH → GLSL → MSL → metallib） | 完成，iOS 版 metallib 在 Mac 上预编 |
 | iOS App（签名、装机、推 RomFS、拉日志） | 走通，iOS 27.2 真机 |
 | 音频（nn::audio AudioRenderer）、过场视频（VP9） | 音频部分完成；游戏声音在 Mac 上已出声（设备输出旁路）；过场 / 教程视频在 Mac 上能播，过场带声音（VideoToolbox 硬解 VP9 + stb_vorbis）；iOS 上仍是空播 |
@@ -52,7 +52,7 @@ ios/run.sh build && ios/run.sh install && ios/run.sh run
 
 ## 在 Mac 上直接跑（Apple 芯片）
 
-不上手机、不用签名，宿主 `host/kirbyhost` 直接在 Mac 上跑游戏。2026-10-22 第一次在 M5（10 核）上跑通：走到新存档的难易度选择画面，画面和中文都正常；无窗口跑 60 秒稳定 60 Hz（帧时间 p50 16.67 / p95 16.98 / 最大 17.7 ms），GPU 每帧约 1.6 ms，常驻内存约 1.5 GB。还没进过关卡。
+不上手机、不用签名，宿主 `host/kirbyhost` 直接在 Mac 上跑游戏。2026-10-22 第一次在 M5（10 核）上跑通：走到新存档的难易度选择画面，画面和中文都正常；无窗口跑 60 秒稳定 60 Hz（帧时间 p50 16.67 / p95 16.98 / 最大 17.7 ms），GPU 每帧约 1.6 ms，常驻内存约 1.5 GB。之后已经能进关卡正常玩：关卡 60 帧、有声音、过场动画能播、可改键、支持本地双人，下面逐条说明。
 
 要有：`make -C host` 编出的 `host/kirbyhost`；`$KIRBY_WORK`（缺省 `~/kirby-work`）里的 `patched/`、`RomFS/`，以及 **macOS 版着色器 `shlib_mac/`**。
 
@@ -110,69 +110,7 @@ $PY -I tools/kirby_shlib.py --shaders $W/shaders --out $W/shlib --xlate $W/tools
 
 ## 换一台电脑接着做
 
-git 里只有代码。下面这几样要另外准备或从旧电脑拷过来。
-
-### 1. 代码
-
-```bash
-git clone git@github.com:MayBAMemory/nvn-metal.git
-git clone https://github.com/jhaizhou-ops/d2r-mobile.git      # 和 nvn-metal 放在同一个父目录
-git -C d2r-mobile checkout 6a2474d
-git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
-```
-
-- 2026-10-22 核对过：在 `6a2474d` 上套补丁，结果和原 `kirby` 分支的 `dm/` 逐字节相同；`make -C host check` 0 错误。
-- **不要在 d2r-mobile 里跑它的 `setup.sh`。** 它会按本机工具重写 `dm/gfx/nvn/dmsh_chain.h`，着色器链版本号（现在是 `15cf7ca29eaf`）一变，`shlib/b-<版本>` 和 `shlib_ios/b-<版本>` 就全对不上，得在 Windows 上重出着色器库。
-- 改了 `dm/` 下的文件，要把改动写回补丁再提交：
-  ```bash
-  git -C ../d2r-mobile add -N dm          # 让新建的文件也进 diff
-  git -C ../d2r-mobile diff 6a2474d -- dm > patches/d2r-mobile-kirby.patch
-  ```
-- 想跟上上游新版本，就是把这份补丁改到新的 `main` 上（6 个文件有冲突）。这是单独一项工作，还没做。
-
-### 2. 本机工具
-
-| 要什么 | 做什么用 | 怎么装 |
-|---|---|---|
-| macOS + Xcode 26（用过 26.5） | 图形层用到 Metal 4，要 26 版 SDK | App Store；装完开一次 Xcode 同意许可 |
-| xcodegen | `ios/run.sh build` 生成工程 | `brew install xcodegen` |
-| Metal 工具链 | 编 iOS 版 metallib | `xcodebuild -downloadComponent MetalToolchain`（约 690 MB） |
-| Python 3 + `capstone lz4 zstandard unicorn` | `tools/` 里的分析和改写核对；单纯出包装机只用标准库 | `python3 -m pip install capstone lz4 zstandard unicorn` |
-| Xcode 里登录 Apple ID | 签名 | Xcode → Settings → Accounts |
-
-- Intel Mac 和 Apple 芯片的 Mac 都能出包、装机，游戏在手机上跑。只有想在 Mac 上直接跑 `host/kirbyhost` 才要 Apple 芯片。
-- 从零重出着色器库（`shlib/`）原来用 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](reports/K07.md)、[docs/shaders.md](docs/shaders.md)。现在 Mac 上也能做，见「只有 XCI 时，全在 Mac 上从头重做」。拷旧电脑的 `shlib/` 就用不上它们。
-
-### 3. 工作区 `~/kirby-work`（不进 git，从旧电脑拷）
-
-用移动硬盘：`rsync -a --exclude build --exclude run ~/kirby-work/ /Volumes/<盘>/kirby-work/`，到新电脑再拷回 `~/kirby-work`。放在别处的话，在 `ios/local.env` 里设 `KIRBY_WORK`。
-
-| 内容 | 大小 | 必须吗 | 说明 |
-|---|---|---|---|
-| `patched/` 里 `main`、`sdk`、`subsdk0` 各三个文件：`.patched.bin`、`.fixups.tsv`、`.gates.tsv` | 34 MB | **必须** | 改写后的游戏模块，`build` 直接嵌进 App |
-| `shlib_ios/`（`shader_map.tsv` 和 `b-15cf7ca29eaf/`） | 462 MB | **必须**（或者拷 `shlib/` 再重编） | 编好的 iOS 版 metallib。没有它就要跑 `ios/run.sh shaders`，从 `shlib/` 重编约 1.7 万个，要很久 |
-| `shlib/` | 512 MB | 建议 | `ios/run.sh shaders` 的输入（Windows 出的着色器库）。补编整数变体时要用 |
-| `pso_manifest.tsv` | 1 MB | **必须** | 真机记下的管线清单（约 2000 条），`build` 带进 App，启动时后台预编，走动少卡顿 |
-| `uint_masks.tsv`、`iattr_masks.tsv` | 很小 | **必须** | 真机记下的整数输出 / 整数顶点属性变体，`ios/run.sh shaders` 照着补编；丢了会重新出现模型拉伸 |
-| `RomFS/` | 5.7 GB | 看情况 | 手机上的 App 里已经有一份。只要新电脑用**同一个包名、同一个 Apple ID** 覆盖安装就不用再推；换包名或删过 App 才要 `ios/run.sh romfs` |
-| `xci_out/exefs/`、`img/` | 43 MB | 可选 | 原始模块和映像。重跑改写（`dm/tools/patch_nso.py`）、等价核对和 `tools/` 的分析时才要 |
-| `prod.keys`、`title.keys` | — | 可选 | 只有从 XCI 重新解包才要。**私下拷，绝不进 git、不贴到任何地方** |
-| `run/` | — | 不用 | 旧日志和截图 |
-| `build/` | 1.4 GB | 不用 | 每次 `build` 重新生成 |
-
-完全没有旧工作区时，从 XCI 重做一遍：K01（解包、RomFS）→ K04（改写三个模块）→ K06（提取着色器）→ K07 / H3（Windows 上翻译出库）→ `ios/run.sh shaders`。命令都在各自的报告里。这样做真机记下的三份清单也就没了。
-
-### 4. 手机和签名
-
-- 手机：iPhone 16 Pro Max，iOS 27.2。App 叫 Kirby Host，包名 `io.github.maybamemory.kirbyhost`。RomFS 已经推进 App 容器的 `Library/Application Support/romfs`。
-- `ios/local.env` 不进 git：从旧电脑拷，或者照 `ios/local.env.example` 重填。旧电脑上这份在 `~/nvn-metal/ios/local.env`（更早在 `~/d2r-mobile/kirby/ios/local.env`）。
-  - `KIRBY_BUNDLE_ID` 沿用 `io.github.maybamemory.kirbyhost`，这样新电脑装上去是覆盖安装，RomFS 和存档都在。
-  - `KIRBY_TEAM_ID`：Xcode 登录同一个 Apple ID 后的团队号。换了 Apple ID，团队号就变了，覆盖装会被拒，只能删掉重装、重推 RomFS。
-  - `KIRBY_DEVICE`：`xcrun devicectl list devices` 的 Identifier 列，每台电脑看到的可能不同，要重查。
-  - `KIRBY_FREE_ACCOUNT=1`：现在用的是免费 Apple ID。描述文件 7 天过期，过期要重新 `build` + `install`；每台手机最多 3 个自签 App。
-- 新电脑第一次签：Xcode 会给这台电脑生成新的开发证书。手机要连着，自动签名才会把设备登记进描述文件。
-
-**以后换成付费开发者账号**：把 `KIRBY_FREE_ACCOUNT` 清空。这样会带上「提高内存上限」「扩展虚拟寻址」两项权限，卡比内存紧（见下面「现在的进度」），这两项很要紧。
+要拷的工作区、本机工具、手机和签名，见 [docs/handoff.md](docs/handoff.md)。
 
 ## 测试和调试
 
@@ -210,7 +148,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 - 装机只能装 `.ipa`。直接装 `.app` 要逐个传 3.4 万个着色器文件，CoreDevice 连接会断。`run.sh install` 已经处理好，失败重试 3 次。
 - 真机日志在 App 的 `Documents/boot.txt`。真机会记下 `uint_masks.tsv`、`iattr_masks.tsv`、`pso_user.tsv` 三份清单，`run` / `log` 结束时自动合并进工作区。
 
-## 现在的进度（2026-10-22）与下一步
+## iPhone 端进度（2026-10-22）与下一步
 
 **到哪了**：第一关 3D 场景渲染正确。站着不动稳定 30 帧（卡比原生就是 30 帧），1080p 模式下 GPU 每帧约 18.6 ms。
 
@@ -226,7 +164,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 - 还缺不缺 `_ia` 变体（缺的会记进 `iattr_masks.tsv`，补编后重出包）；
 - 走动时的长帧和热点。
 
-**已知问题**（玩家实测，2026-10-17）：
+**iPhone 上的已知问题**（玩家实测，2026-10-17；Mac 上没有这些问题）：
 
 | 问题 | 查到的原因 / 打算 |
 |---|---|
@@ -245,7 +183,7 @@ ios/run.sh shaders                           # 清单里有新变体时补编，
 | `ios/` | iOS 外壳：`Sources/`（入口、Metal 视图、触屏）、`tools/`（工程生成、着色器编 metallib）、`run.sh` |
 | `tools/` | 解包与改写脚本：XCI/NSO/RomFS、导入表、改写与等价核对、着色器翻译、离线接管清单、语法检查 |
 | `analysis/` | 从游戏里量出来的**描述性**数据：导入/导出符号、NVN 调用面、着色器键与统计、改写计数（单个文件不超过约 1 MB） |
-| `docs/` | 格式与设计说明：RomFS、着色器容器、图形、音频、宿主拆分、Intel Mac |
+| `docs/` | 格式与设计说明：RomFS、着色器容器、图形、音频、宿主拆分、Intel Mac；换电脑交接见 `docs/handoff.md` |
 | `reports/` | 每个任务的报告 |
 | `patches/` | 上游 d2r-mobile 的卡比改动（补丁，不是拷贝） |
 
