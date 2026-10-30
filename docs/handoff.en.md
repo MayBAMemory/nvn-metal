@@ -1,6 +1,6 @@
 # Continuing on another computer
 
-Git holds only code. The full checklist (work-directory table, signing) is in the Chinese [handoff.md](handoff.md), and test variables are in the Chinese [README.md](../README.md#测试和调试); the short version:
+Git holds only code. The full checklist (work-directory table, signing) is in the Chinese [handoff.md](handoff.md), and test variables are in the Chinese [development.md](development.md#测试和调试); the short version:
 
 1. **Code**: clone `nvn-metal` and `d2r-mobile` side by side, `git -C d2r-mobile checkout 6a2474d`, apply the patch. Verified 2026-10-22: the result matches the old `kirby` branch byte for byte and `make -C host check` has 0 errors. **Do not run d2r-mobile's `setup.sh`**: it rewrites `dm/gfx/nvn/dmsh_chain.h`, which changes the shader-chain version (`15cf7ca29eaf`) and invalidates `shlib/` and `shlib_ios/`. After editing `dm/`, regenerate the patch with `git -C ../d2r-mobile add -N dm && git -C ../d2r-mobile diff 6a2474d -- dm > patches/d2r-mobile-kirby.patch`.
 2. **Tools**: Xcode 26 (Metal 4 SDK), `brew install xcodegen`, `xcodebuild -downloadComponent MetalToolchain`, Python 3 with `capstone lz4 zstandard unicorn` for `tools/`. Intel and Apple silicon Macs both build and install; only running `host/kirbyhost` on the Mac needs Apple silicon.

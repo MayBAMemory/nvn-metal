@@ -1,115 +1,181 @@
 # nvn-metal
 
-**Kirby and the Forgotten Land (Switch) running natively on iPhone and Mac.**
+**Run your own Switch copy of Kirby and the Forgotten Land natively on Mac and iPhone.** Not an emulator: the game's own ARM64 code runs directly on Apple chips, and the Switch's NVN graphics API is rebuilt on Metal.
 
-The game's own aarch64 code executes on the device — there is no CPU emulator. Only the handful of instructions that cannot run as-is under the Apple kernel are rewritten. Platform services (syscalls, files, audio, input) are handled by a small host that implements the SDK functions (HLE); the NVN graphics API is reimplemented on Metal, and shaders are translated offline to MSL on a PC.
-
-The approach and the base code come from [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile) (Diablo II: Resurrected on iOS, MIT). This repository is the Kirby part of its `kirby` branch: the Kirby host entry points and HLE, the iOS shell, unpacking and shader tools, analysis tables and reports.
-
-> **No game content is included or distributed.** There is no game executable, art, text, data table or shader here. To run it you need your own copy of the Switch game: you export its ExeFS and RomFS with an external tool and the executable is rewritten locally. **The repository contains no decryption code and reads no keys.**
+Platforms: Mac (Apple silicon, playable) · iPhone (iOS 26+, in development) · Game version: v1.0.0 · English / 中文 · License: MIT · **Bring your own game files**
 
 中文：[README.md](README.md)
 
+<!--
+Host screenshots as GitHub Release assets (as d2r-mobile does), then replace this with the real link:
+<p align="center"><img src="https://github.com/MayBAMemory/nvn-metal/releases/download/assets/hero_en.jpg" width="100%" alt="The first level at 60 fps on a Mac"></p>
+-->
+
+| 60 fps | 0 emulated instructions | 16,985 | 2 players |
+|:---:|:---:|:---:|:---:|
+| level frame rate on the Mac (30 originally) | it runs the original program | shaders, all translated to Metal ahead of time | local co-op on the Mac, one controller each |
+
+## Legal
+
+**You must own the game.** Use this project only with a game you bought and data dumped from your own Switch. This is an independent, non-commercial project. It is not affiliated with, endorsed by, or sponsored by Nintendo. Kirby and Nintendo Switch are trademarks of Nintendo.
+
+- **No game content is included or distributed**: no game program, art, text, audio, shaders or keys, and **no decryption code**. Everything the game needs is made on your own computer from files you dumped yourself.
+- What the repository holds is interface information that makes the port work: patch code, symbol names, addresses, shader keys and counts; see [`analysis/`](analysis) and [NOTICE.md](NOTICE.md).
+- The app and work directory you build contain game content. They are for your own use only; **do not share them**.
+- Whether dumping game data is legal depends on where you live; check and follow your local laws.
+- **Issues and pull requests that contain or ask for game files, keys or builds will be deleted.**
+
+Apple, Mac, iPhone and Metal are trademarks of Apple Inc.; this project is not affiliated with Apple.
+
+## What this is, and isn't
+
+**It is:**
+
+- A technical exploration. The Switch and Apple chips are both ARM64: can a Switch game's program run on a Mac or an iPhone without an emulator? Kirby, a complete 3D commercial game that uses NVN fully, is the test case.
+- The game's program **runs as-is**. Only the few instructions that cannot execute under the Apple kernel are rewritten, and every rewrite is checked for equivalence. Syscalls, files, audio and input are handled by a small host that implements the SDK functions (HLE); NVN is reimplemented on Metal; shaders are translated to Metal ahead of time.
+- Built on the generic host and graphics layer of [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile) (Diablo II: Resurrected on iOS). What Kirby needs lives here as a patch and separate files.
+
+**It isn't:**
+
+- An emulator, cloud gaming or streaming.
+- A source of builds or game files.
+- Online play: the game runs fully offline.
+
 ## Status
 
-| Part | State |
+| Feature | Mac (Apple silicon) | iPhone |
+|---|---|---|
+| Playing levels | ✅ | ✅ first 3D level |
+| Frame rate | ✅ 60 fps in levels (30 originally; `KIRBY_FPS=30` to go back) | 30 fps (original) |
+| Game sound | ✅ | 🚧 same fix as the Mac, not yet verified on device |
+| Cutscenes, tutorial clips | ✅ hardware VP9 + Vorbis audio | 🚧 black frames only |
+| Controls | ✅ remappable keyboard, Xbox / PS / Switch Pro controllers | ✅ on-screen pad + physical controllers |
+| Local co-op | ✅ separate keys and controller for 1P / 2P (joining not tested yet) | — |
+| Stutter when walking or in new areas | ✅ mostly gone with async pipelines | 🚧 fix ready, not yet verified on device |
+| Rendering | ✅ | 🚧 garbled textures in the city, under investigation |
+| Memory | ✅ no issues seen | 🚧 only ~145 MB headroom |
+
+The Mac build can be played from the start; the iPhone reaches the first level and is still being worked on for stutter, textures and memory. See [Roadmap](#roadmap).
+
+## Measurements
+
+| Item | Reading |
 |---|---|
-| Import ExeFS / RomFS, rewrite the three modules (`main`, `sdk`, `subsdk0`) | done, equivalence checked |
-| Host `kirbyhost` (Mac, Apple silicon): NVN graphics, hid, audio, files, time | plays levels on the Mac: 60 fps, sound, cutscenes, remappable keys, local co-op (see "Running directly on the Mac"); on iPhone it reaches the first 3D level, stutter and memory still being worked on |
-| Offline shader translation (BNSH → GLSL → MSL → metallib) | done; iOS metallibs precompiled on the Mac |
-| iOS app (sign, install, push RomFS, pull logs) | working on device (iOS 27.2) |
-| Audio (`nn::audio` AudioRenderer), cutscene video (VP9) | audio done; on the Mac game sound, cutscenes and tutorial clips all play (VideoToolbox VP9 + stb_vorbis); iOS still uses no-op video playback |
-| Touch / controller | on-screen pad and physical controllers (Xbox / PS / Switch Pro) |
+| Mac level frame time | p50 **16.67 ms** (33.33 ms originally), about 4 ms of GPU per frame |
+| Mac stutter (same save, same key script, A/B, 100 s each) | pipeline stall time 527 → **79 ms**, worst frame 348 → **94 ms** |
+| Mac cutscenes | 1080p VP9 hardware decode, about 2.8 ms per frame |
+| iPhone level | steady 30 fps standing still, about 18.6 ms of GPU per frame in 1080p mode |
+| Shader library | all 16,985 shaders, plus about 15,000 integer variants; only 10 geometry shaders skipped |
+| Rewriting | `main`, `sdk` and `subsdk0` all pass the structure and equivalence checks |
 
-`TASKS.md` is the task list; `reports/` has one report per task (what was done, how to reproduce, numbers, open issues).
+<sub>Mac: M5 (10 cores), macOS 27, 2026-10-22 to 10-23. iPhone: iPhone 16 Pro Max, iOS 27.2, 2026-10-17.</sub>
 
-## Requirements
+## How it works
 
-1. **Your own Switch copy of Kirby and the Forgotten Land v1.0.0** (title ID `01004D300C5AE000`), with its ExeFS and RomFS exported as decrypted directories. The repository does no decryption: use an external tool, e.g. nxdumptool on your own Switch, then `python -I tools/import_dump.py --exefs <ExeFS dir> --romfs <RomFS dir> ~/kirby-work --romfs-out ~/kirby-work/RomFS`.
-2. **An upstream d2r-mobile checkout, pinned to commit `6a2474d`**: the host compiles the generic parts of its `dm/host` and all of `dm/gfx` in place — those files are not in this repository.
-3. **The upstream changes Kirby needs**: `patches/d2r-mobile-kirby.patch` (11 files, ~630 lines; see [patches/README.md](patches/README.md)). The patch is against `6a2474d` and **does not apply to the latest upstream `main`** (checked 2026-10-22: upstream has since changed 6 of those files).
-4. Xcode on a Mac; for device builds also `brew install xcodegen` and `xcodebuild -downloadComponent MetalToolchain`.
-
-```bash
-# Upstream lives next to this repo by default; set D2R_MOBILE to the d2r-mobile root if it is elsewhere
-git clone https://github.com/jhaizhou-ops/d2r-mobile.git ../d2r-mobile
-git -C ../d2r-mobile checkout 6a2474d     # the patch's base; not the latest main
-git -C ../d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
-
-# Mac host
-make -C host            # produces host/kirbyhost
-make -C host check      # syntax-only check on an Intel Mac
-
-# iPhone
-ios/run.sh build && ios/run.sh install && ios/run.sh run
+```mermaid
+flowchart LR
+    G["Your dump<br/>ExeFS + RomFS"] --> P["Rewriter<br/>a few instructions only"]
+    G --> S["Shader translation<br/>BNSH → MSL → metallib"]
+    P --> H["Host kirbyhost<br/>system services (HLE)"]
+    S --> X["Graphics<br/>NVN rebuilt on Metal"]
+    H --> M["Mac window"]
+    X --> M
+    H --> A["iOS app"]
+    X --> A
 ```
 
-Fill in device, signing and `KIRBY_WORK` in `ios/local.env` (sample: `ios/local.env.example`); it is not committed.
+| Part | Where | What it does |
+|---|---|---|
+| Import and rewriting | `tools/`, upstream `dm/tools/patch_nso.py` | Imports your dump; rewrites only thread-pointer, syscall and timer instructions, leaving everything else byte for byte, then checks each rewrite |
+| Host | `host/`, upstream `dm/host` | Loads the rewritten program and implements the SDK functions it calls: files, audio, controllers, time, video |
+| Graphics | upstream `dm/gfx` + `patches/` | NVN on Metal; the 46 interfaces Kirby adds are in the patch |
+| iOS app | `ios/` | App shell, on-screen pad, build and install |
+| Records | `analysis/`, `reports/`, `docs/` | What each task did, how to reproduce it, and the numbers |
 
-## Running directly on the Mac (Apple silicon)
+**Why you can trust it:** every step has a reproducible check. The rewrite of the three modules has structure and equivalence checks (`tools/structck_kirby.py`, `tools/equiv_kirby.py`); the import tools have regression tests (`tools/test_extractors.py`); the host C code has an arm64 Apple-target syntax check (`tools/syntax_check.py`); performance changes come with A/B numbers. There is one report per task in [`reports/`](reports).
 
-No phone and no signing: `host/kirbyhost` runs the game on the Mac itself. First run on 2026-10-22, on an M5 (10 cores): it reaches the new-save difficulty select with correct rendering and text. A 60 s headless run held 60 Hz (frame time p50 16.67 / p95 16.98 / max 17.7 ms), with about 1.6 ms of GPU per frame and about 1.5 GB resident. Since then it plays levels normally: 60 fps, sound, cutscenes, remappable keys and local co-op, each covered below.
+## Getting started
 
-It needs `host/kirbyhost` from `make -C host`, plus `patched/`, `RomFS/` and a **macOS shader library `shlib_mac/`** in `$KIRBY_WORK` (default `~/kirby-work`).
+You need **your own copy of the game**: Kirby and the Forgotten Land v1.0.0 for Switch (title ID `01004D300C5AE000`, no update).
 
-```bash
-# One-off: compile shlib/ into macOS metallibs (same transforms as the iOS build, different target)
-python3 -I ios/tools/shlib_ios.py ~/kirby-work/shlib ~/kirby-work/shlib_mac --sdk macosx
-make -C host
-host/run_mac.sh          # windowed, to play
-host/run_mac.sh 60       # headless, stops after 60 s; log in ~/kirby-work/mac/runN.txt
-```
+> **Recommended: hand it to an AI assistant.** Open this repository in Claude Code, Codex or another assistant, tell it where your dumped ExeFS and RomFS are, and ask it to follow [docs/build.md](docs/build.md) and [docs/mac.en.md](docs/mac.en.md) step by step and to deal with whatever comes up on your Mac. There are many steps and every machine differs a little; it runs each step and checks the result.
 
-- Keys: WASD = left stick, J K U I = A B X Y, Q E = L R, Z C = ZL ZR, Return = +, Tab = −, arrows = D-pad.
-- Saves go to `~/kirby-work/mac/save`. Missing-variant lists and `pso_user.tsv` are written to `~/kirby-work/mac/`.
-- Why a separate library: the Mac host (no `DM_SHELL`) loads real metallibs. `kirby_shlib.py` output holds MSL source, and `shlib_ios/` targets iOS.
-- The compile is slow: about 38,000 `metal` invocations at about 1 s each, nearly all in the compiler's optimizer. It took 62 minutes on the M5. Don't measure performance while it runs, because it saturates every core.
-- First-use stutter (a new enemy or move freezing the game for up to a second or more) comes from building Metal render pipelines on first use, not from shaders. Pipelines are now built **asynchronously** by default: a missing one compiles in the background and that draw is skipped. In an A/B test (same save copy, same key script, warm-up off, 100 s each), stall time went from 527 to 79 ms, frames over 200 ms from 2 to 0, and the worst frame from 348 to 94 ms. Set `DM_PSO_ASYNC=0` to go back. Pipelines you've played through are recorded in `~/kirby-work/mac/pso_user.tsv` and prewarmed at the next launch.
-- Sound: the game's mixer runs in-process on the CPU (the host converted it from the system DSP), and in that mode its DeviceSink is silent, so there was no sound at all. When the game adds its device sink (`MainAudioOut`, 5.1), the host now adds a circular buffer sink on the same final mix, reads it after every frame and plays a stereo downmix through an AudioUnit (`host/hle_audio_kirby.c`). `run_mac.sh` sets `DM_AUDIO=1` for windowed play.
-- Darker, more saturated picture: Kirby's swapchain is sRGB, and presenting it to the non-sRGB Mac window skipped the re-encode. The present shader now re-encodes in that case (`fs_enc` in upstream `nvn_mtl.m`; D2R unaffected).
-- Keys are remappable: "Key Settings…" in the app menu (⌘,), shown automatically on first launch. Local co-op: 1P and 2P each get their own key bindings and controller (numbered by connection order; default 1P = controller 1, 2P = controller 2). When 2P has an input source the No.2 controller reports as connected and the controller applet answers 2 players; co-op starts from the pause menu, which keeps it greyed out early in the story. See `host/kirby_input.m`.
-- Cutscenes (`mov/EventMovie/`, 1080p VP9 + Vorbis) and the bottom-right tutorial clips (`mov/GuideMovie/`, 480×270 VP9) now play on the Mac: the host demuxes WebM itself and decodes VP9 with VideoToolbox (`host/kirby_webm.c`, `host/kirby_vp9.c`, `host/hle_movie_kirby.c`). Cutscene Vorbis audio is decoded with stb_vorbis (`host/kirby_vorbis.c`) and played by the game through AudioOut. `KIRBY_MOVIE_NOOP=1` falls back to the old no-op playback. iOS still uses no-op playback.
-- 60 fps (default on the Mac): levels ran at 30 because the game's variable-frame-rate mode waits for at least 2 ticks (1/60 s) per frame. That mode measures its own time step (the average ticks per frame, used as a multiplier of 1/60 s), so lowering the minimum to 1 tick gives a frame every tick and the multiplier becomes 1.0 by itself, keeping game speed unchanged. Measured frame time p50 33.33 → 16.67 ms and the game's step multiplier 2.000 → 1.000. See `host/kirby_fps.c`; `KIRBY_FPS=30` goes back to the original. iOS still defaults to 30.
-- Redoing everything from your own dump on a Mac, with no Windows (Homebrew `dotnet spirv-cross llvm`): see the Chinese [README.md](README.md#从自己的游戏导出开始全在-mac-上从头重做不用-windows). Verified 2026-10-22; every number matched the original reports.
+| Step | What | How long |
+|---|---|---|
+| 1. Dump | Export the program's ExeFS and RomFS with an external tool (for example nxdumptool on your own Switch). This repository does no decryption | depends on the tool |
+| 2. Upstream | Check out d2r-mobile at `6a2474d` and apply `patches/d2r-mobile-kirby.patch` | 1 minute |
+| 3. Import and rewrite | Import with `tools/import_dump.py`, then rewrite and check the three modules | a few minutes |
+| 4. Shader library | Translate, then compile macOS metallibs (about 38,000 compiles) | about an hour on an M5, once |
+| 5. Play | Mac: `make -C host && host/run_mac.sh`; iPhone: `ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
 
-## Continuing on another computer
+Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the commands themselves are language-neutral). Keys, saves, sound and video on the Mac: [docs/mac.en.md](docs/mac.en.md). iPhone signing and install: [ios/README.md](ios/README.md).
 
-See [docs/handoff.en.md](docs/handoff.en.md).
+**You need:** an Apple silicon Mac with Xcode 26 (the graphics layer uses Metal 4); Homebrew `dotnet spirv-cross llvm`; Python 3 with `capstone lz4 zstandard unicorn`. For the iPhone also `xcodegen`, the Metal toolchain and an Apple ID (a free one works; re-sign every 7 days).
 
-## iPhone status (2026-10-22)
+**Expect a brief hitch the first time you reach a new area**: render pipelines not seen before are built on the spot. On the Mac they are built in the background by default and that frame is skipped; pipelines you have played through are recorded and prebuilt at the next launch.
 
-The Mac build plays levels without major issues; the open problems below are on the iPhone.
+## Known limitations
 
-- Level 1 renders and holds 30 fps (native) when standing.
-- The build on the phone (commit `48c524b`: integer-attribute variant fix, packaged-texture eviction, pipeline warm-up) is not yet verified on device.
-- Open issues:
-  - walking stutter from synchronous pipeline creation (async pipelines landed on 2026-10-22, see "Running directly on the Mac"; not yet verified on device);
-  - garbled textures and low fps in the city;
-  - tight memory (~145 MB headroom);
-  - cutscene video is still no-op playback on iOS.
-
-## Layout
-
-| Directory | Contents |
+| Item | Status |
 |---|---|
-| `host/` | Kirby host: entry, hid / audio / misc HLE, shims; `make` builds `kirbyhost` on the Mac |
-| `ios/` | iOS shell: `Sources/` (entry, Metal view, touch), `tools/` (project generation, metallib compilation), `run.sh` |
-| `tools/` | Importing and rewriting: ExeFS/NSO/RomFS, imports, rewriting and equivalence checks, shader translation, offline takeover inventory, syntax check |
-| `analysis/` | Descriptive data measured from the game: imports/exports, NVN call surface, shader keys and counts, rewrite counts (each file under ~1 MB) |
-| `docs/` | Formats and design: RomFS, shader containers, graphics, audio, host split, Intel Mac; machine handoff in `docs/handoff.en.md` |
-| `reports/` | Per-task reports |
-| `patches/` | Kirby changes to upstream d2r-mobile (as a patch, not a copy) |
+| Game version | v1.0.0 only; rewrite rules and addresses are tied to the build ID |
+| iPhone models | tested only on an iPhone 16 Pro Max; the build currently targets A18 |
+| iPhone memory | a free Apple ID lacks the increased-memory entitlement, so headroom is tight; a paid developer account helps |
+| iOS video | iOS has no VP9 hardware decoder entry point, so cutscenes are skipped for now |
+| Mac window | title and menu still say "D2R Mobile" from upstream; harmless |
+| Geometry shaders | 10 skipped |
+| Online play | out of scope |
 
-## Development rules
+## Roadmap
 
-1. **Never commit** game files, keys, or anything extracted from the game (binaries, images, shaders, text). The repository holds scripts, docs, and small analysis tables containing only symbol names, addresses and counts.
-2. Run scripts that read game data with `python -I`; keep new scripts in `tools/`, never in the game-data directory.
-3. Changes to upstream `dm/` live in `patches/`; Kirby-only overrides go in `host/` with a `_kirby` filename suffix (`hle_*_kirby.c`).
-4. Write a report per task in `reports/<task id>.md`; only change your own row's status in `TASKS.md`.
-5. After changing C code run `python -I tools/syntax_check.py`: an arm64 Apple-target syntax and type check of the host's C files against the minimal system-header stand-ins in `tools/applestub/`. When a failure is only a missing declaration in a stand-in, extend the stand-in — do not edit the source to suit it.
+**Near term: bring the iPhone up to the Mac**
+
+- [ ] Verify async pipelines and startup prewarm on device to fix walking stutter
+- [ ] Track down garbled textures in the city (suspected wrong shader variant for skinned models)
+- [ ] Fix the leak when `nvnTextureInitialize` reinitializes, and cut memory use
+- [ ] Cutscene video on iOS: software VP9 decoding
+- [ ] Screenshot orientation, depth clamp
+
+**Medium term: make it installable by others**
+
+- [ ] One command from a dump to a playable build, plus install notes written for AI assistants
+- [ ] A double-clickable Mac `.app` with its own window title and menu
+- [ ] A shared pipeline list: everyone's recorded `pso_user.tsv` (pipeline keys and formats only, no game data) merged into the repository so nobody stutters in a new area
+- [ ] More iPhone models (A16 / A17)
+- [ ] Test the local co-op join flow
+
+**Long term**
+
+- [ ] Catch up with the latest d2r-mobile `main` (the patch currently conflicts in 6 files)
+- [ ] Updated game versions
+- [ ] iPad
+
+## Contributing and feedback
+
+- Open an issue with your machine, OS version, how far you got, and the log (Mac: `~/kirby-work/mac/runN.txt`; iPhone: the app's `Documents/boot.txt`).
+- Results on other models, working or not, are welcome.
+- To change code, start with the rules and debugging notes in [docs/development.en.md](docs/development.en.md).
+- Once more: **do not attach or ask for game files, keys or builds in issues or PRs.**
+
+## Documentation
+
+| Doc | Covers |
+|---|---|
+| [docs/build.md](docs/build.md) | Full commands to build on a Mac from your own dump (Chinese) |
+| [docs/mac.en.md](docs/mac.en.md) | Playing on the Mac: keys, co-op, saves, sound, video, 60 fps, stutter |
+| [ios/README.md](ios/README.md) | iOS app: signing, building, installing, pushing the RomFS (Chinese) |
+| [docs/development.en.md](docs/development.en.md) | Development rules and iPhone status ([full Chinese version](docs/development.md)) |
+| [docs/handoff.en.md](docs/handoff.en.md) | Continuing development on another computer |
+| [TASKS.md](TASKS.md) · [reports/](reports) | Task list and per-task reports (Chinese) |
+
+## Acknowledgements
+
+- **[d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile)** (MIT) developed this way of running Switch games natively: the NSO rewriter, the host and the NVN-on-Metal layer come from its generic parts.
+- **Ryujinx** (MIT): the upstream shader translator `dmsh_xlate` uses its shader translation code.
+- **[SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)** (Apache-2.0): SPIR-V to Metal Shading Language.
+- **[stb_vorbis](https://github.com/nothings/stb)** (public domain / MIT): Vorbis audio in cutscenes.
+- **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)**: another project built on d2r-mobile that brings several Switch games to the Mac; this README and the shared-list idea follow its lead.
 
 ## License
 
 MIT, see [LICENSE](LICENSE). Parts derived from d2r-mobile are Copyright (c) 2026 jhaizhou; the Kirby port is Copyright (c) 2026 MayBAMemory. See [NOTICE.md](NOTICE.md).
-
-Kirby and related names and game content are trademarks and copyrights of Nintendo. This project is not affiliated with Nintendo and contains no game content.

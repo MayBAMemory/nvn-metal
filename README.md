@@ -1,212 +1,182 @@
 # nvn-metal
 
-**把 Switch 版《星之卡比 探索发现》原生跑在 iPhone / Mac 上。**
+**把你自己购买的 Switch 版《星之卡比 探索发现》原生跑在 Mac 和 iPhone 上。** 不是模拟器：游戏自己的 ARM64 代码直接在苹果芯片上执行，Switch 的 NVN 图形接口在 Metal 上重建。
 
-游戏的 aarch64 代码直接在设备上执行，没有 CPU 模拟器；只有少数在苹果内核下不能原样执行的指令被改写。系统调用、文件、音频、输入这些平台服务由一个小宿主按 SDK 函数接管（HLE），图形接口 NVN 在 Metal 上重写，着色器在 PC 上离线翻译成 MSL。
-
-思路和基础代码来自 [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile)（《暗黑破坏神 II：狱火重生》的 iOS 兼容层，MIT）。本仓库是它 `kirby` 分支里卡比相关的部分：卡比专属的宿主入口与 HLE、iOS 外壳、解包与着色器工具、分析表和报告。
-
-> **不含、也不分发任何游戏内容。** 仓库里没有游戏的程序、美术、文字、数据表或着色器。要跑起来得用你自己购买的 Switch 版游戏：用外部工具从你自己的游戏导出 ExeFS 和 RomFS，程序在本地改写。**仓库不带解密代码，也不读取任何密钥。**
+平台：Mac（Apple 芯片，可以正常玩）· iPhone（iOS 26 起，开发中）· 游戏版本：v1.0.0 · 中文 / English · 许可证：MIT · **需要自备游戏文件**
 
 English: [README.en.md](README.en.md)
 
+<!--
+截图放在 GitHub Release 的附件里（像 d2r-mobile 那样），再把下面换成真实链接：
+<p align="center"><img src="https://github.com/MayBAMemory/nvn-metal/releases/download/assets/hero_zh.jpg" width="100%" alt="Mac 上 60 帧的第一关"></p>
+-->
+
+| 60 帧 | 0 条模拟指令 | 16985 个 | 2 人 |
+|:---:|:---:|:---:|:---:|
+| Mac 上的关卡帧率（原版 30） | 跑的就是原版程序 | 着色器，全部离线翻译成 Metal | Mac 上本地双人，各用各的手柄 |
+
+## 法律声明
+
+**你必须拥有正版游戏。** 请只配合你自己购买的游戏、从你自己的 Switch 导出的数据使用本项目。这是一个独立的非商业项目，与任天堂没有关联，也未获其认可或赞助。《星之卡比》《Kirby》和 Nintendo Switch 是任天堂的商标。
+
+- **不含、也不分发任何游戏内容**：仓库里没有游戏程序、美术、文字、音频、着色器或密钥，也**不带任何解密代码**。游戏需要的一切，都在你自己的电脑上、用你自己导出的文件现做出来。
+- 仓库里有的是让移植能运行的接口信息：补丁代码、符号名、地址、着色器的键和统计数字，见 [`analysis/`](analysis) 和 [NOTICE.md](NOTICE.md)。
+- 构建出的 App 和工作区里含有游戏内容，只供你自己使用，**请不要分享**。
+- 导出游戏数据是否合法取决于你所在地区的法律，请自行确认并遵守。
+- **附带或索要游戏文件、密钥、安装包的 issue 和 PR 会被直接删除。**
+
+Apple、Mac、iPhone 和 Metal 是 Apple Inc. 的商标，本项目与苹果没有关联。
+
+## 这是什么，不是什么
+
+**是：**
+
+- 一个技术探索：Switch 和苹果芯片都是 ARM64，能不能不经模拟器、让 Switch 游戏的程序直接在 Mac 和 iPhone 上跑？卡比是一个 3D、用满 NVN 的完整商业游戏，拿它来检验。
+- 游戏程序**原样执行**，只改写极少数在苹果内核下不能直接执行的指令，改写前后逐条做等价核对。系统调用、文件、音频、输入由一个小宿主按 SDK 函数接管（HLE）；NVN 图形在 Metal 上重写；着色器离线翻译成 Metal。
+- 基于 [d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile)（《暗黑破坏神 II：狱火重生》的 iOS 兼容层）的通用宿主和图形层，卡比需要的部分以补丁和独立文件的形式放在这里。
+
+**不是：**
+
+- 不是模拟器，也不是云游戏或串流。
+- 不提供安装包或任何游戏文件。
+- 不支持联机，游戏完全离线运行。
+
 ## 现在到哪一步
 
-| 部分 | 状态 |
+| 功能 | Mac（Apple 芯片） | iPhone |
+|---|---|---|
+| 进关卡游玩 | ✅ | ✅ 第一关 3D 场景 |
+| 帧率 | ✅ 关卡 60 帧（原版 30，`KIRBY_FPS=30` 可退回） | 30 帧（原版帧率） |
+| 游戏声音 | ✅ | 🚧 修法和 Mac 相同，待真机验证 |
+| 过场动画、教程视频 | ✅ VP9 硬解 + Vorbis 音轨 | 🚧 只放黑帧 |
+| 操作 | ✅ 键盘可改键、Xbox / PS / Switch Pro 手柄 | ✅ 屏幕手柄 + 实体手柄 |
+| 本地双人 | ✅ 1P / 2P 各一套键位和手柄（加入流程还没测到） | — |
+| 走动、新场景的卡顿 | ✅ 异步建管线后基本消除 | 🚧 修法已有，待真机验证 |
+| 画面 | ✅ | 🚧 进城后贴图乱飞，正在查 |
+| 内存 | ✅ 没遇到问题 | 🚧 余量只有约 145 MB |
+
+Mac 上已经可以从头玩下去；iPhone 上能进第一关，还在解决卡顿、贴图和内存。逐项原因和下一步见[开发方向](#开发方向)。
+
+## 实测数据
+
+| 项 | 读数 |
 |---|---|
-| 导入 ExeFS / RomFS、改写三个模块（`main`、`sdk`、`subsdk0`） | 完成，等价性已核对 |
-| 宿主 `kirbyhost`（Mac，Apple 芯片）：nv:nvn 图形、hid、音频、文件、时间 | Mac 上能正常进关卡玩：关卡 60 帧、有声音、过场动画能播、可改键、本地双人（见「在 Mac 上直接跑」）；iPhone 真机已进第一关 3D 场景，还在解决卡顿和内存 |
-| 着色器离线翻译（BNSH → GLSL → MSL → metallib） | 完成，iOS 版 metallib 在 Mac 上预编 |
-| iOS App（签名、装机、推 RomFS、拉日志） | 走通，iOS 27.2 真机 |
-| 音频（nn::audio AudioRenderer）、过场视频（VP9） | 音频部分完成；游戏声音在 Mac 上已出声（设备输出旁路）；过场 / 教程视频在 Mac 上能播，过场带声音（VideoToolbox 硬解 VP9 + stb_vorbis）；iOS 上仍是空播 |
-| 触屏 / 手柄 | 屏幕手柄 + 实体手柄（Xbox / PS / Switch Pro） |
+| Mac 关卡帧时间 | p50 **16.67 ms**（原版 33.33 ms），GPU 每帧约 4 ms |
+| Mac 卡顿（同存档、同按键脚本 A/B，各 100 秒） | 建管线卡住总时间 527 → **79 ms**，最长一帧 348 → **94 ms** |
+| Mac 过场视频 | 1080p VP9 硬解每帧约 2.8 ms |
+| iPhone 关卡 | 站着不动稳定 30 帧，1080p 模式下 GPU 每帧约 18.6 ms |
+| 着色器库 | 16985 份全部翻译出库，另有约 1.5 万个整数变体；只跳过 10 份几何着色器 |
+| 改写 | `main`、`sdk`、`subsdk0` 三个模块全部通过结构与等价核对 |
 
-`TASKS.md` 是任务清单，`reports/` 里每个任务一份报告（做了什么、怎么复现、结果数字、遗留问题）。
+<sub>Mac：M5（10 核），macOS 27，2026-10-22 至 10-23。iPhone：iPhone 16 Pro Max，iOS 27.2，2026-10-17。</sub>
 
-## 跑起来需要什么
+## 怎么做到的
 
-1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`），以及从它导出的 ExeFS 和 RomFS（已解密的目录）。仓库不负责解密：用外部工具导出，例如在你自己的 Switch 上用 nxdumptool。
-2. **上游 d2r-mobile 的一份检出，固定在提交 `6a2474d`**：宿主编译的是它的 `dm/host` 通用部分和整个 `dm/gfx`（原样编，不复制），这些文件不在本仓库里。
-3. **卡比要用的上游改动**：`patches/d2r-mobile-kirby.patch`（11 个文件、约 630 行，见 [patches/README.md](patches/README.md)）。补丁是对 `6a2474d` 做的，**套不上上游最新的 `main`**（2026-10-22 核对：上游之后改过其中 6 个文件，补丁冲突）。
-4. Mac 上有 Xcode；iOS 出包还要 `brew install xcodegen` 和 `xcodebuild -downloadComponent MetalToolchain`。
-
-```bash
-# 上游放在本仓库的兄弟目录，脚本默认就在这儿找；放在别处就设 D2R_MOBILE 指到 d2r-mobile 的根
-git clone https://github.com/jhaizhou-ops/d2r-mobile.git ../d2r-mobile
-git -C ../d2r-mobile checkout 6a2474d     # 补丁的基线；不要用最新 main
-git -C ../d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
-
-# 游戏侧：解包、解 NSO、改写模块、出着色器库，产物都放 ~/kirby-work（不进 git）
-python -I tools/import_dump.py --exefs <导出的 ExeFS 目录> --romfs <导出的 RomFS 目录> ~/kirby-work --romfs-out ~/kirby-work/RomFS
-# ……完整流程见 docs/ 和 TASKS.md 里的任务
-
-# Mac 宿主
-make -C host            # 产物 host/kirbyhost
-make -C host check      # Intel Mac 上只做语法检查
-
-# iPhone
-ios/run.sh build && ios/run.sh install && ios/run.sh run
+```mermaid
+flowchart LR
+    G["你导出的游戏<br/>ExeFS + RomFS"] --> P["改写器<br/>只改少数指令"]
+    G --> S["着色器翻译<br/>BNSH → MSL → metallib"]
+    P --> H["宿主 kirbyhost<br/>系统服务 HLE"]
+    S --> X["图形层<br/>NVN 在 Metal 上重建"]
+    H --> M["Mac 窗口"]
+    X --> M
+    H --> A["iOS App"]
+    X --> A
 ```
 
-`ios/local.env`（样例 `ios/local.env.example`）里填设备、签名和 `KIRBY_WORK` 路径，不进仓库。
+| 部分 | 位置 | 做什么 |
+|---|---|---|
+| 导入与改写 | `tools/`，上游 `dm/tools/patch_nso.py` | 导入你导出的目录；只改写线程指针、系统调用、计时器这类指令，其余逐字节不动，改完逐条核对等价 |
+| 宿主 | `host/`，上游 `dm/host` | 装载改写后的程序，接管它调用的 SDK 函数：文件、音频、手柄、时间、视频 |
+| 图形 | 上游 `dm/gfx` + `patches/` | NVN 在 Metal 上的实现；卡比新增的 46 个接口在补丁里 |
+| iOS App | `ios/` | App 外壳、屏幕手柄、出包装机 |
+| 分析记录 | `analysis/`、`reports/`、`docs/` | 每个任务做了什么、怎么复现、数字是多少 |
 
-## 在 Mac 上直接跑（Apple 芯片）
+**为什么可信：** 每一步都留了可复现的核对。三个模块的改写有结构核对和等价核对（`tools/structck_kirby.py`、`tools/equiv_kirby.py`）；导入和解包工具有回归测试（`tools/test_extractors.py`）；宿主 C 代码有 arm64 苹果目标的语法检查（`tools/syntax_check.py`）；性能改动都附 A/B 数字。每个任务一份报告，在 [`reports/`](reports)。
 
-不上手机、不用签名，宿主 `host/kirbyhost` 直接在 Mac 上跑游戏。2026-10-22 第一次在 M5（10 核）上跑通：走到新存档的难易度选择画面，画面和中文都正常；无窗口跑 60 秒稳定 60 Hz（帧时间 p50 16.67 / p95 16.98 / 最大 17.7 ms），GPU 每帧约 1.6 ms，常驻内存约 1.5 GB。之后已经能进关卡正常玩：关卡 60 帧、有声音、过场动画能播、可改键、支持本地双人，下面逐条说明。
+## 开始使用
 
-要有：`make -C host` 编出的 `host/kirbyhost`；`$KIRBY_WORK`（缺省 `~/kirby-work`）里的 `patched/`、`RomFS/`，以及 **macOS 版着色器 `shlib_mac/`**。
+要先有**你自己购买的游戏**：Switch 版《星之卡比 探索发现》v1.0.0（Title ID `01004D300C5AE000`，没有更新包）。
 
-```bash
-# 一次性：把 shlib/ 编成 macOS 版 metallib（变换和 iOS 版完全相同，只换编译目标）
-python3 -I ios/tools/shlib_ios.py ~/kirby-work/shlib ~/kirby-work/shlib_mac --sdk macosx
-make -C host
-host/run_mac.sh          # 开窗口玩
-host/run_mac.sh 60       # 不开窗口跑 60 秒就停，日志在 ~/kirby-work/mac/runN.txt（测启动、测帧时间用）
-```
+> **推荐交给 AI 助理。** 用 Claude Code、Codex 或其他 AI 助理打开这个仓库，告诉它你导出的 ExeFS 和 RomFS 在哪，让它按 [docs/build.md](docs/build.md) 和 [docs/mac.md](docs/mac.md) 一步步做，遇到这台 Mac 上的问题也交给它。步骤不少，每台机器都会有点差别，它会跑完每一步并检查结果。
 
-- 键位：缺省 WASD 左摇杆；J K U I = A B X Y；Q E = L R；Z C = ZL ZR；回车 = +；Tab = −；方向键 = 十字键。**可以改**：菜单「键位设置…」（⌘,），第一次启动会自动弹出；点一格再按新键，Esc 取消，删除键清空，同一个键只能绑一处，设置自动保存（NSUserDefaults，域 kirbyhost）。`KIRBY_SHOW_KEYS=1` 强制弹出。实现在 `host/kirby_input.m`：卡比自己读键盘和手柄，不再用上游写死的键位和「所有手柄合成一份」。
-- **本地双人**：键位设置里 1P、2P 各有一套键位、各选一个手柄（按连接先后编号，缺省 1P = 手柄 1、2P = 手柄 2；2P 缺省不占键盘）。2P 有键位或分到的手柄连着，游戏查 2 号手柄就报已连接，系统的手柄设置小程序回 2 人。游戏里从暂停菜单「双人游玩」开始；剧情开头（「初始之地」）这一项是灰的，要往后推进才开放，所以实际加入流程还没测到。按键脚本里键名前加 `2` 是 2P（如 `2A@30`），2P 在它第一次按键前 2 秒「插上」。
-- 存档在 `~/kirby-work/mac/save`。运行时缺的变体清单（`uint_masks.tsv`、`iattr_masks.tsv`）和管线清单 `pso_user.tsv` 写在 `~/kirby-work/mac/`；合并进 `~/kirby-work/` 下的同名清单后，重跑上面的编译命令就只补编缺的。
-- 为什么要单独编一份：Mac 上的宿主没有 `DM_SHELL`，读的是真正编好的 metallib（`newLibraryWithData`）；`kirby_shlib.py` 出的 `_b.metallib` 里装的是 MSL 源码，`shlib_ios/` 是 iOS 目标的，都不能直接用。
-- 编译要很久：约 3.8 万次 `metal` 编译（主库 16985 + 全整数输出 `_u` 约 8500 + 部分整数输出 `_um` 约 4400 + 整数属性 `_ia` 约 2300），每次约 1 秒，几乎全花在编译器的优化阶段（`xcrun` 的开销、合并成一个进程批量编都量过，省不了）。M5 上 62 分钟。**编着色器时别测性能**：它占满所有核，系统负载到 100 左右，测出来的长帧不能算数。
-- **新动作 / 新敌人第一次出现时的卡顿**：预编的只是着色器函数（AIR），真正在 GPU 上跑的「管线」（顶点 + 片元 + 顶点格式 + 渲染目标格式 + 混合）要到游戏第一次用这个组合时才知道，当场由 Metal 编成 M5 的机器码；原来提交线程会停下等它编完。第一次玩 6 分钟：90 个超过 200 ms 的长帧里 85 个在建管线，共约 64 秒，最长一次 3.6 秒。现在默认**异步建管线**：没编过的丢给后台编，这次绘制跳过、不等，代价是那个东西第一次出现时少画一两帧。A/B（同一份存档副本、同一份按键脚本、关预热、各 100 秒）：建管线卡住的总时间 527 → 79 ms，>200 ms 的帧 2 → 0，最长一帧 348 → 94 ms。剩下的是合并通道 / 特化片元的管线，仍是同步。`DM_PSO_ASYNC=0` 退回原来的做法。
-- 玩过的管线记在 `~/kirby-work/mac/pso_user.tsv`，下次启动在后台先编好，同一处第二次基本不卡。
-- **声音**：游戏的音响系统（Atk2）用的渲染器本来交给系统 DSP 跑，宿主把它改成在本进程用 CPU 渲染，而这种模式下最后一步「设备输出」（DeviceSink）不出声，所以以前整局都没声音。现在游戏 `AddDeviceSink`（`MainAudioOut`，5.1 声道）时，宿主在同一个最终混音上加挂一个循环缓冲输出，每执行一帧就读出来、缩混成立体声送进 AudioUnit（`host/hle_audio_kirby.c`「设备输出旁路」）。`run_mac.sh` 开窗口时缺省 `DM_AUDIO=1`（宿主在 Mac 上缺省静音，无窗口测试仍静音）。`KIRBY_SOUND_BYPASS=0` 关旁路，`KIRBY_SOUND_DUMP=文件` 导出原始 6 声道数据。两个坑：循环缓冲输出要等它的内存池真挂上（状态 1）再加；交给它的大小必须是整数帧（SDK 算的 23040），按 4 KB 取整的 24576 会让最后一帧越界写坏宿主的堆。
-- **画面偏暗、偏浓**：卡比的交换链是 sRGB 格式，出图时采样得到线性值，原样写进 Mac 窗口（非 sRGB）少了一次编码。出图着色器现在在这种情况下重新编码 sRGB（上游 `nvn_mtl.m` 的 `fs_enc`，D2R 不受影响）。
-- **过场动画和右下角的教程视频**：`mov/EventMovie/`（4 段，1920×1080 VP9 + Vorbis 音轨）和 `mov/GuideMovie/`（30 多段，480×270 VP9，无声）。Mac 上用 VideoToolbox 硬解 VP9（M5 上 1080p 每帧约 2.8 ms），宿主自己解 WebM（`host/kirby_webm.c`、`host/kirby_vp9.c`），按游戏的 movie:: 协议交 NV12 帧（`host/hle_movie_kirby.c` 开头有协议说明）。过场的 Vorbis 音轨也报给游戏：`host/kirby_vorbis.c` 用 stb_vorbis（`host/third_party/stb_vorbis.c`，公有领域 / MIT）解成 16 位 PCM，游戏自己经 AudioOut 出声（Mac 上要 `DM_AUDIO=1`，`run_mac.sh` 开窗口时已设）。iOS 没有 VP9 解码入口，仍是空播。
-- **60 帧（Mac 缺省开）**：关卡里的 30 帧不是图形跟不上，是游戏自己的帧率框架在等——可变帧率模式规定「每帧至少等 2 拍（1/60 秒）」。这个模式的时间步长本来就是实测的（最近 4 帧实际过了几拍取平均，游戏逻辑按「倍数 × 1/60 秒」走），所以把「至少 2 拍」改成 1 拍，帧就每拍出一张，倍数自然变成 1.0，速度不变。实测帧时间 p50 33.33 → 16.67 ms，游戏自己的步长倍数 2.000 → 1.000，GPU 每帧约 4 ms。改的是数据不是代码，见 `host/kirby_fps.c`。`KIRBY_FPS=30` 退回原版。iOS 缺省仍是 30（真机 GPU 每帧约 18.6 ms）。
-- 已知：窗口标题和菜单是上游 Mac 外壳的（「D2R Mobile」、`dmAppMenuView`），不影响玩。
+| 步骤 | 做什么 | 要多久 |
+|---|---|---|
+| 1. 导出 | 用外部工具（例如在你自己的 Switch 上用 nxdumptool）导出程序的 ExeFS 和 RomFS。本仓库不做解密 | 看工具 |
+| 2. 准备上游 | 检出 d2r-mobile 的 `6a2474d`，套上 `patches/d2r-mobile-kirby.patch` | 1 分钟 |
+| 3. 导入与改写 | `tools/import_dump.py` 导入，再改写三个模块并核对 | 几分钟 |
+| 4. 着色器库 | 翻译出库，再编成 macOS 版 metallib（约 3.8 万次编译） | M5 上约 1 小时，只做一次 |
+| 5. 开玩 | Mac：`make -C host && host/run_mac.sh`；iPhone：`ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
 
-### 从自己的游戏导出开始，全在 Mac 上从头重做（不用 Windows）
+每一步的完整命令见 [docs/build.md](docs/build.md)；Mac 上的键位、存档位置、声音和视频的说明见 [docs/mac.md](docs/mac.md)；iPhone 的签名和装机见 [ios/README.md](ios/README.md)。
 
-2026-10-22 在 M5 上照下面做了一遍，每一步的数字都和原来 Windows 上的报告一致：K01 RomFS 9373 个文件；K04 三个模块 STRUCT / EQUIV 全 OK、站点数相同；K06 27239 组全部对上；H3 出库 16985、跳过 10 份几何着色器。当时 K01 用的是仓库自带的 XCI 解包脚本；2026-10-30 起仓库不再带解密代码，改用 `tools/import_dump.py` 导入外部工具导出的目录，核对过 `romfs_list.txt` 和三个模块与原来逐字节相同。
+**需要准备：** Apple 芯片的 Mac，Xcode 26（图形层用 Metal 4）；Homebrew 的 `dotnet spirv-cross llvm`；Python 3 和 `capstone lz4 zstandard unicorn`。装到 iPhone 还要 `xcodegen`、Metal 工具链和一个 Apple ID（免费的也行，每 7 天要重签）。
 
-```bash
-brew install dotnet spirv-cross llvm xcodegen
-python3 -m venv ~/.venvs/kirby && ~/.venvs/kirby/bin/pip install capstone lz4 zstandard unicorn
-PY=~/.venvs/kirby/bin/python; W=~/kirby-work; DM=../d2r-mobile/dm
-# K01 导入（ExeFS / RomFS 先用外部工具从自己的游戏导出）
-$PY -I tools/import_dump.py --exefs <导出的 ExeFS 目录> --romfs <导出的 RomFS 目录> $W --romfs-out $W/RomFS
-$PY -I tools/verify_romfs.py $W/RomFS $W/romfs_list.txt
-# K04 改写三个模块并核对（核对要 Homebrew 的 LLVM：Xcode 里没有 llvm-objcopy）
-export DM_RULESET=native DM_ROOT=$W LLVM_BIN=$(brew --prefix llvm)/bin
-for m in main sdk subsdk0; do
-  $PY -I $DM/tools/patch_nso.py $W/exefs/$m $W/patched $m
-  $PY -I tools/structck_kirby.py $W/patched $m $W/exefs/$m
-  $PY -I tools/equiv_kirby.py $W/patched $m $W/exefs/$m --seed 1 --jobs 4 --tsv $W/patched/$m.equiv.tsv
-done
-# K06 提取着色器（会改写 analysis/shader_index_parts.txt、丢掉 main 那一行，跑完 git checkout 还原）
-$PY -I tools/bnsh_extract.py $W/RomFS $W/shaders analysis/kirby_shaders.tsv --inventory docs/cmp_shader_containers.tsv
-$PY -I tools/verify_k06.py analysis $W/shaders
-$PY -I tools/nso_info.py $W/exefs $W/img && $PY -I tools/main_shaders.py $W/img/main.img $W/shaders
-# H3 出着色器库：翻译器按上游源码编（只编它，不跑 setup.sh）
-export DOTNET_ROOT=$(brew --prefix dotnet)/libexec
-dotnet publish $DM/gfx/tools/dmsh_xlate -c Release -o $W/tools/dmsh_xlate
-$PY -I tools/kirby_shlib.py --shaders $W/shaders --out $W/shlib --xlate $W/tools/dmsh_xlate/dmsh_xlate --spirv-cross $(which spirv-cross) --jobs $(sysctl -n hw.ncpu)
-```
+**第一次玩到新场景时会卡一下**：没见过的渲染管线要当场编，Mac 上默认放到后台编、跳过这一帧，玩过的会记下来，下次启动先编好。
 
-- Homebrew 的 spirv-cross 是 1.4.363，原来验过的是 1.4.357。整条链自己从头出，前后自洽，没影响。
-- 这样重做，真机记下的三份清单（`pso_manifest.tsv`、`uint_masks.tsv`、`iattr_masks.tsv`）就没有了，要重新跑出来。
+## 已知限制
 
-## 换一台电脑接着做
-
-要拷的工作区、本机工具、手机和签名，见 [docs/handoff.md](docs/handoff.md)。
-
-## 测试和调试
-
-**一定要用数据线**：Wi-Fi 装 280 MB 的包会断在半路。手机关掉自动锁屏；锁屏时启动会失败，`run` 会每 5 秒重试，最多 5 分钟。
-
-```bash
-ios/run.sh build && ios/run.sh install       # 出包 + 装机（USB 约 3 分钟）
-ios/run.sh run 300 > ~/kirby-work/run/runN.txt   # 启动，持续拉回 Documents/boot.txt；结束时把真机记下的三份清单合并进工作区
-ios/run.sh shaders                           # 清单里有新变体时补编，再 build
-```
-
-无人值守测试用环境变量。在 Mac 上加 `DEVICECTL_CHILD_` 前缀，`devicectl` 会把它原样传给手机上的进程：
-
-| 变量 | 作用 |
+| 项 | 现状 |
 |---|---|
-| `KIRBY_KEYS="A@12,A@20+0.5,SU@60+20"` | 按键脚本：`键@第几秒[+按住几秒]`，从宿主启动算起，缺省按 0.2 秒。键名 `A B X Y L R ZL ZR PLUS MINUS UP DOWN LEFT RIGHT`，左摇杆推到底 `SU SD SL SR`（卡比用十字键不走路，测走动用摇杆） |
-| `KIRBY_PROF=2` | 采样分析器：每 2 毫秒停一下图形提交线程取样，每 5 秒打印前 25 名热点（自身 / 包含） |
-| `DM_NVN_SHOT="帧号:shot_%d.png"` | 按帧截图到 Documents，再用 `xcrun devicectl device copy from` 拉回来。**截出来是上下颠倒的**，看之前 `sips -f vertical` |
-| `MTL_DEBUG_LAYER=1` | Metal 验证层，出错时会指出具体哪一条 |
-| `DM_OPMODE=0 / 1` | 掌机 720p / 主机 1080p。App 里也能切，会保存 |
-| `DM_PSO_ASYNC=0` | 关掉异步建管线，退回「等编完再画」（卡比缺省开）。疑心哪个画面缺东西时用它对照 |
-| `DM_PSO_MANIFEST=off` | 关掉启动时的管线预热（测卡顿 / 测异步时用） |
-| `KIRBY_FPS=30 / 60` | 关卡帧率：Mac 缺省 60，iOS 缺省 30（见「在 Mac 上直接跑」） |
-| `DM_AUDIO=1` | Mac 上出声（`run_mac.sh` 开窗口时缺省开；iOS 缺省就出声） |
-| `KIRBY_SOUND_BYPASS=0` | 不挂「设备输出旁路」（游戏主声音），对照用 |
-| `KIRBY_MOVIE_NOOP=1` | 视频退回「空播」（不解码、0.1 秒后报播完），对照用 |
-| `DM_MOVIE=1` | 打出视频播放器的每一步调用（`movie(卡比)` 开头） |
+| 游戏版本 | 只做了 v1.0.0；改写规则和地址按构建号绑定，别的版本要重新适配 |
+| iPhone 机型 | 只在 iPhone 16 Pro Max 上测过，编译目标目前是 A18 |
+| iPhone 内存 | 免费 Apple ID 没有「提高内存上限」权限，余量很紧；付费开发者账号能缓解 |
+| iOS 视频 | iOS 没有 VP9 硬解入口，过场动画先空播 |
+| Mac 窗口 | 标题和菜单还是上游的「D2R Mobile」，不影响玩 |
+| 几何着色器 | 10 份跳过 |
+| 联机 | 不在范围内 |
 
-例：走动加分析器
-`DEVICECTL_CHILD_KIRBY_PROF=2 DEVICECTL_CHILD_KIRBY_KEYS="A@12,A@16,A@20,A@30,A@40,A@50,SU@60+20" ios/run.sh run 100 > ~/kirby-work/run/run35.txt`
+## 开发方向
 
-**坑**：
-- **不能用信号打断客体线程**（`SIGPROF`、`pthread_kill` 等）。客体代码把 x18 当普通寄存器（`main` 里 8250 处），苹果内核递送信号时不保留 x18，会崩，现场 x18=0。要采样就用 Mach 的 `thread_suspend` / `thread_get_state`，见 `host/kirby_prof.c`。
-- Instruments（xctrace）连不上 iOS 27 的手机，所以才自己写了 `KIRBY_PROF`。
-- 装机只能装 `.ipa`。直接装 `.app` 要逐个传 3.4 万个着色器文件，CoreDevice 连接会断。`run.sh install` 已经处理好，失败重试 3 次。
-- 真机日志在 App 的 `Documents/boot.txt`。真机会记下 `uint_masks.tsv`、`iattr_masks.tsv`、`pso_user.tsv` 三份清单，`run` / `log` 结束时自动合并进工作区。
+**近期：让 iPhone 追上 Mac**
 
-## iPhone 端进度（2026-10-22）与下一步
+- [ ] 真机验证异步建管线和启动预热，解决走动卡顿
+- [ ] 查清进城后贴图乱飞（怀疑带骨骼的模型选错了着色器变体）
+- [ ] 修 `nvnTextureInitialize` 重新初始化时的泄漏，压内存
+- [ ] iOS 上的过场视频：VP9 软解
+- [ ] 截图方向、深度截断（depth clamp）
 
-**到哪了**：第一关 3D 场景渲染正确。站着不动稳定 30 帧（卡比原生就是 30 帧），1080p 模式下 GPU 每帧约 18.6 ms。
+**中期：让别人也能装起来**
 
-**最后装上手机的是提交 `48c524b` 的代码，还没在真机上验证。** 它包含：
-- 没绑定的整数顶点属性也算整数，选 `_b_ia<掩码>` 变体，修第一关开头森林里猴子被拉扯 / 看不见；
-- 预排布贴图 600 帧没用就回收（`pkg_sweep`），并统计内存；
-- 启动时按 `pso_manifest.tsv` 和手机上的 `pso_user.tsv` 后台预编管线；
-- 按键脚本加摇杆。
+- [ ] 一条命令从导出目录做到能玩，加一份给 AI 助理的安装说明
+- [ ] Mac 上打包成可以双击的 `.app`，窗口标题和菜单换成自己的
+- [ ] 共享管线清单：大家玩过记下的 `pso_user.tsv`（只有管线的键和格式，不含游戏数据）汇总进仓库，所有人首次进场景都不卡
+- [ ] 支持更多 iPhone 机型（A16 / A17）
+- [ ] 本地双人的加入流程实测
 
-下一次真机测试就跑上面那条「走动加分析器」，在日志里看：
-- 有没有「管线预热完成」；
-- 有没有「预排布贴图回收」；
-- 还缺不缺 `_ia` 变体（缺的会记进 `iattr_masks.tsv`，补编后重出包）；
-- 走动时的长帧和热点。
+**长期**
 
-**iPhone 上的已知问题**（玩家实测，2026-10-17；Mac 上没有这些问题）：
+- [ ] 跟上 d2r-mobile 最新的 `main`（目前补丁有 6 个文件冲突）
+- [ ] 游戏更新后的版本
+- [ ] iPad
 
-| 问题 | 查到的原因 / 打算 |
+## 参与与反馈
+
+- 遇到问题请开 issue，写清机器、系统版本、做到哪一步，附上日志（Mac 在 `~/kirby-work/mac/runN.txt`，iPhone 在 App 的 `Documents/boot.txt`）。
+- 在别的机型上跑通或跑不通，都值得告诉我们。
+- 想改代码：先读 [docs/development.md](docs/development.md) 里的开发约定和调试方法。
+- 再说一次：**不要在 issue、PR 里附带或索要游戏文件、密钥、安装包。**
+
+## 文档索引
+
+| 说明 | 讲什么 |
 |---|---|
-| 走动卡顿 | 管线在提交线程上同步创建，一个 30–140 ms，走一段有约 250 个长帧。已加清单预编；2026-10-22 加了异步建管线（见「在 Mac 上直接跑」），真机还没验证 |
-| 进城后贴图乱飞、帧数低 | 怀疑带骨骼的模型选错了变体（用了浮点版），还没核实。先用截图和 `MTL_DEBUG_LAYER` 定位 |
-| 内存 | 余量只有约 145 MB。游戏自己的内存池占 2.1 GB；预排布贴图的 GPU 副本累计涨到 271 MB，已加回收。`nvnTextureInitialize` 重新初始化时不释放旧的序号，有泄漏，未修。付费账号的内存权限能缓解 |
-| 其他没做的 | 截图上下颠倒；深度截断（depth clamp）没实现；缺 `c1_full.tsv`；几何着色器（10 份）跳过；过场视频在 iOS 上只放黑帧（Mac 已能播，见「在 Mac 上直接跑」） |
+| [docs/build.md](docs/build.md) | 从你导出的游戏开始，全在 Mac 上构建的完整命令 |
+| [docs/mac.md](docs/mac.md) | 在 Mac 上玩：键位、双人、存档、声音、视频、60 帧、卡顿的来龙去脉 |
+| [ios/README.md](ios/README.md) | iOS App：签名、出包、装机、推 RomFS |
+| [docs/development.md](docs/development.md) | 开发约定、测试变量、调试的坑、iPhone 端进度、游戏的已知事实 |
+| [docs/handoff.md](docs/handoff.md) | 换一台电脑接着开发：工作区要拷哪些 |
+| [docs/gfx.md](docs/gfx.md) · [docs/shaders.md](docs/shaders.md) · [docs/audio.md](docs/audio.md) | 图形接口、着色器库、声音的设计说明 |
+| [TASKS.md](TASKS.md) · [reports/](reports) | 任务清单和每个任务的报告 |
 
-日志里以「内存 至帧」「内存池 共」开头的两行是内存统计（常驻、余量、离系统上限还有多少，预排布贴图现存 / 累计 / 回收），查内存先看它们。
+## 致谢
 
-## 目录
+- **[d2r-mobile](https://github.com/jhaizhou-ops/d2r-mobile)**（MIT）开发了这套原生运行 Switch 游戏的方法：NSO 改写器、宿主和 Metal 上的 NVN 层都来自它的通用部分。
+- **Ryujinx**（MIT）：上游着色器翻译器 `dmsh_xlate` 用到它的着色器翻译代码。
+- **[SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)**（Apache-2.0）：把 SPIR-V 转成 Metal 着色语言。
+- **[stb_vorbis](https://github.com/nothings/stb)**（公有领域 / MIT）：过场动画的 Vorbis 音轨。
+- **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)**：同样基于 d2r-mobile、把多款 Switch 游戏带到 Mac 的项目，README 写法和共享清单的思路参考了它。
 
-| 目录 | 内容 |
-|---|---|
-| `host/` | 卡比宿主：入口、hid / 音频 / 杂项 HLE、垫片，Mac 上 `make` 出 `kirbyhost`，`run_mac.sh` 直接在 Mac 上跑 |
-| `ios/` | iOS 外壳：`Sources/`（入口、Metal 视图、触屏）、`tools/`（工程生成、着色器编 metallib）、`run.sh` |
-| `tools/` | 导入与改写脚本：ExeFS/NSO/RomFS、导入表、改写与等价核对、着色器翻译、离线接管清单、语法检查 |
-| `analysis/` | 从游戏里量出来的**描述性**数据：导入/导出符号、NVN 调用面、着色器键与统计、改写计数（单个文件不超过约 1 MB） |
-| `docs/` | 格式与设计说明：RomFS、着色器容器、图形、音频、宿主拆分、Intel Mac；换电脑交接见 `docs/handoff.md` |
-| `reports/` | 每个任务的报告 |
-| `patches/` | 上游 d2r-mobile 的卡比改动（补丁，不是拷贝） |
+## 许可证
 
-## 已知事实（2026-10-13 分析，v1.0.0）
-
-- 版本 v1.0.0（没有更新包），SDK 11.4.0。改写规则和地址都按构建号绑定；换版本后地址类结论都得重做。**跟版本有关的常量（地址、构建号）一律写成参数或放在文件开头的表里。**
-- 构建号（NSO 头 0x40 起 16 字节）：`main` = `d9ba7db72ffafecd07f5f5535dec0573`，`sdk` = `b39add63421be525d352e576dab438d3`，`subsdk0` = `535249a546887cac875a099e9c8ef367`。
-- 模块：`main` 是游戏本体（.text 8.0 MB，含 PhysX 3.4、NintendoWare G3d/Vfx2/Ui2d/Font/Atk2、nn::gfx、NEX 4.6.5）；`sdk` 是 NintendoSDK 11.4 + NVN 驱动；`subsdk0` 是 NintendoSDK_movie。
-- 图形只走 NVN，没有 Vulkan；`main` 只导入一个 `nvnBootstrapLoader`。
-- 音频走 nn::audio 的 **AudioRenderer**（经 Atk2）。D2R 只实现了 AudioOut，这块是新写的。
-- `main` 导入 707 个符号，上游宿主已接管其中 96 个（清单 `analysis/main.imports.txt`）。
-- RomFS 9373 个文件、约 5.7 GB；`shader/` 下 24 个 `.bfsha`，`mov/` 是 36 个 VP9 `.webm`。
-
-## 开发约定
-
-1. **不提交**游戏文件、密钥，以及从游戏里提取出来的二进制、图片、着色器、文本。git 里只放脚本、文档，和只含符号名、地址、统计数字的小分析表。
-2. 读游戏数据的 Python 一律用 `python -I` 运行；脚本放 `tools/`，不要放进游戏数据目录。
-3. 改上游 `dm/` 只在 `patches/` 里体现；要在卡比这边覆盖的行为，写到 `host/` 并用文件名后缀区分（`hle_*_kirby.c`）。
-4. 每个任务在 `reports/<任务号>.md` 写报告；`TASKS.md` 里只改自己那一行的状态。
-5. 改了 C 代码就跑 `python -I tools/syntax_check.py`：对宿主要编的 C 文件做 arm64 苹果目标的语法和类型检查（用 `tools/applestub/` 的最小系统头替身）。只因替身缺声明而报错时补替身，不要改源码迁就替身。
-
-## 许可
-
-本仓库的代码以 MIT 发布，见 [LICENSE](LICENSE)。其中来自 d2r-mobile 的部分版权所有 (c) 2026 jhaizhou，卡比移植部分版权所有 (c) 2026 MayBAMemory；详见 [NOTICE.md](NOTICE.md)。
-
-《星之卡比》《Kirby》及相关名称、游戏内容是任天堂的商标和版权作品，本项目与任天堂无关，不包含也不分发任何游戏内容。
+MIT，见 [LICENSE](LICENSE)。其中来自 d2r-mobile 的部分版权所有 (c) 2026 jhaizhou，卡比移植部分版权所有 (c) 2026 MayBAMemory；详见 [NOTICE.md](NOTICE.md)。

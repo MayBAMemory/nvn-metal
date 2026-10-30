@@ -31,7 +31,7 @@ git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
 | Xcode 里登录 Apple ID | 签名 | Xcode → Settings → Accounts |
 
 - Intel Mac 和 Apple 芯片的 Mac 都能出包、装机，游戏在手机上跑。只有想在 Mac 上直接跑 `host/kirbyhost` 才要 Apple 芯片。
-- 从零重出着色器库（`shlib/`）原来用 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](../reports/K07.md)、[docs/shaders.md](shaders.md)。现在 Mac 上也能做，见 README 的「[从自己的游戏导出开始，全在 Mac 上从头重做](../README.md#从自己的游戏导出开始全在-mac-上从头重做不用-windows)」。拷旧电脑的 `shlib/` 就用不上它们。
+- 从零重出着色器库（`shlib/`）原来用 Windows 那套：.NET SDK 10、SPIRV-Cross、ninja、LLVM，见 [reports/K07.md](../reports/K07.md)、[docs/shaders.md](shaders.md)。现在 Mac 上也能做，见 README 的「[全在 Mac 上从头重做](build.md#全在-mac-上从头重做不用-windows)」。拷旧电脑的 `shlib/` 就用不上它们。
 
 ## 3. 工作区 `~/kirby-work`（不进 git，从旧电脑拷）
 
@@ -61,4 +61,4 @@ git -C d2r-mobile apply ../nvn-metal/patches/d2r-mobile-kirby.patch
   - `KIRBY_FREE_ACCOUNT=1`：现在用的是免费 Apple ID。描述文件 7 天过期，过期要重新 `build` + `install`；每台手机最多 3 个自签 App。
 - 新电脑第一次签：Xcode 会给这台电脑生成新的开发证书。手机要连着，自动签名才会把设备登记进描述文件。
 
-**以后换成付费开发者账号**：把 `KIRBY_FREE_ACCOUNT` 清空。这样会带上「提高内存上限」「扩展虚拟寻址」两项权限，卡比内存紧（见 [README](../README.md) 的「iPhone 端进度」），这两项很要紧。
+**以后换成付费开发者账号**：把 `KIRBY_FREE_ACCOUNT` 清空。这样会带上「提高内存上限」「扩展虚拟寻址」两项权限，卡比内存紧（见 [development.md](development.md#iphone-端进度2026-10-22与下一步)），这两项很要紧。

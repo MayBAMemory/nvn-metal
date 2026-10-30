@@ -1,0 +1,27 @@
+# Running directly on the Mac (Apple silicon)
+
+No phone and no signing: `host/kirbyhost` runs the game on the Mac itself. First run on 2026-10-22, on an M5 (10 cores): it reaches the new-save difficulty select with correct rendering and text. A 60 s headless run held 60 Hz (frame time p50 16.67 / p95 16.98 / max 17.7 ms), with about 1.6 ms of GPU per frame and about 1.5 GB resident. Since then it plays levels normally: 60 fps, sound, cutscenes, remappable keys and local co-op, each covered below.
+
+It needs `host/kirbyhost` from `make -C host`, plus `patched/`, `RomFS/` and a **macOS shader library `shlib_mac/`** in `$KIRBY_WORK` (default `~/kirby-work`).
+
+```bash
+# One-off: compile shlib/ into macOS metallibs (same transforms as the iOS build, different target)
+python3 -I ios/tools/shlib_ios.py ~/kirby-work/shlib ~/kirby-work/shlib_mac --sdk macosx
+make -C host
+host/run_mac.sh          # windowed, to play
+host/run_mac.sh 60       # headless, stops after 60 s; log in ~/kirby-work/mac/runN.txt
+```
+
+- Keys: WASD = left stick, J K U I = A B X Y, Q E = L R, Z C = ZL ZR, Return = +, Tab = −, arrows = D-pad.
+- Saves go to `~/kirby-work/mac/save`. Missing-variant lists and `pso_user.tsv` are written to `~/kirby-work/mac/`.
+- Why a separate library: the Mac host (no `DM_SHELL`) loads real metallibs. `kirby_shlib.py` output holds MSL source, and `shlib_ios/` targets iOS.
+- The compile is slow: about 38,000 `metal` invocations at about 1 s each, nearly all in the compiler's optimizer. It took 62 minutes on the M5. Don't measure performance while it runs, because it saturates every core.
+- First-use stutter (a new enemy or move freezing the game for up to a second or more) comes from building Metal render pipelines on first use, not from shaders. Pipelines are now built **asynchronously** by default: a missing one compiles in the background and that draw is skipped. In an A/B test (same save copy, same key script, warm-up off, 100 s each), stall time went from 527 to 79 ms, frames over 200 ms from 2 to 0, and the worst frame from 348 to 94 ms. Set `DM_PSO_ASYNC=0` to go back. Pipelines you've played through are recorded in `~/kirby-work/mac/pso_user.tsv` and prewarmed at the next launch.
+- Sound: the game's mixer runs in-process on the CPU (the host converted it from the system DSP), and in that mode its DeviceSink is silent, so there was no sound at all. When the game adds its device sink (`MainAudioOut`, 5.1), the host now adds a circular buffer sink on the same final mix, reads it after every frame and plays a stereo downmix through an AudioUnit (`host/hle_audio_kirby.c`). `run_mac.sh` sets `DM_AUDIO=1` for windowed play.
+- Darker, more saturated picture: Kirby's swapchain is sRGB, and presenting it to the non-sRGB Mac window skipped the re-encode. The present shader now re-encodes in that case (`fs_enc` in upstream `nvn_mtl.m`; D2R unaffected).
+- Keys are remappable: "Key Settings…" in the app menu (⌘,), shown automatically on first launch. Local co-op: 1P and 2P each get their own key bindings and controller (numbered by connection order; default 1P = controller 1, 2P = controller 2). When 2P has an input source the No.2 controller reports as connected and the controller applet answers 2 players; co-op starts from the pause menu, which keeps it greyed out early in the story. See `host/kirby_input.m`.
+- Cutscenes (`mov/EventMovie/`, 1080p VP9 + Vorbis) and the bottom-right tutorial clips (`mov/GuideMovie/`, 480×270 VP9) now play on the Mac: the host demuxes WebM itself and decodes VP9 with VideoToolbox (`host/kirby_webm.c`, `host/kirby_vp9.c`, `host/hle_movie_kirby.c`). Cutscene Vorbis audio is decoded with stb_vorbis (`host/kirby_vorbis.c`) and played by the game through AudioOut. `KIRBY_MOVIE_NOOP=1` falls back to the old no-op playback. iOS still uses no-op playback.
+- 60 fps (default on the Mac): levels ran at 30 because the game's variable-frame-rate mode waits for at least 2 ticks (1/60 s) per frame. That mode measures its own time step (the average ticks per frame, used as a multiplier of 1/60 s), so lowering the minimum to 1 tick gives a frame every tick and the multiplier becomes 1.0 by itself, keeping game speed unchanged. Measured frame time p50 33.33 → 16.67 ms and the game's step multiplier 2.000 → 1.000. See `host/kirby_fps.c`; `KIRBY_FPS=30` goes back to the original. iOS still defaults to 30.
+- Redoing everything from your own dump on a Mac, with no Windows (Homebrew `dotnet spirv-cross llvm`): see the Chinese [build.md](build.md). Verified 2026-10-22; every number matched the original reports.
+
+Run the commands from the repository root.
