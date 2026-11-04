@@ -143,7 +143,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 - [ ] Track down garbled textures in the city (suspected wrong shader variant for skinned models)
 - [ ] Fix the leak when `nvnTextureInitialize` reinitializes, and cut memory use (fixed 2026-11-04, to be checked against on-device memory stats)
 - [ ] Cutscene video on iOS: software VP9 decoding
-- [ ] Screenshot orientation, depth clamp (depth clamp wired up 2026-11-04, to be verified)
+- [ ] Screenshot orientation, depth clamp (both changed 2026-11-04, to be verified)
 
 **Medium term: make it installable by others**
 

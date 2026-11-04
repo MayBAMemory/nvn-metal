@@ -221,7 +221,7 @@ index d64e95f..4d0a19d 100644
  // Commands that only affect GPU state / only execute on the GPU: the null device only counts them (the thunk has already counted)
  static void nvn_nop(void) {}
 diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
-index 156a3ca..217f854 100644
+index 156a3ca..31e595f 100644
 --- a/dm/gfx/nvn/nvn_mtl.m
 +++ b/dm/gfx/nvn/nvn_mtl.m
 @@ -49,6 +49,7 @@
@@ -533,7 +533,7 @@ index 156a3ca..217f854 100644
 +    pthread_mutex_lock(&g_rmu);
 +    int held = tser_refs(ser);
 +    if (held) { if (g_norph == g_corph) { g_corph = g_corph ? g_corph * 2 : 64; g_orph = realloc(g_orph, g_corph * sizeof *g_orph); } g_orph[g_norph++] = ser; }
-     pthread_mutex_unlock(&g_rmu);
++    pthread_mutex_unlock(&g_rmu);
 +    if (!held) orph_free(ser);
 +}
 +// mtl_reg_tex 覆盖了引用 old 的登记之后调：old 在待放表里且已没人引用就放 | called after mtl_reg_tex overwrote a registration referring to old: release old if pending and no longer referred to
@@ -542,7 +542,7 @@ index 156a3ca..217f854 100644
 +    int found = 0;
 +    pthread_mutex_lock(&g_rmu);
 +    for (int i = 0; i < g_norph; i++) if (g_orph[i] == old) { if (!tser_refs(old)) { g_orph[i] = g_orph[--g_norph]; found = 1; } break; }
-+    pthread_mutex_unlock(&g_rmu);
+     pthread_mutex_unlock(&g_rmu);
 +    if (found) orph_free(old);
  }
  void mtl_reg_samp(int sid, const samp_par *sp) {
@@ -957,7 +957,20 @@ index 156a3ca..217f854 100644
  static id<MTLSamplerState> g_blit_samp;
  static uint64_t g_present_n;
  uint64_t mtl_present_count(void) { return g_present_n; }   // 实际出图次数（发热归因 DM_HEAT 算出图帧率） | Actual present count (heat attribution DM_HEAT computes the present frame rate)
-@@ -5402,26 +5759,37 @@ int mtl_display_hz(void) {
+@@ -5235,6 +5592,12 @@ static void shot(id<MTLTexture> src, const char *path, int screen, const int cro
+     [b copyFromTexture:read sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0, 0, 0) sourceSize:MTLSizeMake(w, h, 1)
+               toBuffer:buf destinationOffset:0 destinationBytesPerRow:row destinationBytesPerImage:row * h];
+     [b endEncoding]; [cb commit]; [cb waitUntilCompleted];
++    // GL 原点（卡比）：游戏的帧缓冲「底在上」，出图时才翻；没经 present_encode 直接读的出图帧在这里按行翻一次，不然截图上下颠倒。贴图转储（screen=0）不翻：分不清是渲染出的还是上传的
++    // GL origin (Kirby): the game's framebuffer is bottom-first and is only flipped at present; a present-frame shot read directly (not via present_encode) is flipped row by row here, otherwise it is upside down. Texture dumps (screen=0) are not flipped: rendered and uploaded ones cannot be told apart
++    if (g_nvn_gl_origin && screen && read == src && h > 1) {
++        uint8_t *p = buf.contents, *tmp = malloc(row);
++        if (tmp) { for (size_t y = 0; y < h / 2; y++) { memcpy(tmp, p + y * row, row); memcpy(p + y * row, p + (h - 1 - y) * row, row); memcpy(p + (h - 1 - y) * row, tmp, row); } free(tmp); }
++    }
+     int bgra = read.pixelFormat == MTLPixelFormatBGRA8Unorm || read.pixelFormat == MTLPixelFormatBGRA8Unorm_sRGB;
+     CGColorSpaceRef cs = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+     CGBitmapInfo bi = bgra ? (kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Little) : (CGBitmapInfo)kCGImageAlphaNoneSkipLast;
+@@ -5402,26 +5765,37 @@ int mtl_display_hz(void) {
  static _Atomic uint64_t g_present_stall_ns;   // 单测用：出图线程每次出图前额外停顿（模拟 drawable 迟迟不可用） | For unit tests: an extra pause before each present on the present thread (simulating a drawable that stays unavailable)
  static CAMetalLayer *g_present_layer_resident;
  void mtl_present_test_stall(uint64_t ns) { g_present_stall_ns = ns; }
@@ -1002,7 +1015,7 @@ index 156a3ca..217f854 100644
  }
  // 出图仅采NVN声明的有效源矩形；与原始交换链读回截图分开。边缘钳到有效区纹素中心，双线性不读外侧黑纹素。
  // Present samples only the valid source rectangle declared by NVN; kept separate from the raw swapchain readback screenshot. Edges are clamped to the texel centers of the valid area, so bilinear does not read the black texels outside.
-@@ -5438,7 +5806,7 @@ static int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src, id<MTLTex
+@@ -5438,7 +5812,7 @@ static int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src, id<MTLTex
      if (memcmp(meta, last_crop, sizeof meta)) { memcpy(last_crop, meta, sizeof meta);
          MLOG("出图裁切：原纹理 %lux%lu，有效 %lu,%lu %lux%lu → 目标 %lux%lu", (unsigned long)src.width, (unsigned long)src.height,
               (unsigned long)cx, (unsigned long)cy, (unsigned long)cw, (unsigned long)ch, (unsigned long)dst.width, (unsigned long)dst.height); }
@@ -1011,7 +1024,7 @@ index 156a3ca..217f854 100644
      MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
      // 保持游戏画面宽高比居中，余下留黑边（屏幕比例与游戏不同时不拉伸，如 iPhone 约 19.5:9 对游戏 16:9）；
      // 比例差 < 1%（全屏口径下游戏宽度取 8 的倍数带来的零头，如 1952x900 对 2868x1320 差 0.17%）直接铺满，不留几像素的边
-@@ -5473,7 +5841,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+@@ -5473,7 +5847,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
          }
          cx = crop[0]; cy = crop[1]; cw = crop[2]; ch = crop[3];
      }
@@ -1020,7 +1033,7 @@ index 156a3ca..217f854 100644
      double dw = dst.width, dh = dst.height, s = fmin(dw / cw, dh / ch);
      MTLViewport vp = {floor((dw - cw * s) / 2), floor((dh - ch * s) / 2), round(cw * s), round(ch * s), 0, 1};
      if (fabs((dw / dh) / ((double)cw / ch) - 1) < 0.01) vp = (MTLViewport){0, 0, dw, dh, 0, 1};
-@@ -5491,6 +5859,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+@@ -5491,6 +5865,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
      [g_present_args setSamplerState:g_blit_samp.gpuResourceID atIndex:0];
      float *uv = g_present_uv[uv_i].contents;
      uv[0] = (float)cx / src.width; uv[1] = (float)cy / src.height; uv[2] = (float)cw / src.width; uv[3] = (float)ch / src.height;
@@ -1028,7 +1041,7 @@ index 156a3ca..217f854 100644
      uv[4] = (cx + 0.5f) / src.width; uv[5] = (cy + 0.5f) / src.height; uv[6] = (cx + cw - 0.5f) / src.width; uv[7] = (cy + ch - 0.5f) / src.height;
      [g_present_args setAddress:g_present_uv[uv_i].gpuAddress atIndex:0];
      [en setViewport:vp]; [en setRenderPipelineState:g_blit_pso];
-@@ -5545,6 +5914,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -5545,6 +5920,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
          nshot = 0; const char *e = getenv("DM_NVN_SHOT"), *c = e ? strchr(e, ':') : NULL;
          if (c) { shot_path = c + 1; for (const char *q = e; q < c && nshot < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : c) shots[nshot++] = atol(q); }
      }
@@ -1041,7 +1054,7 @@ index 156a3ca..217f854 100644
      for (int i = 0; i < nshot; i++) if ((long)g_present_n == shots[i]) { char path[1024]; snprintf(path, sizeof path, shot_path, (int)g_present_n); mtl_finish_gpu(); shot(src, path, 1, crop); }
      pthread_mutex_lock(&g_shotq_mu);
      for (int i = 0; i < g_nshotq;) if (g_present_n >= g_shotq[i].frame) { mtl_finish_gpu(); shot(src, g_shotq[i].path, 1, crop); g_shotq[i] = g_shotq[--g_nshotq]; } else i++;
-@@ -5556,7 +5931,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -5556,7 +5937,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
  #if TARGET_OS_OSX
      if (!layer.displaySyncEnabled) layer.displaySyncEnabled = YES;   // 窗口模式按显示器垂直同步，防撕裂 | Windowed mode follows the display's vsync to prevent tearing
  #endif
