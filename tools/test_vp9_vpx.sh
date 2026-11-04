@@ -10,6 +10,9 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 command -v ffmpeg > /dev/null || { echo "🔴 要 ffmpeg"; exit 2; }
 CF=$(pkg-config --cflags vpx 2> /dev/null); LF=$(pkg-config --libs vpx 2> /dev/null || echo -lvpx)
 cc -O2 -Wall -DKIRBY_VPX -I"$HERE/vp9_check" -I"$REPO/host" $CF -o "$T/vp9_check" "$HERE/vp9_check/main.c" "$REPO/host/kirby_webm.c" "$REPO/host/kirby_vp9_vpx.c" $LF -lpthread || { echo "🔴 编不过"; exit 1; }
+# 音轨编码器：Homebrew 的 ffmpeg 不带 libvorbis，就用 ffmpeg 自带的 vorbis（实验性，要 -strict -2、只认双声道）
+# audio encoder: Homebrew's ffmpeg has no libvorbis, so fall back to ffmpeg's built-in vorbis (experimental: needs -strict -2, stereo only)
+if ffmpeg -hide_banner -encoders 2> /dev/null | grep -q ' libvorbis '; then AENC="-c:a libvorbis"; else AENC="-c:a vorbis -strict -2 -ac 2"; fi
 fail=0
 # 尺寸：教程视频 480x270、奇数宽高、过场 1920x1080（短）；带 alt-ref（隐藏帧、超帧）和 Vorbis 音轨，像游戏的 mov/*.webm
 # sizes: tutorial 480x270, odd width / height, cutscene 1920x1080 (short); with alt-ref (hidden frames, superframes) and a Vorbis track, like the game's mov/*.webm
@@ -17,7 +20,7 @@ for spec in 480x270:60 481x271:30 1920x1080:20; do
   size=${spec%%:*}; n=${spec##*:}
   # testsrc2 / crop 遇到奇数尺寸会取偶，所以先出 640x360 再缩放到确切尺寸 | testsrc2 / crop round odd sizes to even, so render 640x360 and scale to the exact size
   ffmpeg -v error -f lavfi -i "testsrc2=size=640x360:rate=30,scale=${size/x/:}" -f lavfi -i "sine=frequency=440:sample_rate=48000" -frames:v "$n" -t 2 \
-    -c:v libvpx-vp9 -b:v 1M -auto-alt-ref 1 -lag-in-frames 16 -g 30 -c:a libvorbis -shortest "$T/in.webm" -y || { echo "🔴 ffmpeg 做不出 $size"; fail=1; continue; }
+    -c:v libvpx-vp9 -b:v 1M -auto-alt-ref 1 -lag-in-frames 16 -g 30 $AENC -shortest "$T/in.webm" -y || { echo "🔴 ffmpeg 做不出 $size"; fail=1; continue; }
   out=$("$T/vp9_check" "$T/in.webm" "$T/ours.nv12" 2> "$T/log") || { echo "🔴 ${size}：解码失败"; cat "$T/log"; fail=1; continue; }
   ffmpeg -v error -c:v libvpx-vp9 -i "$T/in.webm" -an -f rawvideo -pix_fmt nv12 "$T/ref.nv12" -y
   if cmp -s "$T/ours.nv12" "$T/ref.nv12"; then echo "✓ ${size}：${out}，和 ffmpeg 逐字节相同"
