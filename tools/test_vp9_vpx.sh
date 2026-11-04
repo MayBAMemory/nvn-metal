@@ -18,9 +18,9 @@ for spec in 480x270:60 481x271:30 1920x1080:20; do
   # testsrc2 / crop 遇到奇数尺寸会取偶，所以先出 640x360 再缩放到确切尺寸 | testsrc2 / crop round odd sizes to even, so render 640x360 and scale to the exact size
   ffmpeg -v error -f lavfi -i "testsrc2=size=640x360:rate=30,scale=${size/x/:}" -f lavfi -i "sine=frequency=440:sample_rate=48000" -frames:v "$n" -t 2 \
     -c:v libvpx-vp9 -b:v 1M -auto-alt-ref 1 -lag-in-frames 16 -g 30 -c:a libvorbis -shortest "$T/in.webm" -y || { echo "🔴 ffmpeg 做不出 $size"; fail=1; continue; }
-  out=$("$T/vp9_check" "$T/in.webm" "$T/ours.nv12" 2> "$T/log") || { echo "🔴 $size：解码失败"; cat "$T/log"; fail=1; continue; }
+  out=$("$T/vp9_check" "$T/in.webm" "$T/ours.nv12" 2> "$T/log") || { echo "🔴 ${size}：解码失败"; cat "$T/log"; fail=1; continue; }
   ffmpeg -v error -c:v libvpx-vp9 -i "$T/in.webm" -an -f rawvideo -pix_fmt nv12 "$T/ref.nv12" -y
-  if cmp -s "$T/ours.nv12" "$T/ref.nv12"; then echo "✓ $size：$out，和 ffmpeg 逐字节相同"
-  else echo "🔴 $size：$out，和 ffmpeg 不同（$(stat -c %s "$T/ours.nv12" 2> /dev/null || stat -f %z "$T/ours.nv12") vs $(stat -c %s "$T/ref.nv12" 2> /dev/null || stat -f %z "$T/ref.nv12") 字节）"; fail=1; fi
+  if cmp -s "$T/ours.nv12" "$T/ref.nv12"; then echo "✓ ${size}：${out}，和 ffmpeg 逐字节相同"
+  else echo "🔴 ${size}：${out}，和 ffmpeg 不同（$(stat -c %s "$T/ours.nv12" 2> /dev/null || stat -f %z "$T/ours.nv12") vs $(stat -c %s "$T/ref.nv12" 2> /dev/null || stat -f %z "$T/ref.nv12") 字节）"; fail=1; fi
 done
 exit $fail

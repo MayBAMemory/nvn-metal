@@ -48,7 +48,7 @@ for f in "$T"/nca/*.nca; do
   echo "$info" | grep -qiE "^(Title|Program) ID: *$TID" || continue
   if echo "$info" | grep -q "BKTR"; then UPD=$f; else PROG=$f; fi
 done
-[ -n "$PROG" ] || die "游戏包里没找到《星之卡比 探索发现》（$TID）的程序"
+[ -n "$PROG" ] || die "游戏包里没找到《星之卡比 探索发现》（${TID}）的程序"
 [ -z "$UPD" ] || say "⚠ 游戏包里还有更新；本项目只做了 v1.0.0，只取本体"
 
 say "取 ExeFS 和 RomFS（约 6 GB）"
@@ -66,4 +66,4 @@ mv "$W/RomFS.part" "$W/RomFS" || die "改名到 $W/RomFS 没成"
 say "导入工作区"
 "$PY" -I "$HERE/import_dump.py" --exefs "$T/ExeFS" --romfs "$W/RomFS" "$W" || die "导入失败"
 "$PY" -I "$HERE/verify_romfs.py" "$W/RomFS" "$W/romfs_list.txt" || die "RomFS 核对没过"
-say "好了：$W。下一步改写三个模块，见 docs/build.md「全在 Mac 上从头重做」的 K04"
+say "好了：${W}。下一步改写三个模块，见 docs/build.md「全在 Mac 上从头重做」的 K04"

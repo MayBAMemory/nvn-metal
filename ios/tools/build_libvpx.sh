@@ -15,7 +15,7 @@ die() { echo "🔴 libvpx：$*" >&2; exit 1; }
 SRC=$OUT.src BLD=$OUT.build
 if [ "$(git -C "$SRC" rev-parse HEAD 2> /dev/null)" != "$COMMIT" ]; then
   rm -rf "$SRC"; git clone -q --depth 1 -b "$TAG" "$URL" "$SRC" || die "克隆 $URL 没成（网络？）"
-  [ "$(git -C "$SRC" rev-parse HEAD)" = "$COMMIT" ] || die "$TAG 的提交号不是 $COMMIT，不用"
+  [ "$(git -C "$SRC" rev-parse HEAD)" = "$COMMIT" ] || die "$TAG 的提交号不是 ${COMMIT}，不用"
 fi
 rm -rf "$BLD" "$OUT"; mkdir -p "$BLD" || die "建不了 $BLD"
 cd "$BLD" || die "进不了 $BLD"
@@ -26,7 +26,7 @@ cd "$BLD" || die "进不了 $BLD"
   --disable-vp8 --disable-vp9-encoder --enable-vp9-decoder --enable-multithread --enable-pic --enable-static --disable-shared \
   --extra-cflags="-miphoneos-version-min=26.0 -O3" > configure.log 2>&1 || { tail -20 configure.log; die "configure 没过（日志 $BLD/configure.log）"; }
 make -j"$(sysctl -n hw.ncpu 2> /dev/null || echo 4)" > make.log 2>&1 || { tail -20 make.log; die "编不过（日志 $BLD/make.log）"; }
-make install > install.log 2>&1 || die "装不进 $OUT（日志 $BLD/install.log）"
+make install > install.log 2>&1 || die "装不进 ${OUT}（日志 $BLD/install.log）"
 [ -f "$OUT/lib/libvpx.a" ] && [ -f "$OUT/include/vpx/vp8dx.h" ] || die "装完没找到 libvpx.a / vp8dx.h"
 echo "$COMMIT" > "$OUT/.commit"
-echo "libvpx $TAG（iOS arm64）→ $OUT"
+echo "libvpx ${TAG}（iOS arm64）→ $OUT"

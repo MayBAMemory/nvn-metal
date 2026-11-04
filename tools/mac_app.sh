@@ -15,7 +15,7 @@ NAME="Kirby Host"; EXE=kirbyhost; BID=${KIRBY_MAC_BUNDLE_ID:-io.github.maybamemo
 die() { echo "🔴 $*"; exit 1; }
 [ "$(uname -s)" = Darwin ] || die "只能在 macOS 上打包"
 for f in "$W/patched/main.patched.bin" "$W/shlib_mac/shader_map.tsv" "$W/RomFS/basil/App.bin"; do
-  [ -e "$f" ] || die "缺 $f（先跑 tools/setup_mac.sh）"
+  [ -e "$f" ] || die "缺 ${f}（先跑 tools/setup_mac.sh）"
 done
 make -C "$REPO/host" D2R_MOBILE="$D2R" > /dev/null || die "宿主编不过（make -C host 看报错）"
 APP="$OUT/$NAME.app"; mkdir -p "$OUT" || die "建不了 $OUT"

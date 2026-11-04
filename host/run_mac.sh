@@ -22,7 +22,7 @@ export DM_NVN_SHMAP=${DM_NVN_SHMAP:-$W/shlib_mac/shader_map.tsv} DM_MSL_DIR=${DM
 # (this used to set DM_PSO_MANIFEST, which makes the host read only that one file, so the locally played pso_user.tsv was not prebuilt)
 [ -z "${DM_PSO_MANIFEST:-}" ] && [ -d "$(dirname "$DM_NVN_SHMAP")" ] && python3 -I "$HERE/../tools/pso_merge.py" seed "$(dirname "$DM_NVN_SHMAP")/pso_manifest.tsv" "$HERE/../pso/shared.tsv" "$W/pso_manifest.tsv" > /dev/null
 for f in "$HERE/kirbyhost" "$W/patched/main.patched.bin" "$DM_ROMFS/shader" "$DM_NVN_SHMAP"; do
-  [ -e "$f" ] || { echo "🔴 缺 $f（见脚本开头注释）"; exit 1; }; done
+  [ -e "$f" ] || { echo "🔴 缺 ${f}（见脚本开头注释）"; exit 1; }; done
 cd "$M"   # 缺的着色器变体清单（uint_masks.tsv、iattr_masks.tsv）写在当前目录 | missing-variant lists are written to the current directory
 if [ -z "${1:-}" ]; then
   export DM_AUDIO=${DM_AUDIO:-1}   # 开窗口玩时出声（宿主在 Mac 上缺省静音）| play with sound in a window (the host is silent on the Mac by default)
@@ -32,4 +32,4 @@ n=1; while [ -e "$M/run$n.txt" ]; do n=$((n + 1)); done; O=$M/run$n.txt
 "$HERE/kirbyhost" "$W/patched" > "$O" 2>&1 & pid=$!
 for ((s = 0; s < $1; s++)); do kill -0 $pid 2>/dev/null || break; sleep 1; done
 kill -0 $pid 2>/dev/null && { kill $pid; sleep 1; kill -9 $pid 2>/dev/null; echo "到 $1 秒，已停"; } || { wait $pid; echo "宿主退出，退出码 $?"; }
-echo "日志：$O（$(wc -l < "$O" | tr -d ' ') 行）"
+echo "日志：${O}（$(wc -l < "$O" | tr -d ' ') 行）"

@@ -44,7 +44,7 @@ done_() { touch "$ST/$1.ok"; }
 have() { [ -f "$ST/$1.ok" ]; }
 head_() { echo; say "━━ $* ━━"; }
 NCPU=$(sysctl -n hw.ncpu 2> /dev/null || echo 4); JOBS=${JOBS:-$NCPU}
-say "工作区 $W；上游 $D2R；并发 $JOBS"
+say "工作区 ${W}；上游 ${D2R}；并发 $JOBS"
 
 # ── 0. 检查这台 Mac | check this Mac ────────────────────────────────────────
 head_ "0/9 检查这台 Mac"
@@ -60,14 +60,14 @@ command -v brew > /dev/null || die "没有 Homebrew：见 https://brew.sh"
 miss=; for p in dotnet spirv-cross llvm; do brew list --versions "$p" > /dev/null 2>&1 || miss="$miss $p"; done
 if [ -n "$miss" ]; then say "装 Homebrew 包：$miss"; brew install $miss || die "brew install$miss 没成"; fi
 LLVM_BIN=$(brew --prefix llvm)/bin; DOTNET_ROOT=$(brew --prefix dotnet)/libexec; SPIRV=$(brew --prefix spirv-cross)/bin/spirv-cross
-[ -x "$LLVM_BIN/llvm-objcopy" ] || die "Homebrew 的 LLVM 里没有 llvm-objcopy（$LLVM_BIN）"
+[ -x "$LLVM_BIN/llvm-objcopy" ] || die "Homebrew 的 LLVM 里没有 llvm-objcopy（${LLVM_BIN}）"
 [ -x "$SPIRV" ] || SPIRV=$(command -v spirv-cross) || die "找不到 spirv-cross"
 if [ -n "${PYTHON:-}" ]; then PY=$PYTHON
 else
   V=${KIRBY_VENV:-$HOME/.venvs/kirby}; PY=$V/bin/python
   [ -x "$PY" ] || { say "建 Python 虚拟环境 $V"; python3 -m venv "$V" || die "python3 -m venv 没成"; }
 fi
-"$PY" -c 'import sys; sys.exit(sys.version_info < (3, 9))' || die "Python 要 3.9 起（$PY）"
+"$PY" -c 'import sys; sys.exit(sys.version_info < (3, 9))' || die "Python 要 3.9 起（${PY}）"
 "$PY" -c 'import capstone, lz4, zstandard, unicorn' 2> /dev/null || { say "装 Python 包"; "$PY" -m pip install -q capstone lz4 zstandard unicorn || die "pip install 没成"; }
 if [ -n "$PKG" ] && ! have k01; then
   HT=${HACTOOL:-$(command -v hactool || true)}
@@ -91,15 +91,15 @@ if git -C "$D2R" apply --reverse --check "$P" 2> /dev/null; then
 else
   case $(git -C "$D2R" rev-parse HEAD) in
     $BASE*) ;;
-    *) [ -z "$(git -C "$D2R" status --porcelain)" ] || die "$D2R 不在 $BASE，而且有没提交的改动；先自己处理（不要套到最新 main 上，会冲突）"
+    *) [ -z "$(git -C "$D2R" status --porcelain)" ] || die "$D2R 不在 ${BASE}，而且有没提交的改动；先自己处理（不要套到最新 main 上，会冲突）"
        git -C "$D2R" cat-file -e "$BASE^{commit}" 2> /dev/null || git -C "$D2R" fetch -q origin || die "取不到上游提交 $BASE"
        git -C "$D2R" checkout -q "$BASE" || die "检出 $BASE 没成";;
   esac
-  git -C "$D2R" apply "$P" || die "补丁套不上 $D2R（有别的改动？）"
+  git -C "$D2R" apply "$P" || die "补丁套不上 ${D2R}（有别的改动？）"
   say "✓ 检出 $BASE 并套上补丁"
 fi
 got=$(sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p' "$D2R/dm/gfx/nvn/dmsh_chain.h")
-[ "$got" = "$CHAIN" ] || die "上游的着色器链版本是 ${got:-?}，应是 $CHAIN。多半是跑过上游的 setup.sh：git -C $D2R checkout -- dm/gfx/nvn/dmsh_chain.h"
+[ "$got" = "$CHAIN" ] || die "上游的着色器链版本是 ${got:-?}，应是 ${CHAIN}。多半是跑过上游的 setup.sh：git -C $D2R checkout -- dm/gfx/nvn/dmsh_chain.h"
 
 # ── 2. 游戏文件 | game files (K01) ──────────────────────────────────────────
 head_ "2/9 游戏文件（ExeFS / RomFS）"
@@ -136,11 +136,11 @@ if have k04; then say "✓ 已做（跳过）"
 else
   export DM_RULESET=native DM_ROOT=$W LLVM_BIN   # 同 docs/build.md 的 K04 | as in K04 of docs/build.md
   for m in main sdk subsdk0; do
-    say "$m：改写"
+    say "${m}：改写"
     "$PY" -I "$D2R/dm/tools/patch_nso.py" "$W/exefs/$m" "$W/patched" "$m" || die "$m 改写没成"
-    say "$m：结构核对"
+    say "${m}：结构核对"
     "$PY" -I "$HERE/structck_kirby.py" "$W/patched" "$m" "$W/exefs/$m" || die "$m 结构核对没过"
-    say "$m：等价核对"
+    say "${m}：等价核对"
     "$PY" -I "$HERE/equiv_kirby.py" "$W/patched" "$m" "$W/exefs/$m" --seed 1 --jobs "$JOBS" --tsv "$W/patched/$m.equiv.tsv" || die "$m 等价核对没过"
   done
   say "✓ 三个模块改写完，结构和等价核对全过：$W/patched"; done_ k04
@@ -189,7 +189,7 @@ else
   if [ $rc -ne 0 ]; then
     n=$(cat "$F" 2> /dev/null | grep -c .)
     [ "$n" -gt 0 ] || die "编 macOS 版着色器没成"
-    say "⚠ 有 $n 个着色器没编过（见 $F），其余照常可用；用到它们的东西可能画不出来"
+    say "⚠ 有 $n 个着色器没编过（见 ${F}），其余照常可用；用到它们的东西可能画不出来"
   fi
   say "✓ macOS 版着色器在 $W/shlib_mac"; done_ mac_shaders
 fi
