@@ -149,7 +149,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 
 - [ ] One command from a dump to a playable build, plus install notes written for AI assistants (2026-11-04: `tools/setup_mac.sh` and [docs/ai_install.en.md](docs/ai_install.en.md) exist; to be run from scratch on a real Mac)
 - [ ] A double-clickable Mac `.app` with its own window title and menu (2026-11-04: `tools/mac_app.sh` and `host/kirby_app.m` exist, to be verified on a real Mac; the package only works on the Mac that built it)
-- [ ] A shared pipeline list: everyone's recorded `pso_user.tsv` (pipeline keys and formats only, no game data) merged into the repository so nobody stutters in a new area
+- [ ] A shared pipeline list: everyone's recorded `pso_user.tsv` (pipeline keys and formats only, no game data) merged into the repository so nobody stutters in a new area (2026-11-04: the mechanism exists, `pso/shared.tsv` + `tools/pso_merge.py`; the list is still empty, waiting for the first data)
 - [ ] More iPhone models (A16 / A17)
 - [ ] Test the local co-op join flow
 
@@ -163,6 +163,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 
 - Open an issue with your machine, OS version, how far you got, and the log (Mac: `~/kirby-work/mac/runN.txt`; iPhone: the app's `Documents/boot.txt`).
 - Results on other models, working or not, are welcome.
+- After playing a while, share your pipeline list: `python3 -I tools/pso_merge.py add ~/kirby-work/mac/pso_user.tsv`, then send the updated `pso/shared.tsv` as a PR (shader keys and pipeline formats only, validated line by line). Others then won't stutter the first time they reach those scenes.
 - To change code, start with the rules and debugging notes in [docs/development.en.md](docs/development.en.md).
 - Once more: **do not attach or ask for game files, keys or builds in issues or PRs.**
 

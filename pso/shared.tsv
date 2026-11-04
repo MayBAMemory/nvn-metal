@@ -1,0 +1,2 @@
+# 卡比 v1.0.0 共享管线清单（翻译链 15cf7ca29eaf）：只有着色器键和管线格式，不含游戏内容。用 tools/pso_merge.py add 合并，别手改
+# Kirby v1.0.0 shared pipeline list (chain 15cf7ca29eaf): shader keys and pipeline formats only, no game content. Merge with tools/pso_merge.py add, do not edit by hand

@@ -16,7 +16,11 @@ W=${KIRBY_WORK:-$HOME/kirby-work}
 M=$W/mac; mkdir -p "$M/save"
 export DM_ROMFS=${DM_ROMFS:-$W/RomFS} DM_SAVE=${DM_SAVE:-$M/save}
 export DM_NVN_SHMAP=${DM_NVN_SHMAP:-$W/shlib_mac/shader_map.tsv} DM_MSL_DIR=${DM_MSL_DIR:-$W/shlib_mac}
-[ -f "$W/pso_manifest.tsv" ] && export DM_PSO_MANIFEST=${DM_PSO_MANIFEST:-$W/pso_manifest.tsv}
+# 管线种子清单：仓库的共享清单（pso/shared.tsv）+ 工作区的 pso_manifest.tsv，写到着色器映射表旁边；宿主启动时连同本机的 pso_user.tsv 一起后台预编
+# （原来设 DM_PSO_MANIFEST，那样宿主只读它一份，本机玩过的 pso_user.tsv 反而不预编了）
+# Pipeline seed: the repository's shared list (pso/shared.tsv) + the work directory's pso_manifest.tsv, written next to the shader map; at startup the host prebuilds it together with this machine's pso_user.tsv
+# (this used to set DM_PSO_MANIFEST, which makes the host read only that one file, so the locally played pso_user.tsv was not prebuilt)
+[ -z "${DM_PSO_MANIFEST:-}" ] && [ -d "$(dirname "$DM_NVN_SHMAP")" ] && python3 -I "$HERE/../tools/pso_merge.py" seed "$(dirname "$DM_NVN_SHMAP")/pso_manifest.tsv" "$HERE/../pso/shared.tsv" "$W/pso_manifest.tsv" > /dev/null
 for f in "$HERE/kirbyhost" "$W/patched/main.patched.bin" "$DM_ROMFS/shader" "$DM_NVN_SHMAP"; do
   [ -e "$f" ] || { echo "🔴 缺 $f（见脚本开头注释）"; exit 1; }; done
 cd "$M"   # 缺的着色器变体清单（uint_masks.tsv、iattr_masks.tsv）写在当前目录 | missing-variant lists are written to the current directory

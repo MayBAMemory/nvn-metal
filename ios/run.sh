@@ -46,8 +46,9 @@ build)
     for m in $MODS; do cp "$PATCHED/$m.fixups.tsv" "$PATCHED/$m.gates.tsv" Gen/dm/; done
     [ -f "$SHLIB_IOS/shader_map.tsv" ] && ls "$SHLIB_IOS/b-$V" 2>/dev/null | grep -q '_b.metallib$' || { t "🔴 缺 iOS 版着色器 $SHLIB_IOS/b-${V}（先跑 run.sh shaders；翻译链版本 ${V}）"; exit 1; }
     cp "$SHLIB_IOS/shader_map.tsv" Gen/dm/
-    # 管线种子清单：真机玩过记下的管线（run.sh log 拉回合并），放在 shader_map.tsv 旁边，新装的 App 启动就后台预编 | pipeline seed manifest: pipelines recorded on device (merged by run.sh log), next to shader_map.tsv so a fresh install precompiles them in the background at launch
-    [ -f "$W/pso_manifest.tsv" ] && cp "$W/pso_manifest.tsv" Gen/dm/
+    # 管线种子清单：仓库的共享清单（pso/shared.tsv）+ 真机玩过记下的（run.sh log 拉回合并），放在 shader_map.tsv 旁边，新装的 App 启动就后台预编
+    # pipeline seed manifest: the repository's shared list (pso/shared.tsv) + pipelines recorded on device (merged by run.sh log), next to shader_map.tsv so a fresh install precompiles them at launch
+    python3 -I "$ROOT/tools/pso_merge.py" seed Gen/dm/pso_manifest.tsv "$ROOT/pso/shared.tsv" "$W/pso_manifest.tsv" || { t "🔴 管线种子清单没合成"; exit 1; }
     cp -cR "$SHLIB_IOS/b-$V" Gen/msl/ && rm -f "Gen/msl/b-$V/failed.tsv"   # 一个进程整目录 APFS 克隆（逐个 cp 3.4 万个文件要 9 分钟） | one-process APFS clone of the whole dir (per-file cp of 34k files took 9 minutes)
   fi
   # 权限：付费账号带「提高内存上限」和「扩展虚拟寻址」；免费账号签不了这两项 | entitlements: paid accounts get the two memory ones; free accounts cannot sign them
@@ -105,7 +106,7 @@ run|log)
     t "整数属性变体清单：$(wc -l < "$W/iattr_masks.tsv" | tr -d ' ') 条（$W/iattr_masks.tsv）"
     xcrun devicectl device copy from --device "$D" --domain-type appDataContainer --domain-identifier "$B" --source Documents/pso_user.tsv --destination "$R/pso_user.tsv" >/dev/null 2>&1 || return 0
     cat "$R/pso_user.tsv" "$W/pso_manifest.tsv" 2>/dev/null | grep -v '^#' | sort -u > "$W/pso_manifest.tsv.new" && mv "$W/pso_manifest.tsv.new" "$W/pso_manifest.tsv"
-    t "管线种子清单：$(wc -l < "$W/pso_manifest.tsv" | tr -d ' ') 条（$W/pso_manifest.tsv；下次 build 带进 App）"; }
+    t "管线种子清单：$(wc -l < "$W/pso_manifest.tsv" | tr -d ' ') 条（$W/pso_manifest.tsv；下次 build 带进 App。愿意分享就 python3 -I tools/pso_merge.py add $W/pso_manifest.tsv 再提交）"; }
   [ "$1" = log ] && { pull && cat "$O"; masks; exit; }
   CAP=${2:-120}; rm -f "$O"
   # 手机锁着时系统拒绝启动（Locked）：每 5 秒再试，最多等 5 分钟 | the system refuses to launch while the phone is locked: retry every 5 s for up to 5 minutes

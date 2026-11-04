@@ -1,7 +1,7 @@
 // 卡比的 macOS App 形态（双击起），取代上游的 app_mac.m（那份按 D2R 写：认 D2R 的资源、只装 main + sdk、存档放「D2R Mobile」）。
 // 宿主被包成 .app（tools/mac_app.sh）且没带参数时，启动最前面替玩家把 host/run_mac.sh 那套准备好：
 //   窗口开着、有声音；存档、玩过的管线清单、缺的着色器变体清单和 run_mac.sh 共用工作区的 mac/（不在时放 ~/Library/Application Support/Kirby Host）；日志 ~/Library/Logs/Kirby Host/host.log（留上一次的一份）；
-//   改写后的游戏程序、macOS 版着色器库、管线清单：包里 Contents/Resources/<名> 有实物就用，没有就看 Resources/paths.txt 里「名=本机路径」
+//   改写后的游戏程序、macOS 版着色器库：包里 Contents/Resources/<名> 有实物就用，没有就看 Resources/paths.txt 里「名=本机路径」
 //   （这几样都从游戏内容派生，包里缺省不带，只指向这台机器上 tools/setup_mac.sh 做出来的工作区）；
 //   RomFS：paths.txt 的 romfs= 能用就用，否则第一次启动请玩家选（记在偏好里）。
 // 另外 kirby_mac_brand()：窗口标题换成 Kirby Host（上游 front_mac.m 写死「D2R Mobile」），命令行起也换。
@@ -9,7 +9,7 @@
 // Kirby's macOS App form (started by double-click), replacing upstream's app_mac.m (written for D2R: recognizes D2R's resources, loads only main + sdk, saves under "D2R Mobile").
 // When the host is packaged as an .app (tools/mac_app.sh) and started without arguments, the very first thing it does is what host/run_mac.sh would set up:
 //   window and sound on; saves, the played-pipeline list and the missing-shader-variant lists shared with run_mac.sh in the work directory's mac/ (~/Library/Application Support/Kirby Host when absent); log in ~/Library/Logs/Kirby Host/host.log (the previous one kept);
-//   the rewritten game program, the macOS shader library and the pipeline manifest: the real thing in Contents/Resources/<name> if present, otherwise the "name=local path" line in Resources/paths.txt
+//   the rewritten game program and the macOS shader library: the real thing in Contents/Resources/<name> if present, otherwise the "name=local path" line in Resources/paths.txt
 //   (all of these are derived from game content, so by default the package carries none of them and points at the work directory tools/setup_mac.sh built on this machine);
 //   RomFS: romfs= from paths.txt if usable, otherwise the player is asked on first launch (remembered in preferences).
 // Also kirby_mac_brand(): the window title becomes Kirby Host (upstream front_mac.m hard-codes "D2R Mobile"), for command-line starts too.
@@ -120,7 +120,8 @@ int dm_app_bootstrap(int *argc, char ***argv) {
         setenv_default("DM_AUDIO", @"1");   // 同 run_mac.sh 开窗口玩 | as run_mac.sh does for windowed play
         setenv_default("DM_ROMFS", rom); setenv_default("DM_SAVE", save);   // 玩过的管线 pso_user.tsv 写在 DM_SAVE 的上一层 = state | the played-pipeline list pso_user.tsv goes in DM_SAVE's parent = state
         setenv_default("DM_NVN_SHMAP", shmap); setenv_default("DM_MSL_DIR", shlib);
-        setenv_default("DM_PSO_MANIFEST", res_item(@"pso_manifest.tsv"));
+        // 管线种子清单不用设：宿主按着色器映射表旁边的 pso_manifest.tsv 找（mac_app.sh 写好），连同 state/ 下的 pso_user.tsv 一起预编
+        // no pipeline seed setting: the host looks for pso_manifest.tsv next to the shader map (written by mac_app.sh) and prebuilds it together with pso_user.tsv under state/
         [fm changeCurrentDirectoryPath:state];   // 缺的着色器变体清单（uint_masks.tsv、iattr_masks.tsv）写在当前目录 | missing-variant lists are written to the current directory
         static char *av[6]; av[0] = (*argv)[0]; av[1] = strdup(prod.fileSystemRepresentation); av[2] = "main"; av[3] = "sdk"; av[4] = "subsdk0"; av[5] = NULL;
         *argv = av; *argc = 5;

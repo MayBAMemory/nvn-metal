@@ -149,7 +149,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 
 - [ ] 一条命令从导出目录做到能玩，加一份给 AI 助理的安装说明（2026-11-04 已有 `tools/setup_mac.sh` 和 [docs/ai_install.md](docs/ai_install.md)，待真 Mac 上从头跑通）
 - [ ] Mac 上打包成可以双击的 `.app`，窗口标题和菜单换成自己的（2026-11-04 已有 `tools/mac_app.sh` 和 `host/kirby_app.m`，待真 Mac 上验证；现在的包只能在构建它的那台 Mac 上用）
-- [ ] 共享管线清单：大家玩过记下的 `pso_user.tsv`（只有管线的键和格式，不含游戏数据）汇总进仓库，所有人首次进场景都不卡
+- [ ] 共享管线清单：大家玩过记下的 `pso_user.tsv`（只有管线的键和格式，不含游戏数据）汇总进仓库，所有人首次进场景都不卡（2026-11-04 机制已有：`pso/shared.tsv` + `tools/pso_merge.py`，清单还是空的，等第一份数据）
 - [ ] 支持更多 iPhone 机型（A16 / A17）
 - [ ] 本地双人的加入流程实测
 
@@ -163,6 +163,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 
 - 遇到问题请开 issue，写清机器、系统版本、做到哪一步，附上日志（Mac 在 `~/kirby-work/mac/runN.txt`，iPhone 在 App 的 `Documents/boot.txt`）。
 - 在别的机型上跑通或跑不通，都值得告诉我们。
+- 玩过一阵后愿意分享管线清单：`python3 -I tools/pso_merge.py add ~/kirby-work/mac/pso_user.tsv`，把改动后的 `pso/shared.tsv` 提 PR（只有着色器键和管线格式，工具逐行校验过）。别人第一次到那些场景就不卡了。
 - 想改代码：先读 [docs/development.md](docs/development.md) 里的开发约定和调试方法。
 - 再说一次：**不要在 issue、PR 里附带或索要游戏文件、密钥、安装包。**
 
