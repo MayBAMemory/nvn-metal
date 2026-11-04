@@ -59,11 +59,7 @@ ok=1
 while read -r want name; do
   got=$(shasum -a 256 "$T/ExeFS/$name" 2> /dev/null | cut -c1-64)
   if [ "$got" = "$want" ]; then echo "  ✓ $name"; else echo "  ✗ $name 不是 v1.0.0 的（${got:-文件不在}）"; ok=0; fi
-done <<SUMS
-0e79778c8977aa2f3451427b32864ae11df7f7705d89e8e7387ceac02f3bcd1c main
-85aaf84172367499c02cbb5c317c419b9c768658f5a44de743da40d4c6441a4b sdk
-773153d0734c8feaacd5a1e6b21bd1ede8c060a142f9d91452897776f31d9827 subsdk0
-SUMS
+done < "$HERE/v100.sha256"
 [ "$ok" = 1 ] || die "版本不对：本项目只认 v1.0.0"
 mv "$W/RomFS.part" "$W/RomFS" || die "改名到 $W/RomFS 没成"
 

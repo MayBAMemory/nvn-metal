@@ -98,7 +98,15 @@ flowchart LR
 
 要先有**你自己购买的游戏**：Switch 版《星之卡比 探索发现》v1.0.0（Title ID `01004D300C5AE000`，没有更新包）。
 
-> **推荐交给 AI 助理。** 用 Claude Code、Codex 或其他 AI 助理打开这个仓库，告诉它你自己的游戏包和 `prod.keys`（或已经导出的 ExeFS / RomFS）在哪，让它按 [docs/build.md](docs/build.md) 和 [docs/mac.md](docs/mac.md) 一步步做，遇到这台 Mac 上的问题也交给它。步骤不少，每台机器都会有点差别，它会跑完每一步并检查结果。
+**一条命令（Mac）：**
+
+```bash
+tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或：tools/setup_mac.sh --dump <ExeFS 目录> <RomFS 目录>
+```
+
+它依次做完下表的 1–4 步，编好宿主，再无窗口跑 30 秒自检；中断了重跑同一条命令，从断的地方接着做。全程约 1.5 小时。
+
+> **推荐交给 AI 助理。** 用 Claude Code、Codex 或其他 AI 助理打开这个仓库，告诉它你自己的游戏包和 `prod.keys`（或已经导出的 ExeFS / RomFS）在哪，让它照 [docs/ai_install.md](docs/ai_install.md) 做：那一页是专门写给 AI 助理的，从检查机器、跑上面那条命令到出错时怎么处理都写了。
 
 | 步骤 | 做什么 | 要多久 |
 |---|---|---|
@@ -119,6 +127,7 @@ flowchart LR
 | 项 | 现状 |
 |---|---|
 | 游戏版本 | 只做了 v1.0.0；改写规则和地址按构建号绑定，别的版本要重新适配 |
+| `tools/setup_mac.sh` | 2026-11-04 新加，只在模拟的 macOS 环境里测过流程（跳过、续跑、各步出错）；里面每一步的命令都是 2026-10-22 在 M5 上实际跑通过的，但整条脚本还没在真 Mac 上从头跑过 |
 | `tools/extract_game.sh` | 2026-10-30 新加，照 d2r-mobile 的做法写，只用模拟的 hactool 测过；`.nsp` 的标题密钥那一步尤其没验过，跑通或跑不通都欢迎告诉我们。已经验过的路是导出目录再 `import_dump.py` |
 | iPhone 机型 | 只在 iPhone 16 Pro Max 上测过，编译目标目前是 A18 |
 | iPhone 内存 | 免费 Apple ID 没有「提高内存上限」权限，余量很紧；付费开发者账号能缓解 |
@@ -139,7 +148,7 @@ flowchart LR
 
 **中期：让别人也能装起来**
 
-- [ ] 一条命令从导出目录做到能玩，加一份给 AI 助理的安装说明
+- [ ] 一条命令从导出目录做到能玩，加一份给 AI 助理的安装说明（2026-11-04 已有 `tools/setup_mac.sh` 和 [docs/ai_install.md](docs/ai_install.md)，待真 Mac 上从头跑通）
 - [ ] Mac 上打包成可以双击的 `.app`，窗口标题和菜单换成自己的
 - [ ] 共享管线清单：大家玩过记下的 `pso_user.tsv`（只有管线的键和格式，不含游戏数据）汇总进仓库，所有人首次进场景都不卡
 - [ ] 支持更多 iPhone 机型（A16 / A17）
@@ -162,7 +171,8 @@ flowchart LR
 
 | 说明 | 讲什么 |
 |---|---|
-| [docs/build.md](docs/build.md) | 从你导出的游戏开始，全在 Mac 上构建的完整命令 |
+| [docs/ai_install.md](docs/ai_install.md) | 给 AI 助理的安装说明：一条命令装到能玩、出错怎么办 |
+| [docs/build.md](docs/build.md) | 从你导出的游戏开始，全在 Mac 上构建的完整命令（`tools/setup_mac.sh` 做的就是这些） |
 | [docs/mac.md](docs/mac.md) | 在 Mac 上玩：键位、双人、存档、声音、视频、60 帧、卡顿的来龙去脉 |
 | [ios/README.md](ios/README.md) | iOS App：签名、出包、装机、推 RomFS |
 | [docs/development.md](docs/development.md) | 开发约定、测试变量、调试的坑、iPhone 端进度、游戏的已知事实 |

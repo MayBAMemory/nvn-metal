@@ -17,9 +17,11 @@ DMROOT = os.path.abspath(os.environ.get('D2R_MOBILE', os.path.join(REPO, '..', '
 sys.path.insert(0, os.path.join(DMROOT, 'dm', 'ios', 'tools'))
 import ios_metal   # noqa: E402  METAL / METALLIB / RECORD
 
+WORK = os.environ.get('KIRBY_WORK') or os.path.expanduser('~/kirby-work')   # 工作区，同 run.sh / run_mac.sh | work directory, as in run.sh / run_mac.sh
 ap = argparse.ArgumentParser()
 ap.add_argument('shlib'); ap.add_argument('out'); ap.add_argument('-j', type=int, default=os.cpu_count() or 4)
-ap.add_argument('--masks', default=os.path.expanduser('~/kirby-work/uint_masks.tsv'), help='真机记下的「键 \\t 掩码」（Documents/uint_masks.tsv 拉回来合并到这里）')
+ap.add_argument('--masks', default=os.path.join(WORK, 'uint_masks.tsv'), help='真机记下的「键 \\t 掩码」（Documents/uint_masks.tsv 拉回来合并到这里）')
+ap.add_argument('--iattr', default=os.path.join(WORK, 'iattr_masks.tsv'), help='真机记下的整数顶点属性「键 \\t 掩码」（Documents/iattr_masks.tsv）')
 ap.add_argument('--sdk', choices=('iphoneos', 'macosx'), default='iphoneos', help='编译目标；macosx 给 Mac 上的 kirbyhost')
 a = ap.parse_args()
 # --sdk macosx：同样的变换编成 macOS 版，给 Mac 上直接跑的 host/kirbyhost 用（它不走壳的现编，读的是真 metallib）
@@ -122,7 +124,7 @@ def make_uint(src, mask=None):   # mask=None：全部颜色输出；否则只改
     out = re.sub(r'out\.(' + alt + r') = (.*);', r'out.\1 = as_type<uint4>(float4(\2));', out)
     return out
 need_ia = {}
-_iap = os.path.expanduser('~/kirby-work/iattr_masks.tsv')
+_iap = a.iattr
 if os.path.exists(_iap):
     for line in open(_iap, encoding='utf-8'):
         p = line.split()

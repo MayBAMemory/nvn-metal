@@ -2,6 +2,8 @@
 
 命令都在仓库根目录下跑。
 
+**Mac 上可以一条命令做完下面全部**（含 Mac 版着色器、编宿主和 30 秒自检）：`tools/setup_mac.sh <游戏包> <prod.keys>`，或 `tools/setup_mac.sh --dump <ExeFS 目录> <RomFS 目录>`；说明见 [ai_install.md](ai_install.md)。下面是它逐步做的事，出问题时对照用。
+
 ## 需要什么
 
 1. **你自己购买的 Switch 版《星之卡比 探索发现》v1.0.0**（Title ID `01004D300C5AE000`），的游戏包（`.xci` / `.nsp`）和你自己主机的 `prod.keys`，或者已经导出的 ExeFS 和 RomFS 目录（例如在你自己的 Switch 上用 nxdumptool 导出）。仓库不带解密代码：从游戏包取文件用外部工具 [hactool](https://github.com/SciresM/hactool)，按它的说明 `make` 出来放进 `PATH`，或设 `HACTOOL=<路径>`。

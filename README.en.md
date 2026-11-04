@@ -98,7 +98,15 @@ flowchart LR
 
 You need **your own copy of the game**: Kirby and the Forgotten Land v1.0.0 for Switch (title ID `01004D300C5AE000`, no update).
 
-> **Recommended: hand it to an AI assistant.** Open this repository in Claude Code, Codex or another assistant, tell it where your own game dump and `prod.keys` (or an already exported ExeFS / RomFS) are, and ask it to follow [docs/build.md](docs/build.md) and [docs/mac.en.md](docs/mac.en.md) step by step and to deal with whatever comes up on your Mac. There are many steps and every machine differs a little; it runs each step and checks the result.
+**One command (Mac):**
+
+```bash
+tools/setup_mac.sh <your dump.xci or .nsp> <your prod.keys>     # or: tools/setup_mac.sh --dump <ExeFS dir> <RomFS dir>
+```
+
+It runs steps 1–4 of the table below, builds the host and does a 30-second headless self-test; if it is interrupted, run the same command again and it resumes. About 1.5 hours in total.
+
+> **Recommended: hand it to an AI assistant.** Open this repository in Claude Code, Codex or another assistant, tell it where your own game dump and `prod.keys` (or an already exported ExeFS / RomFS) are, and ask it to follow [docs/ai_install.en.md](docs/ai_install.en.md): that page is written for AI assistants and covers checking the machine, running the command above and what to do when something fails.
 
 | Step | What | How long |
 |---|---|---|
@@ -119,6 +127,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 | Item | Status |
 |---|---|
 | Game version | v1.0.0 only; rewrite rules and addresses are tied to the build ID |
+| `tools/setup_mac.sh` | new on 2026-11-04, its flow (skipping, resuming, failures in each step) tested only in a mock macOS environment; every command in it ran on an M5 on 2026-10-22, but the script as a whole has not yet been run from scratch on a real Mac |
 | `tools/extract_game.sh` | new on 2026-10-30, modeled on d2r-mobile, tested only against a mock hactool; the `.nsp` title-key step in particular is unverified, so reports either way are welcome. The verified path is an exported directory plus `import_dump.py` |
 | iPhone models | tested only on an iPhone 16 Pro Max; the build currently targets A18 |
 | iPhone memory | a free Apple ID lacks the increased-memory entitlement, so headroom is tight; a paid developer account helps |
@@ -139,7 +148,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 
 **Medium term: make it installable by others**
 
-- [ ] One command from a dump to a playable build, plus install notes written for AI assistants
+- [ ] One command from a dump to a playable build, plus install notes written for AI assistants (2026-11-04: `tools/setup_mac.sh` and [docs/ai_install.en.md](docs/ai_install.en.md) exist; to be run from scratch on a real Mac)
 - [ ] A double-clickable Mac `.app` with its own window title and menu
 - [ ] A shared pipeline list: everyone's recorded `pso_user.tsv` (pipeline keys and formats only, no game data) merged into the repository so nobody stutters in a new area
 - [ ] More iPhone models (A16 / A17)
@@ -162,7 +171,8 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 
 | Doc | Covers |
 |---|---|
-| [docs/build.md](docs/build.md) | Full commands to build on a Mac from your own dump (Chinese) |
+| [docs/ai_install.en.md](docs/ai_install.en.md) | Install notes for AI assistants: one command to a playable build, and what to do when it fails |
+| [docs/build.md](docs/build.md) | Full commands to build on a Mac from your own dump, i.e. what `tools/setup_mac.sh` does (Chinese) |
 | [docs/mac.en.md](docs/mac.en.md) | Playing on the Mac: keys, co-op, saves, sound, video, 60 fps, stutter |
 | [ios/README.md](ios/README.md) | iOS app: signing, building, installing, pushing the RomFS (Chinese) |
 | [docs/development.en.md](docs/development.en.md) | Development rules and iPhone status ([full Chinese version](docs/development.md)) |
