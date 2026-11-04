@@ -129,7 +129,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 | Game version | v1.0.0 only; rewrite rules and addresses are tied to the build ID |
 | `tools/setup_mac.sh` | new on 2026-11-04, its flow (skipping, resuming, failures in each step) tested only in a mock macOS environment; every command in it ran on an M5 on 2026-10-22, but the script as a whole has not yet been run from scratch on a real Mac |
 | `tools/extract_game.sh` | new on 2026-10-30, modeled on d2r-mobile, tested only against a mock hactool; the `.nsp` title-key step in particular is unverified, so reports either way are welcome. The verified path is an exported directory plus `import_dump.py` |
-| iPhone models | tested only on an iPhone 16 Pro Max; the build currently targets A18 |
+| iPhone models | tested only on an iPhone 16 Pro Max. Since 2026-11-04 the build targets A14 (Metal 4's minimum; it was A18), so A14–A17 phones should install, untested; phones with less than 8 GB of memory are likely not enough |
 | iPhone memory | a free Apple ID lacks the increased-memory entitlement, so headroom is tight; a paid developer account helps |
 | iOS video | iOS has no VP9 hardware decoder entry point, so cutscenes are skipped for now |
 | Geometry shaders | 10 skipped |
@@ -150,7 +150,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 - [ ] One command from a dump to a playable build, plus install notes written for AI assistants (2026-11-04: `tools/setup_mac.sh` and [docs/ai_install.en.md](docs/ai_install.en.md) exist; to be run from scratch on a real Mac)
 - [ ] A double-clickable Mac `.app` with its own window title and menu (2026-11-04: `tools/mac_app.sh` and `host/kirby_app.m` exist, to be verified on a real Mac; the package only works on the Mac that built it)
 - [ ] A shared pipeline list: everyone's recorded `pso_user.tsv` (pipeline keys and formats only, no game data) merged into the repository so nobody stutters in a new area (2026-11-04: the mechanism exists, `pso/shared.tsv` + `tools/pso_merge.py`; the list is still empty, waiting for the first data)
-- [ ] More iPhone models (A16 / A17)
+- [ ] More iPhone models (A16 / A17) (2026-11-04: build target lowered to A14, awaiting real tests)
 - [ ] Test the local co-op join flow
 
 **Long term**

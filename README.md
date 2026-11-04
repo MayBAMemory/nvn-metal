@@ -129,7 +129,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 | 游戏版本 | 只做了 v1.0.0；改写规则和地址按构建号绑定，别的版本要重新适配 |
 | `tools/setup_mac.sh` | 2026-11-04 新加，只在模拟的 macOS 环境里测过流程（跳过、续跑、各步出错）；里面每一步的命令都是 2026-10-22 在 M5 上实际跑通过的，但整条脚本还没在真 Mac 上从头跑过 |
 | `tools/extract_game.sh` | 2026-10-30 新加，照 d2r-mobile 的做法写，只用模拟的 hactool 测过；`.nsp` 的标题密钥那一步尤其没验过，跑通或跑不通都欢迎告诉我们。已经验过的路是导出目录再 `import_dump.py` |
-| iPhone 机型 | 只在 iPhone 16 Pro Max 上测过，编译目标目前是 A18 |
+| iPhone 机型 | 只在 iPhone 16 Pro Max 上测过。编译目标 2026-11-04 起降到 A14（Metal 4 的下限，原来是 A18），A14–A17 的机型理论上能装，没测过；内存少于 8 GB 的机型很可能不够用 |
 | iPhone 内存 | 免费 Apple ID 没有「提高内存上限」权限，余量很紧；付费开发者账号能缓解 |
 | iOS 视频 | iOS 没有 VP9 硬解入口，过场动画先空播 |
 | 几何着色器 | 10 份跳过 |
@@ -150,7 +150,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 - [ ] 一条命令从导出目录做到能玩，加一份给 AI 助理的安装说明（2026-11-04 已有 `tools/setup_mac.sh` 和 [docs/ai_install.md](docs/ai_install.md)，待真 Mac 上从头跑通）
 - [ ] Mac 上打包成可以双击的 `.app`，窗口标题和菜单换成自己的（2026-11-04 已有 `tools/mac_app.sh` 和 `host/kirby_app.m`，待真 Mac 上验证；现在的包只能在构建它的那台 Mac 上用）
 - [ ] 共享管线清单：大家玩过记下的 `pso_user.tsv`（只有管线的键和格式，不含游戏数据）汇总进仓库，所有人首次进场景都不卡（2026-11-04 机制已有：`pso/shared.tsv` + `tools/pso_merge.py`，清单还是空的，等第一份数据）
-- [ ] 支持更多 iPhone 机型（A16 / A17）
+- [ ] 支持更多 iPhone 机型（A16 / A17）（2026-11-04 编译目标已降到 A14，待有人实测）
 - [ ] 本地双人的加入流程实测
 
 **长期**

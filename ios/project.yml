@@ -62,6 +62,6 @@ targets:
       KIRBY_BUILD_NUMBER: "1"
       ENABLE_BITCODE: NO
       GCC_C_LANGUAGE_STANDARD: gnu11
-      OTHER_CFLAGS: $(inherited) -mcpu=apple-a18 -Wno-unused-function   # 宿主汇编里有 LSE 原子指令，缺省基线不认；iPhone 16 Pro Max = A18 Pro | the host assembly uses LSE atomics, which the default baseline rejects
+      OTHER_CFLAGS: $(inherited) -mcpu=apple-a14 -Wno-unused-function   # 宿主汇编里有 LSE 原子指令，缺省基线不认。取 A14：图形层用的 Metal 4 本来就要 A14 起，再高没有好处、只会在旧机型上出非法指令（原来是 A18） | the host assembly uses LSE atomics, which the default baseline rejects. A14 because Metal 4 (graphics layer) needs A14+ anyway; a higher target only risks illegal instructions on older phones (was A18)
       CLANG_ENABLE_OBJC_ARC: YES
       DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
