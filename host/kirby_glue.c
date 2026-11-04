@@ -67,3 +67,24 @@ void dm_touch_host_live_enable(void) {}
 uint64_t svc_host_call(int num, uint64_t *regs) { (void)num; (void)regs; return 0; }   // 0x80 起的宿主调用只由 D2R 的剪口产生 | host calls from 0x80 up are only produced by D2R cuts
 void tact_prefetch_stop(void) {}
 void granny_prof_dump(void) {}
+
+// ---- 上游 main（fae8c68 起）共用文件新调到的 D2R 专属函数（dm_cam.c、dm_custom.c、dm_padmode.c、diag.c、touch_mac.c、dm_cursor.c、dm_uiscreen.c、dm_world.c）----
+// 现在的基线 6a2474d 上没人调，留着无害；换到 patches/d2r-mobile-kirby-fae8c68.patch 时要用（清单由 tools/link_scan.py 得出）。一律「没有这项功能」。
+// ---- D2R-only functions newly called by shared files from upstream main (fae8c68 on); unused on the current base 6a2474d, harmless there; needed with
+// patches/d2r-mobile-kirby-fae8c68.patch (list from tools/link_scan.py). All return "this feature does not exist". ----
+int dm_cam_mode(void) { return 0; }                   // D2R 的越肩 / 第一人称镜头：关 | D2R's over-the-shoulder / first-person camera: off
+int dm_cam_want_dir(float *wx, float *wz) { (void)wx; (void)wz; return 0; }
+void dm_cam_publish(const float vpo[16], const float ivpo[16], const float vpp[16], const float ivpp[16], float px, float pz) { (void)vpo; (void)ivpo; (void)vpp; (void)ivpp; (void)px; (void)pz; }
+float dm_cam_take_turn(void) { return 0; }
+double dm_cam_turn_age(void) { return 1e9; }
+float dm_cam_tilt_get(void) { return 0; }
+void dm_cam_tilt_clamp(float lo, float hi) { (void)lo; (void)hi; }
+int dm_cam_clearance(float bx, float bz, float *dist, float *px, float *pz) { (void)bx; (void)bz; (void)dist; (void)px; (void)pz; return 0; }
+int dm_custom_voice_explicit(void) { return -1; }     // 「没设过」 | "never set"
+void dm_padmode_request_glyph(int g) { (void)g; }
+int dm_save_wait(double max_s, uint64_t *commits, int *froze, double *ms) { (void)max_s; if (commits) *commits = 0; if (froze) *froze = 0; if (ms) *ms = 0; return 0; }   // D2R 退出前等存盘 | D2R waits for a save before quitting
+int dm_touch_host_world_active(void) { return 0; }
+void dm_ui_gen_bump(int why) { (void)why; }
+void dm_uiscreen_enable(int m) { (void)m; }
+void dm_world_watch(int type, uint32_t cls) { (void)type; (void)cls; }
+int dm_world_watch_pos(float *nx, float *ny) { (void)nx; (void)ny; return 0; }

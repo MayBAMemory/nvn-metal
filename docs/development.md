@@ -9,6 +9,7 @@
 3. 改上游 `dm/` 只在 `patches/` 里体现；要在卡比这边覆盖的行为，写到 `host/` 并用文件名后缀区分（`hle_*_kirby.c`）。
 4. 每个任务在 `reports/<任务号>.md` 写报告；`TASKS.md` 里只改自己那一行的状态。
 5. 改了 C 代码就跑 `python -I tools/syntax_check.py`：对宿主要编的 C 文件做 arm64 苹果目标的语法和类型检查（用 `tools/applestub/` 的最小系统头替身）。只因替身缺声明而报错时补替身，不要改源码迁就替身。
+6. 动了 `host/Makefile` 的文件清单、或换了上游基线，再跑 `python3 -I tools/link_scan.py`：按源码找「卡比编的文件调用、却只在不编的 D2R 专属文件里定义」的函数（语法检查只编不链，查不到），有就在 `host/kirby_glue.c` 补中性实现。2026-11-04 靠它查出不编 `app_mac.m` 后缺 `dm_front_navigation`。
 
 ## 测试和调试
 

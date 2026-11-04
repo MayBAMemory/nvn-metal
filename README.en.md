@@ -92,7 +92,7 @@ flowchart LR
 | iOS app | `ios/` | App shell, on-screen pad, build and install |
 | Records | `analysis/`, `reports/`, `docs/` | What each task did, how to reproduce it, and the numbers |
 
-**Why you can trust it:** every step has a reproducible check. The rewrite of the three modules has structure and equivalence checks (`tools/structck_kirby.py`, `tools/equiv_kirby.py`); the import tools have regression tests (`tools/test_extractors.py`); the host C code has an arm64 Apple-target syntax check (`tools/syntax_check.py`); performance changes come with A/B numbers. There is one report per task in [`reports/`](reports).
+**Why you can trust it:** every step has a reproducible check. The rewrite of the three modules has structure and equivalence checks (`tools/structck_kirby.py`, `tools/equiv_kirby.py`); the import tools have regression tests (`tools/test_extractors.py`); the host C code has an arm64 Apple-target syntax check (`tools/syntax_check.py`) and an approximate link check (`tools/link_scan.py`); performance changes come with A/B numbers. There is one report per task in [`reports/`](reports).
 
 ## Getting started
 
@@ -155,7 +155,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 
 **Long term**
 
-- [ ] Catch up with the latest d2r-mobile `main` (the patch currently conflicts in 6 files)
+- [ ] Catch up with the latest d2r-mobile `main` (2026-11-04: the patch is ported to `fae8c68` as `patches/d2r-mobile-kirby-fae8c68.patch`, conflicts merged, syntax and link checks pass; the rewrite, build and play still need redoing on a Mac, see [patches/README.md](patches/README.md))
 - [ ] Updated game versions
 - [ ] iPad
 

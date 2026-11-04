@@ -92,7 +92,7 @@ flowchart LR
 | iOS App | `ios/` | App 外壳、屏幕手柄、出包装机 |
 | 分析记录 | `analysis/`、`reports/`、`docs/` | 每个任务做了什么、怎么复现、数字是多少 |
 
-**为什么可信：** 每一步都留了可复现的核对。三个模块的改写有结构核对和等价核对（`tools/structck_kirby.py`、`tools/equiv_kirby.py`）；导入和解包工具有回归测试（`tools/test_extractors.py`）；宿主 C 代码有 arm64 苹果目标的语法检查（`tools/syntax_check.py`）；性能改动都附 A/B 数字。每个任务一份报告，在 [`reports/`](reports)。
+**为什么可信：** 每一步都留了可复现的核对。三个模块的改写有结构核对和等价核对（`tools/structck_kirby.py`、`tools/equiv_kirby.py`）；导入和解包工具有回归测试（`tools/test_extractors.py`）；宿主 C 代码有 arm64 苹果目标的语法检查（`tools/syntax_check.py`）和近似的链接检查（`tools/link_scan.py`）；性能改动都附 A/B 数字。每个任务一份报告，在 [`reports/`](reports)。
 
 ## 开始使用
 
@@ -155,7 +155,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 
 **长期**
 
-- [ ] 跟上 d2r-mobile 最新的 `main`（目前补丁有 6 个文件冲突）
+- [ ] 跟上 d2r-mobile 最新的 `main`（2026-11-04 已把补丁移到 `fae8c68`：`patches/d2r-mobile-kirby-fae8c68.patch`，冲突都合了、语法和链接检查过了；还要在 Mac 上重跑改写、编译和实测，见 [patches/README.md](patches/README.md)）
 - [ ] 游戏更新后的版本
 - [ ] iPad
 

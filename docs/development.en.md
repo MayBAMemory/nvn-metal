@@ -9,6 +9,7 @@ The full Chinese version, with test variables and pitfalls, is [development.md](
 3. Changes to upstream `dm/` live in `patches/`; Kirby-only overrides go in `host/` with a `_kirby` filename suffix (`hle_*_kirby.c`).
 4. Write a report per task in `reports/<task id>.md`; only change your own row's status in `TASKS.md`.
 5. After changing C code run `python -I tools/syntax_check.py`: an arm64 Apple-target syntax and type check of the host's C files against the minimal system-header stand-ins in `tools/applestub/`. When a failure is only a missing declaration in a stand-in, extend the stand-in — do not edit the source to suit it.
+6. After changing the file list in `host/Makefile` or the upstream base, run `python3 -I tools/link_scan.py`: it finds functions called from files Kirby builds but defined only in D2R-only files it does not build (the syntax check compiles without linking and cannot see these); add neutral implementations to `host/kirby_glue.c`. On 2026-11-04 it caught the missing `dm_front_navigation` after `app_mac.m` was dropped.
 
 ## iPhone status (2026-10-22)
 
