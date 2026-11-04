@@ -31,5 +31,7 @@ K05 列出的 53 个函数中，有 46 个已经写好，另外 4 个 D2R 本来
 
 ## 留给 H4（运行时）的
 
-- 通道重排要在回放层建贴图视图时生效（`MTLTextureSwizzleChannels`）；深度钳制可以用 `setDepthClipMode`。看到对应的报红再接。
+- 通道重排要在回放层建贴图视图时生效（`MTLTextureSwizzleChannels`），看到对应的报红再接。
+- 深度钳制（2026-11-04 接上）：`nvnCommandBufferSetDepthClamp` 记成状态块 kind 6（1 字节，`hle_nvn.c`），回放层存进 `S.dclamp`，每次绘制设 `setDepthClipMode`（开 = Clamp）。不进管线键、不置脏。卡比只有 1 个调用点（`main+0x516694`）。没在机器上验过。
+- 贴图没 Finalize 就重新初始化（2026-11-04）：卡比会对同一个 `NVNtexture` 再调 `nvnTextureInitialize`。原来一律清零、换新序号，旧序号的 Metal 贴图没人放（iOS 上内存一直涨）。现在参数完全相同（描述、池、偏移、布局）就沿用旧序号（真机上内容在内存里，重新初始化不丢，沿用序号也保住了 Metal 贴图里的内容）；参数不同才换新序号，旧的交给 `mtl_tex_orphan`：贴图池登记（`g_treg` 存的是 `tex_t` 副本、按序号找 Metal 贴图）里还有引用就先挂着，等那条登记被覆盖再放。日志每 1000 次重新初始化、每放 500 张各打一行。没在机器上验过。
 - `GetCommandMemoryUsed` 是近似值（本次录制已用的字节数）。如果游戏拿它来决定什么时候补命令内存，要再核对。

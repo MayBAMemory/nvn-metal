@@ -1,5 +1,5 @@
 diff --git a/dm/gfx/nvn/hle_nvn.c b/dm/gfx/nvn/hle_nvn.c
-index d64e95f..a2b1196 100644
+index d64e95f..4d0a19d 100644
 --- a/dm/gfx/nvn/hle_nvn.c
 +++ b/dm/gfx/nvn/hle_nvn.c
 @@ -164,7 +164,8 @@ NVN(nvnDeviceGetSeparateSamplerHandle, NVNseparateSamplerHandle, const NVNdevice
@@ -12,7 +12,39 @@ index d64e95f..a2b1196 100644
  NVN(nvnDeviceSetDepthMode, void, NVNdevice *d, NVNdepthMode m) { ((dev_t_ *)d)->depth_mode = m; LOG("[nvn] 深度模式 %s", m ? "近=0（同 D3D / Metal）" : "近=-w（GL）"); }
  NVN(nvnDeviceFinalizeCommandHandle, void, NVNdevice *d, NVNcommandHandle h) { (void)d; (void)h; }
  
-@@ -299,6 +300,23 @@ NVN(nvnTextureReadTexelsStrided, void, const NVNtexture *t, const NVNtextureView
+@@ -241,14 +242,30 @@ NVN(nvnTextureBuilderGetStorageAlignment, size_t, const NVNtextureBuilder *b) {
+ }
+ #define TX(t) ((tex_t *)(t))
+ #define CTX(t) ((const tex_t *)(t))
++// 没 Finalize 就重新初始化同一个贴图对象（卡比会这样做）：原来直接清零换新序号，旧序号的 Metal 贴图就没人放了（iOS 上的内存泄漏）。
++// 现在：参数完全相同（描述、池、偏移、布局）就沿用旧序号——真机上内容在内存里，重新初始化不丢内容，沿用序号也就保住了 Metal 贴图里的内容；
++// 参数不同才换新序号，旧的交给 mtl_tex_orphan，贴图池里还有登记引用它时先不放（渲染目标的内容只在 Metal 贴图里）。
++// Re-initializing the same texture object without Finalize (Kirby does this): it used to be zeroed with a new serial, and nobody released the old serial's Metal texture (a memory leak on iOS).
++// Now: identical parameters (descriptor, pool, offset, layout) keep the old serial -- on hardware the content lives in memory and survives re-initialization, and keeping the serial keeps the Metal texture's content;
++// only different parameters get a new serial, and the old one goes to mtl_tex_orphan, which holds it while a texture pool registration still refers to it (render target content lives only in the Metal texture).
++static uint64_t g_tex_reinit_same, g_tex_reinit_new;
+ NVN(nvnTextureInitialize, NVNboolean, NVNtexture *t, const NVNtextureBuilder *b) {
+     const tex_builder_t *s = (const tex_builder_t *)b; tex_t *o = TX(t);
++    tex_t prev; int re = o->magic == MAGIC('T', 'E', 'X', 0) && o->serial; if (re) prev = *o;
+     memset(o, 0, sizeof *o);
+     o->magic = MAGIC('T', 'E', 'X', 0); o->d = s->d; o->pool = s->pool; o->off = s->off;
+     o->has_layout = s->has_layout; memcpy(o->layout, s->layout, 8);
+     nvn_tex_layout(&o->d, &o->L);
+     o->mem = s->pool && s->pool->mem ? s->pool->mem + s->off : NULL;
+-    o->serial = nvn_new_serial();
++    if (re && !memcmp(&prev.d, &o->d, sizeof o->d) && prev.pool == o->pool && prev.off == o->off && prev.has_layout == o->has_layout && !memcmp(prev.layout, o->layout, 8)) {
++        o->serial = prev.serial; g_tex_reinit_same++;
++    } else {
++        o->serial = nvn_new_serial();
++        if (re) { mtl_tex_orphan(prev.serial); g_tex_reinit_new++; }
++    }
++    if (re && (g_tex_reinit_same + g_tex_reinit_new) % 1000 == 1)
++        LOG("[nvn] 贴图没 Finalize 就重新初始化：累计 %llu 次（参数相同沿用序号 %llu，换新序号 %llu）", (unsigned long long)(g_tex_reinit_same + g_tex_reinit_new),
++            (unsigned long long)g_tex_reinit_same, (unsigned long long)g_tex_reinit_new);
+     OLOG("Texture %p %ux%ux%u lv%u fmt=%#x tgt=%d flags=%#x size=%#llx", (void *)t, o->d.width, o->d.height, o->d.depth,
+          o->d.levels, o->d.format, o->d.target, o->d.flags, o->L.size);
+     return 1;
+@@ -299,6 +316,23 @@ NVN(nvnTextureReadTexelsStrided, void, const NVNtexture *t, const NVNtextureView
      read_texels(CTX(t), (const view_t *)v, r, dst, row, img);
  }
  NVN(nvnTextureInvalidateTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { (void)t; (void)v; (void)r; }
@@ -36,7 +68,7 @@ index d64e95f..a2b1196 100644
  
  // ---------- 采样器 ----------
  // ---------- Samplers ----------
-@@ -749,7 +767,11 @@ void dm_gfx_suspend(int on) {
+@@ -749,7 +783,11 @@ void dm_gfx_suspend(int on) {
      pthread_mutex_unlock(&g_susp_mu);
      if (on) { mtl_drain(); LOG("[nvn] 图形挂起：在途 GPU 工作已清空"); } else LOG("[nvn] 图形恢复");
  }
@@ -48,7 +80,7 @@ index d64e95f..a2b1196 100644
      gfx_enter();
      uint64_t t0 = now_ns(), c0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), i0, y0, s0 = thr_sys_ns(); thr_counts(&i0, &y0);
      ((queue_t *)q)->submits++;
-@@ -767,6 +789,138 @@ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h)
+@@ -767,6 +805,139 @@ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h)
      gfx_leave();
  }
  
@@ -176,7 +208,8 @@ index d64e95f..a2b1196 100644
 +// 只改 GPU 固定功能、回放层没有对应的：取缺省值时什么都不用做，非缺省值报红一次
 +// GPU fixed-function changes the replay layer has no counterpart for: nothing to do at the default value, report a failure once for a non-default value
 +NVN(nvnCommandBufferSetAlphaRef, void, NVNcommandBuffer *c, float v) { (void)c; (void)v; }   // 随 alpha 测试一起做（H3） | done together with alpha test (H3)
-+NVN(nvnCommandBufferSetDepthClamp, void, NVNcommandBuffer *c, uint32_t on) { (void)c; if (B(on)) RED_ONCE_H(dclamp, "深度钳制：回放层还没接（Metal setDepthClipMode 可做）"); }
++// 深度钳制：走状态块（kind 6，载荷 1 字节），回放时每次绘制设 setDepthClipMode（nvn_mtl.m draw） | depth clamp: as a state block (kind 6, 1-byte payload); replay sets setDepthClipMode on every draw (nvn_mtl.m draw)
++NVN(nvnCommandBufferSetDepthClamp, void, NVNcommandBuffer *c, uint32_t on) { uint8_t v = B(on) ? 1 : 0; bind_state(c, 6, &v, 1); }
 +NVN(nvnCommandBufferSetRasterizerDiscard, void, NVNcommandBuffer *c, uint32_t on) { (void)c; if (B(on)) RED_ONCE_H(rdisc, "光栅化丢弃：回放层还没接"); }
 +NVN(nvnCommandBufferSetConservativeRasterEnable, void, NVNcommandBuffer *c, uint32_t on) { (void)c; if (B(on)) RED_ONCE_H(cons, "保守光栅化：Metal 没有对应"); }
 +NVN(nvnCommandBufferSetSampleMask, void, NVNcommandBuffer *c, int m) { (void)c; if ((uint32_t)m != 0xffffffffu && (m & 0xffff) != 0xffff) RED_ONCE_H(smask, "采样掩码 %#x：回放层还没接", m); }
@@ -188,7 +221,7 @@ index d64e95f..a2b1196 100644
  // Commands that only affect GPU state / only execute on the GPU: the null device only counts them (the thunk has already counted)
  static void nvn_nop(void) {}
 diff --git a/dm/gfx/nvn/nvn_mtl.m b/dm/gfx/nvn/nvn_mtl.m
-index 156a3ca..95bb233 100644
+index 156a3ca..217f854 100644
 --- a/dm/gfx/nvn/nvn_mtl.m
 +++ b/dm/gfx/nvn/nvn_mtl.m
 @@ -49,6 +49,7 @@
@@ -461,7 +494,60 @@ index 156a3ca..95bb233 100644
          NSString *k = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x", md[0], md[1], md[2], md[3], md[4], md[5], md[6], md[7]];
          NSString *zh = g_shmap[k];
          if (!zh) {   // 不在包里：查 main 本体内嵌的计算核（nvn_builtin.h） | Not in the package: look up the compute kernels embedded in the main body (nvn_builtin.h)
-@@ -2190,11 +2307,14 @@ static MTLTextureType ttype(int target, int fallback) {
+@@ -2142,15 +2259,52 @@ static treg_t *g_treg; static int g_ntreg;
+ // release write at registration, relaxed atomic read on the reader side, without entering g_rmu (the former h_ser locked and unlocked on every lookup, thousands of times per frame in the camp)
+ static _Atomic uint64_t g_tser[1 << 20];
+ static samp_par *g_sreg; static uint8_t *g_sreg_ok; static void **g_sview; static uint64_t *g_srid; static int g_nsreg;   // g_sview：采样器号 → MTLSamplerState（持有） | g_sview: sampler ID → MTLSamplerState (retained)
++static void orph_check(uint64_t old);   // 下面 mtl_tex_orphan 旁 | next to mtl_tex_orphan below
+ void mtl_reg_tex(int tid, const tex_t *t, const view_t *v) {
+     int id_ = tid; if (id_ < 0) return;
+     pthread_mutex_lock(&g_rmu);
+     if (id_ >= g_ntreg) { int n = id_ + 1024; g_treg = realloc(g_treg, n * sizeof *g_treg); memset(g_treg + g_ntreg, 0, (n - g_ntreg) * sizeof *g_treg); g_ntreg = n; }
+     g_reg_gen++;
++    uint64_t old_ser = g_treg[id_].ok ? g_treg[id_].t.serial : 0;   // 覆盖前的序号：可能是待放的（mtl_tex_orphan） | serial before overwrite: may be pending (mtl_tex_orphan)
+     if (g_treg[id_].view) { defer_obj_unref((__bridge id)g_treg[id_].view); CFRelease(g_treg[id_].view); g_treg[id_].view = NULL; g_treg[id_].view_id = g_treg[id_].view_rid = 0; }
+     g_treg[id_].ok = t != NULL; if (t) g_treg[id_].t = *t; g_treg[id_].has_v = v != NULL; if (v) g_treg[id_].v = *v;
+     if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], t ? t->serial : 0, memory_order_release);
++    int chk = g_norph && old_ser && (!t || t->serial != old_ser);
++    pthread_mutex_unlock(&g_rmu);
++    if (chk) orph_check(old_ser);
++}
++// 没 Finalize 就重新初始化、换了新序号的贴图（hle_nvn.c nvnTextureInitialize）：旧序号的 Metal 贴图要放，但贴图池登记（g_treg）存的是 tex_t 副本、
++// 按序号找 Metal 贴图，还有登记引用旧序号时放了就会换成一张空贴图（渲染目标的内容只在 Metal 贴图里）。所以先查 g_tser：没人引用就放，
++// 有就记进待放表，等引用它的登记被覆盖（mtl_reg_tex）时再查一次。扫描只在重新初始化和覆盖待放序号的登记时做。
++// A texture re-initialized without Finalize that got a new serial (hle_nvn.c nvnTextureInitialize): the old serial's Metal texture should go, but texture pool registrations (g_treg) hold tex_t copies
++// and find Metal textures by serial, so releasing it while a registration still refers to it would swap in an empty texture (render target content lives only in the Metal texture). So g_tser is checked first:
++// released when nobody refers to it, otherwise kept in a pending list and checked again when a registration referring to it is overwritten (mtl_reg_tex). Scans only happen on re-initialization and on such overwrites.
++static uint64_t *g_orph; static int g_norph, g_corph; static uint64_t g_orph_freed;
++static int tser_refs(uint64_t ser) {   // 调用方持 g_rmu | caller holds g_rmu
++    int n = g_ntreg < (1 << 20) ? g_ntreg : (1 << 20);
++    for (int i = 0; i < n; i++) if (atomic_load_explicit(&g_tser[i], memory_order_relaxed) == ser) return 1;
++    return 0;
++}
++static void orph_free(uint64_t ser) {   // 不持 g_rmu 时调 | called without g_rmu
++    serial_del(ser);
++    if (++g_orph_freed % 500 == 1) MLOG("重新初始化的贴图：放掉旧序号的 Metal 贴图累计 %llu 张（待放 %d）", (unsigned long long)g_orph_freed, g_norph);
++}
++void mtl_tex_orphan(uint64_t ser) {
++    if (!ser) return;
++    pthread_mutex_lock(&g_rmu);
++    int held = tser_refs(ser);
++    if (held) { if (g_norph == g_corph) { g_corph = g_corph ? g_corph * 2 : 64; g_orph = realloc(g_orph, g_corph * sizeof *g_orph); } g_orph[g_norph++] = ser; }
+     pthread_mutex_unlock(&g_rmu);
++    if (!held) orph_free(ser);
++}
++// mtl_reg_tex 覆盖了引用 old 的登记之后调：old 在待放表里且已没人引用就放 | called after mtl_reg_tex overwrote a registration referring to old: release old if pending and no longer referred to
++static void orph_check(uint64_t old) {
++    if (!old) return;
++    int found = 0;
++    pthread_mutex_lock(&g_rmu);
++    for (int i = 0; i < g_norph; i++) if (g_orph[i] == old) { if (!tser_refs(old)) { g_orph[i] = g_orph[--g_norph]; found = 1; } break; }
++    pthread_mutex_unlock(&g_rmu);
++    if (found) orph_free(old);
+ }
+ void mtl_reg_samp(int sid, const samp_par *sp) {
+     int id_ = sid; if (id_ < 0) return;
+@@ -2190,11 +2344,14 @@ static id<MTLTexture> tex_by_id(int tid) {   // 调用方持 g_rmu | Caller hold
      id<MTLTexture> base = tex_mtl(&rp->t);
      if (!base) return nil;
      v = base;
@@ -478,7 +564,7 @@ index 156a3ca..95bb233 100644
              base = tex_upgrade_pfv(&rp->t, base, (MTLPixelFormat)pf);
              sg = g_ser_gen;
          }
-@@ -2203,8 +2323,12 @@ static MTLTextureType ttype(int target, int fallback) {
+@@ -2203,8 +2360,12 @@ static id<MTLTexture> tex_by_id(int tid) {   // 调用方持 g_rmu | Caller hold
          NSUInteger ns = base.textureType == MTLTextureType3D ? 1 : (r.v.set_layers && r.v.nlayers ? r.v.nlayers : base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1) - s0);
          MTLTextureType tt = r.v.set_target ? ttype(r.v.target, base.textureType) : base.textureType;
          if (tt == MTLTextureType2D && ns > 1) ns = 1;
@@ -492,7 +578,15 @@ index 156a3ca..95bb233 100644
      }
      rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_ser = sg; rp->view_dirty = dg;
      return v;
-@@ -2327,7 +2451,8 @@ static MTLVertexFormat vfmt(int f) {
+@@ -2282,6 +2443,7 @@ static struct {
+     uint32_t st_vmask[2], st_wmask[2], st_ref[2];
+     p_poly_offset po; float vp[16][4]; float dr[2]; int has_vp;
+     float blend_color[4]; int64_t copy_stride;
++    uint8_t dclamp;   // nvnCommandBufferSetDepthClamp（状态块 kind 6） | (state block kind 6)
+ } S;
+ static void udc_note_draw(NvProg *pr) {
+     if (R.has_rt) for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i]) { zskip_del(R.rt.color[i]->serial); g_zskip_cand_ok[i] = 0; }   // 零源集合：真画了就不再是全零 | Zero-source set: once really drawn it is no longer all zeros
+@@ -2327,7 +2489,8 @@ static MTLVertexFormat vfmt(int f) {
          case 0x25: return MTLVertexFormatUChar4Normalized; case 0x26: return MTLVertexFormatChar4Normalized; case 0x27: return MTLVertexFormatUChar4; case 0x28: return MTLVertexFormatChar4;
          case 0x29: return MTLVertexFormatHalf4; case 0x2A: return MTLVertexFormatUShort4Normalized; case 0x2B: return MTLVertexFormatShort4Normalized; case 0x2C: return MTLVertexFormatUShort4;
          case 0x2D: return MTLVertexFormatShort4; case 0x2E: return MTLVertexFormatFloat4; case 0x2F: return MTLVertexFormatUInt4; case 0x30: return MTLVertexFormatInt4;
@@ -502,7 +596,7 @@ index 156a3ca..95bb233 100644
      }
      return MTLVertexFormatInvalid;
  }
-@@ -2348,6 +2473,74 @@ static MTLBlendFactor bfac(int f) {
+@@ -2348,6 +2511,74 @@ static os_unfair_lock g_fz_fn_lock = OS_UNFAIR_LOCK_INIT;
  static NSMutableDictionary<NSString *, id<MTLFunction>> *g_bf_fn_cache;
  static NSMutableDictionary<NSString *, id<MTLLibrary>> *g_bf_lib_cache;
  static nvn_hmap g_pso = {.klen = sizeof(pso_key)}, g_dss;
@@ -577,7 +671,7 @@ index 156a3ca..95bb233 100644
  static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged) {
      MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
      d.vertexFunction = vs->fn; d.fragmentFunction = fsfn ? fsfn : fs ? fs->fn : nil;
-@@ -2364,6 +2557,8 @@ static MTLBlendFactor bfac(int f) {
+@@ -2364,6 +2595,8 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
                  if (!hl) MLOG("【红】HILITE 着色器编译失败 %s", e.localizedDescription.UTF8String); }
              if (hl) d.fragmentFunction = [hl newFunctionWithName:[NSString stringWithFormat:@"hl%d", i]];
              break; } }
@@ -586,7 +680,7 @@ index 156a3ca..95bb233 100644
      d.rasterSampleCount = k->samples ? k->samples : 1;
      d.alphaToCoverageEnabled = k->a2c;
      for (int i = 0; i < 8; i++) {
-@@ -2383,6 +2578,17 @@ static MTLBlendFactor bfac(int f) {
+@@ -2383,6 +2616,17 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
      d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt;
      MTLVertexDescriptor *vd = [MTLVertexDescriptor vertexDescriptor];
      const nvn_refl *rf = &vs->rf;
@@ -604,7 +698,7 @@ index 156a3ca..95bb233 100644
      for (int v = 0; v < rf->nv; v++) {
          int loc = rf->v[v].loc, a = rf->v[v].nvn;   // Metal 槽 loc ← NVN 属性 a | Metal slot loc ← NVN attribute a
          MTLVertexFormat vf = a < 16 ? vfmt(k->attr[a].fmt) : MTLVertexFormatInvalid;
-@@ -2390,7 +2596,7 @@ static MTLBlendFactor bfac(int f) {
+@@ -2390,7 +2634,7 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
          // When a >= S.nattr, k.attr[a] keeps the 0 from memset, vfmt(0) is Invalid, the same fallback branch is taken and the RED_ONCE condition of fmt being non-0 does not hold.
          if (a < 16 && k->attr[a].fmt && vf == MTLVertexFormatInvalid) RED_ONCE(15, "顶点属性格式 %#x 未映射", k->attr[a].fmt);
          if (vf == MTLVertexFormatInvalid) {
@@ -613,7 +707,7 @@ index 156a3ca..95bb233 100644
              vd.attributes[loc].format = ct == NVN_CT_UINT ? MTLVertexFormatUInt4 : ct == NVN_CT_INT ? MTLVertexFormatInt4 : MTLVertexFormatFloat4;
              vd.attributes[loc].offset = 0; vd.attributes[loc].bufferIndex = 30;
              vd.layouts[30].stride = 16; vd.layouts[30].stepFunction = MTLVertexStepFunctionConstant; vd.layouts[30].stepRate = 0;
-@@ -2422,25 +2628,50 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
+@@ -2422,25 +2666,50 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
  // ---- Parallel precompile: pipelines met for the first time used to be compiled synchronously one by one on the submit thread; 9 misses in a row in one frame = 284 ms (heavy scene on a real device).
  // Now: on the first pipeline miss in a submission, scan ahead once along the remaining commands (replaying state only, no drawing) and kick all the normal-pass pipelines that will also miss later to the background to compile in parallel;
  // when the submit thread reaches that draw it only waits for 'the remaining time not yet compiled'. The compiled pipelines are identical to synchronously compiled ones (same descriptor). Pipeline keys of merged passes / specialized fragments depend on the planning result at replay time, are not predicted, and are compiled synchronously as before.
@@ -668,7 +762,7 @@ index 156a3ca..95bb233 100644
  }
  static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k) {   // 提交线程调：表里有就等它编完并取走；没有返回 nil | Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil
      pthread_mutex_lock(&g_pp_mu);
-@@ -2449,6 +2680,17 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
+@@ -2449,6 +2718,17 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k) {   // 提交
      pthread_mutex_unlock(&g_pp_mu);
      return ps;
  }
@@ -686,7 +780,7 @@ index 156a3ca..95bb233 100644
  static __unsafe_unretained id<MTLRenderPipelineState> pso_get(NvProg *pr, MTLRenderPassDescriptor *unused) {
      (void)unused;
      __unsafe_unretained NvShader *vs = pr->sh[0], *fs = pr->sh[1];
-@@ -2457,17 +2699,37 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // 
+@@ -2457,17 +2737,37 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get(NvProg *pr, MTLRen
      if (g_pso_lmap) { memcpy(k.lmap, g_pso_lmap, 8); k.fsfn = (__bridge void *)g_pso_fsfn; }
      __unsafe_unretained id<MTLRenderPipelineState> cached = hm_get_id(&g_pso, &k);
      if (cached) return cached;
@@ -731,7 +825,7 @@ index 156a3ca..95bb233 100644
      pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
      pso_record("R\t%s\n", shex);
      pso_user_record("R\t%s\n", shex);
-@@ -2557,10 +2819,13 @@ static void warm_start(void) {
+@@ -2557,10 +2857,13 @@ static void warm_start(void) {
          paths = @[@(e)];
      } else {
          NSString *seed = [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"];
@@ -747,7 +841,7 @@ index 156a3ca..95bb233 100644
          paths = all;
      }
      if (!g_warm_items) g_warm_items = [NSMutableArray array];
-@@ -2747,6 +3012,9 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
+@@ -2747,6 +3050,9 @@ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, in
                         (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.depth,
                         (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
                         (unsigned long)(t.parentTexture ? t.parentRelativeSlice : 0), (unsigned long)t.arrayLength, (unsigned long)t.textureType);
@@ -757,7 +851,18 @@ index 156a3ca..95bb233 100644
              if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 7][b->dpf & 3]; }
              slots[aid] = trid;
              USE(t, MTLResourceUsageRead);
-@@ -4396,7 +4664,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+@@ -3041,8 +3347,9 @@ static int state_op(uint32_t op, const void *a) {
+                 case 3: dst = &S.ms; n = sizeof S.ms; break;
+                 case 4: dst = &S.poly; n = sizeof S.poly; break;
+                 case 5: dst = &S.ds; n = sizeof S.ds; break;
++                case 6: dst = &S.dclamp; n = 1; break;   // 编码器状态，每次绘制都设：不碰管线 / 深度模板对象 | encoder state set on every draw: no pipeline / depth-stencil object involved
+             }
+-            if (dst && memcmp(dst, b->bytes, n)) { memcpy(dst, b->bytes, n); if (b->kind == 5) g_dss_dirty = 1; else g_pso_dirty = 1; }
++            if (dst && memcmp(dst, b->bytes, n)) { memcpy(dst, b->bytes, n); if (b->kind == 5) g_dss_dirty = 1; else if (b->kind != 6) g_pso_dirty = 1; }
+             break;
+         }
+         case OP_BIND_VATTR: { const p_bind_vattr *b = a; if (S.nattr != b->n || memcmp(S.attr, b->st, 4 * b->n)) { memcpy(S.attr, b->st, 4 * b->n); S.nattr = b->n; g_pso_dirty = 1; } break; }
+@@ -4396,9 +4703,10 @@ frz_plain:;
      enc_r_scissor(en, sc);
      if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) return;
      enc_r_cull(en, S.poly.cull == NVN_FACE_FRONT ? MTLCullModeFront : S.poly.cull == NVN_FACE_BACK ? MTLCullModeBack : MTLCullModeNone);
@@ -765,8 +870,11 @@ index 156a3ca..95bb233 100644
 +    enc_r_winding(en, (S.poly.front == NVN_FRONT_FACE_CCW) != (g_nvn_gl_origin != 0) ? MTLWindingCounterClockwise : MTLWindingClockwise);   // GL 原点：y 取反后绕序反过来 | GL origin: winding reverses after the y negation
      enc_r_fill(en, S.poly.mode == NVN_POLYGON_MODE_LINE ? MTLTriangleFillModeLines : MTLTriangleFillModeFill);
      if (S.poly.offset_en & 4) enc_r_depth_bias(en, S.po.units, S.po.factor, S.po.clamp); else enc_r_depth_bias(en, 0, 0, 0);
++    enc_r_depth_clip(en, !S.dclamp);   // 深度钳制开 = Metal 的 clamp | depth clamp on = Metal clamp
      enc_r_blend_color(en, S.blend_color[0], S.blend_color[1], S.blend_color[2], S.blend_color[3]);
-@@ -4483,14 +4751,27 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+     for (int s_ = 0; s_ < 16; s_++) {
+         if (!S.vbuf[s_].address) continue;
+@@ -4483,14 +4791,27 @@ frz_plain:;
              for (uint32_t q = 0; q < n; q++) { uint32_t b = q * 4; uint32_t v[6] = {b, b + 1, b + 2, b, b + 2, b + 3}; memcpy(ix + q * 6, v, 24); }
              g_quad_ib = [g_dev newBufferWithBytes:ix length:n * 24 options:MTLResourceStorageModeShared]; g_quad_gpu = g_quad_ib.gpuAddress; res_add(g_quad_ib); free(ix);
          }
@@ -797,7 +905,7 @@ index 156a3ca..95bb233 100644
          if (!mtl_gpu_addr(di->ibuf, 1, &mb, &mo, &gpu)) { RED_ONCE(22, "索引缓冲不在内存池里"); return; }
          use_rec("buf", di->ibuf, (uint64_t)di->count * (di->itype == 1 ? 2 : 4), 0, NULL);
          if (di->count) enc_r_draw_indexed(en, mp, di->count, di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32, gpu, ((__bridge id<MTLBuffer>)mb).length - mo,
-@@ -4664,6 +4945,42 @@ void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNc
+@@ -4664,6 +4985,42 @@ void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNc
      enc_b_end(b); [cb commit]; [cb waitUntilCompleted];
      for (int z = 0; z < nz; z++) for (size_t y = 0; y < hb; y++) memcpy(dst + z * img + y * row, (uint8_t *)buf.contents + z * wb * hb + y * wb, wb);
  }
@@ -840,7 +948,7 @@ index 156a3ca..95bb233 100644
  static void copy_b2t(const p_copy_b2t *c) {
      if (c->tex) zskip_del(c->tex->serial);
      id<MTLTexture> t = tex_mtl(c->tex);
-@@ -5130,7 +5447,7 @@ void mtl_exec(const uint8_t *p) {
+@@ -5130,7 +5487,7 @@ void mtl_exec(const uint8_t *p) {
  
  // ---------- 出图：交换链贴图画到 CAMetalLayer；可选截图 ----------
  // ---------- Present: draw the swapchain texture to the CAMetalLayer; optional screenshot ----------
@@ -849,7 +957,7 @@ index 156a3ca..95bb233 100644
  static id<MTLSamplerState> g_blit_samp;
  static uint64_t g_present_n;
  uint64_t mtl_present_count(void) { return g_present_n; }   // 实际出图次数（发热归因 DM_HEAT 算出图帧率） | Actual present count (heat attribution DM_HEAT computes the present frame rate)
-@@ -5402,26 +5719,37 @@ int mtl_display_hz(void) {
+@@ -5402,26 +5759,37 @@ int mtl_display_hz(void) {
  static _Atomic uint64_t g_present_stall_ns;   // 单测用：出图线程每次出图前额外停顿（模拟 drawable 迟迟不可用） | For unit tests: an extra pause before each present on the present thread (simulating a drawable that stays unavailable)
  static CAMetalLayer *g_present_layer_resident;
  void mtl_present_test_stall(uint64_t ns) { g_present_stall_ns = ns; }
@@ -894,7 +1002,7 @@ index 156a3ca..95bb233 100644
  }
  // 出图仅采NVN声明的有效源矩形；与原始交换链读回截图分开。边缘钳到有效区纹素中心，双线性不读外侧黑纹素。
  // Present samples only the valid source rectangle declared by NVN; kept separate from the raw swapchain readback screenshot. Edges are clamped to the texel centers of the valid area, so bilinear does not read the black texels outside.
-@@ -5438,7 +5766,7 @@ static int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src, id<MTLTex
+@@ -5438,7 +5806,7 @@ static int present_encode(id<MTLCommandBuffer> cb, id<MTLTexture> src, id<MTLTex
      if (memcmp(meta, last_crop, sizeof meta)) { memcpy(last_crop, meta, sizeof meta);
          MLOG("出图裁切：原纹理 %lux%lu，有效 %lu,%lu %lux%lu → 目标 %lux%lu", (unsigned long)src.width, (unsigned long)src.height,
               (unsigned long)cx, (unsigned long)cy, (unsigned long)cw, (unsigned long)ch, (unsigned long)dst.width, (unsigned long)dst.height); }
@@ -903,7 +1011,7 @@ index 156a3ca..95bb233 100644
      MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
      // 保持游戏画面宽高比居中，余下留黑边（屏幕比例与游戏不同时不拉伸，如 iPhone 约 19.5:9 对游戏 16:9）；
      // 比例差 < 1%（全屏口径下游戏宽度取 8 的倍数带来的零头，如 1952x900 对 2868x1320 差 0.17%）直接铺满，不留几像素的边
-@@ -5473,7 +5801,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+@@ -5473,7 +5841,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
          }
          cx = crop[0]; cy = crop[1]; cw = crop[2]; ch = crop[3];
      }
@@ -912,7 +1020,7 @@ index 156a3ca..95bb233 100644
      double dw = dst.width, dh = dst.height, s = fmin(dw / cw, dh / ch);
      MTLViewport vp = {floor((dw - cw * s) / 2), floor((dh - ch * s) / 2), round(cw * s), round(ch * s), 0, 1};
      if (fabs((dw / dh) / ((double)cw / ch) - 1) < 0.01) vp = (MTLViewport){0, 0, dw, dh, 0, 1};
-@@ -5491,6 +5819,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+@@ -5491,6 +5859,7 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
      [g_present_args setSamplerState:g_blit_samp.gpuResourceID atIndex:0];
      float *uv = g_present_uv[uv_i].contents;
      uv[0] = (float)cx / src.width; uv[1] = (float)cy / src.height; uv[2] = (float)cw / src.width; uv[3] = (float)ch / src.height;
@@ -920,7 +1028,7 @@ index 156a3ca..95bb233 100644
      uv[4] = (cx + 0.5f) / src.width; uv[5] = (cy + 0.5f) / src.height; uv[6] = (cx + cw - 0.5f) / src.width; uv[7] = (cy + ch - 0.5f) / src.height;
      [g_present_args setAddress:g_present_uv[uv_i].gpuAddress atIndex:0];
      [en setViewport:vp]; [en setRenderPipelineState:g_blit_pso];
-@@ -5545,6 +5874,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -5545,6 +5914,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
          nshot = 0; const char *e = getenv("DM_NVN_SHOT"), *c = e ? strchr(e, ':') : NULL;
          if (c) { shot_path = c + 1; for (const char *q = e; q < c && nshot < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : c) shots[nshot++] = atol(q); }
      }
@@ -933,7 +1041,7 @@ index 156a3ca..95bb233 100644
      for (int i = 0; i < nshot; i++) if ((long)g_present_n == shots[i]) { char path[1024]; snprintf(path, sizeof path, shot_path, (int)g_present_n); mtl_finish_gpu(); shot(src, path, 1, crop); }
      pthread_mutex_lock(&g_shotq_mu);
      for (int i = 0; i < g_nshotq;) if (g_present_n >= g_shotq[i].frame) { mtl_finish_gpu(); shot(src, g_shotq[i].path, 1, crop); g_shotq[i] = g_shotq[--g_nshotq]; } else i++;
-@@ -5556,7 +5891,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -5556,7 +5931,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
  #if TARGET_OS_OSX
      if (!layer.displaySyncEnabled) layer.displaySyncEnabled = YES;   // 窗口模式按显示器垂直同步，防撕裂 | Windowed mode follows the display's vsync to prevent tearing
  #endif
@@ -943,7 +1051,7 @@ index 156a3ca..95bb233 100644
      uint64_t dt0 = now_ns();
      id<CAMetalDrawable> dr = supplied ? supplied : [layer nextDrawable];
 diff --git a/dm/gfx/nvn/nvn_obj.h b/dm/gfx/nvn/nvn_obj.h
-index ee45b29..f21bd23 100644
+index ee45b29..d5bc438 100644
 --- a/dm/gfx/nvn/nvn_obj.h
 +++ b/dm/gfx/nvn/nvn_obj.h
 @@ -34,7 +34,9 @@ typedef struct {
@@ -968,6 +1076,15 @@ index ee45b29..f21bd23 100644
  typedef struct { uint32_t magic, fenced; uint64_t fence; } sync_t;                            FITS(sync_t, NVNsync);
  typedef struct { const pool_t *pool; int64_t off; } ev_builder_t;                             FITS(ev_builder_t, NVNeventBuilder);
  typedef struct { uint32_t magic; volatile uint32_t *val; } ev_t;                              FITS(ev_t, NVNevent);
+@@ -103,7 +109,7 @@ typedef struct { int32_t first, n; float v[16][6]; } p_viewports;          // x,
+ typedef struct { int32_t x, y, w, h; } p_scissor;
+ typedef struct { float n, f; } p_depth_range;
+ typedef struct { const prog_t *prog; int32_t stages; } p_bind_program;
+-typedef struct { int32_t kind; uint8_t bytes[0x18]; } p_bind_state;      // kind：0 blend 1 color 2 chmask 3 ms 4 poly 5 ds
++typedef struct { int32_t kind; uint8_t bytes[0x18]; } p_bind_state;      // kind：0 blend 1 color 2 chmask 3 ms 4 poly 5 ds 6 深度钳制（1 字节） | 6 depth clamp (1 byte)
+ typedef struct { int32_t first, n; uint32_t st[16]; } p_bind_vattr;
+ typedef struct { int32_t first, n; vs_st st[16]; } p_bind_vstream;
+ typedef struct { int32_t first, n; NVNbufferRange r[16]; } p_bind_vbuf;
 @@ -111,7 +117,7 @@ typedef struct { int32_t stage, index; uint64_t addr, size; } p_bind_buf;  // UB
  typedef struct { int32_t stage, first, n; uint64_t h[32]; } p_bind_handles; // 分离贴图 / 采样器句柄 | Separate texture / sampler handles
  typedef struct { int32_t face, value_mask, mask, ref, which; } p_stencil;  // which：0 值掩码 1 写掩码 2 参考值 | which: 0 value mask 1 write mask 2 reference value
@@ -977,7 +1094,15 @@ index ee45b29..f21bd23 100644
  typedef struct { int32_t prim, itype, count, base_vertex, base_instance, instances; uint64_t ibuf; } p_draw_idx;
  typedef struct { int32_t x, y, z; uint64_t caller; } p_dispatch;   // caller：游戏调用点返回地址（定位派发者） | caller: return address of the game call site (to locate the dispatcher)
  typedef struct { const dpool_t *pool; } p_set_pool;
-@@ -166,6 +172,7 @@ void mtl_create_stats(uint64_t *lib, uint64_t *pso);   // 累计：提交线程
+@@ -158,6 +164,7 @@ double mtl_presented_time(uint64_t n);
+ // 贴图释放（Finalize 时）
+ // Texture release (at Finalize)
+ void mtl_tex_release(tex_t *t);
++void mtl_tex_orphan(uint64_t serial);   // 贴图没 Finalize 就重新初始化：旧序号等贴图池里没人引用了再放（nvn_mtl.m） | texture re-initialized without Finalize: the old serial is released once no pool registration refers to it
+ void mtl_pkg_stats(uint64_t *uploads, uint64_t *reuploads);
+ uint64_t mtl_pkg_miss(void);
+ uint64_t mtl_upload_ns_take(void);   // 取走并清零：上次以来提交线程上预排布贴图上传耗时   // DM_NVN_DIRTYCHECK 诊断：漏检次数   // 预排布贴图：首传次数、因池内容变化而重传次数 | Take and zero: time spent uploading packaged textures on the submit thread since last time   // DM_NVN_DIRTYCHECK diagnostic: number of missed detections   // Packaged textures: number of first uploads, number of re-uploads due to pool content changes
+@@ -166,6 +173,7 @@ void mtl_create_stats(uint64_t *lib, uint64_t *pso);   // 累计：提交线程
  // CPU 读贴图：level / layer0 起，按 row / img 字节步长写进 dst
  // CPU texture read: starting at level / layer0, written into dst with row / img byte strides
  void mtl_read_texels(const tex_t *t, unsigned level, unsigned layer0, const NVNcopyRegion *r, uint8_t *dst, size_t row, size_t img);
