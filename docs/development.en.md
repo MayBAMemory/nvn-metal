@@ -10,6 +10,7 @@ The full Chinese version, with test variables and pitfalls, is [development.md](
 4. Write a report per task in `reports/<task id>.md`; only change your own row's status in `TASKS.md`.
 5. After changing C code run `python -I tools/syntax_check.py`: an arm64 Apple-target syntax and type check of the host's C files against the minimal system-header stand-ins in `tools/applestub/`. When a failure is only a missing declaration in a stand-in, extend the stand-in — do not edit the source to suit it.
 6. After changing the file list in `host/Makefile` or the upstream base, run `python3 -I tools/link_scan.py`: it finds functions called from files Kirby builds but defined only in D2R-only files it does not build (the syntax check compiles without linking and cannot see these); add neutral implementations to `host/kirby_glue.c`. On 2026-11-04 it caught the missing `dm_front_navigation` after `app_mac.m` was dropped.
+7. Regression tests that need no game files and run on Linux too: `python3 -I tools/test_extractors.py` (import / unpack), `python3 -I tools/test_pso_merge.py` (shared pipeline list), `tools/test_vp9_vpx.sh` (libvpx software decoding compared byte for byte with ffmpeg; needs libvpx and ffmpeg). Run the matching one after changing that code.
 
 ## iPhone status (2026-10-22)
 

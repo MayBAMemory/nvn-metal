@@ -10,6 +10,7 @@
 4. 每个任务在 `reports/<任务号>.md` 写报告；`TASKS.md` 里只改自己那一行的状态。
 5. 改了 C 代码就跑 `python -I tools/syntax_check.py`：对宿主要编的 C 文件做 arm64 苹果目标的语法和类型检查（用 `tools/applestub/` 的最小系统头替身）。只因替身缺声明而报错时补替身，不要改源码迁就替身。
 6. 动了 `host/Makefile` 的文件清单、或换了上游基线，再跑 `python3 -I tools/link_scan.py`：按源码找「卡比编的文件调用、却只在不编的 D2R 专属文件里定义」的函数（语法检查只编不链，查不到），有就在 `host/kirby_glue.c` 补中性实现。2026-11-04 靠它查出不编 `app_mac.m` 后缺 `dm_front_navigation`。
+7. 不用游戏文件、Linux 上也能跑的回归测试：`python3 -I tools/test_extractors.py`（导入 / 解包）、`python3 -I tools/test_pso_merge.py`（共享管线清单）、`tools/test_vp9_vpx.sh`（libvpx 软解和 ffmpeg 逐字节比，要 libvpx 和 ffmpeg）。改了对应的代码就跑。
 
 ## 测试和调试
 
