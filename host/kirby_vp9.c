@@ -1,7 +1,9 @@
 // VP9 硬解：VideoToolbox 同步解码，出紧排 NV12（游戏的播放器按「Y 行距 = 宽、UV 紧跟其后」读，见 hle_movie_kirby.c）。
-// macOS 11 起系统带 VP9 解码器，要先 VTRegisterSupplementalVideoDecoderIfAvailable；M5 上是硬解。iOS 上没有这个入口，kv_available() 返回 0，过场退回空播。
+// macOS 11 起系统带 VP9 解码器，要先 VTRegisterSupplementalVideoDecoderIfAvailable；M5 上是硬解。iOS 上没有这个入口：带 libvpx 出包时用 kirby_vp9_vpx.c 软解，不带时 kv_available() 返回 0，过场退回空播。
 // VP9 hardware decode: synchronous VideoToolbox decoding into packed NV12 (the game's player reads "Y stride = width, UV right after", see hle_movie_kirby.c).
-// macOS 11+ ships a VP9 decoder that must first be enabled with VTRegisterSupplementalVideoDecoderIfAvailable; on the M5 it is hardware. iOS has no such entry point, so kv_available() returns 0 and cutscenes fall back to no-op playback.
+// macOS 11+ ships a VP9 decoder that must first be enabled with VTRegisterSupplementalVideoDecoderIfAvailable; on the M5 it is hardware. iOS has no such entry point: built with libvpx it uses kirby_vp9_vpx.c (software), otherwise kv_available() returns 0 and cutscenes fall back to no-op playback.
+// 定义了 KIRBY_VPX（iOS 带 libvpx 出包）时整个文件不编，换 kirby_vp9_vpx.c | with KIRBY_VPX defined (iOS built with libvpx) this whole file is skipped in favour of kirby_vp9_vpx.c
+#ifndef KIRBY_VPX
 #include "dm.h"
 #include "kirby_video.h"
 #include <TargetConditionals.h>
@@ -84,3 +86,4 @@ void kv_close(kv_dec *d) {
     VTDecompressionSessionWaitForAsynchronousFrames(d->s); VTDecompressionSessionInvalidate(d->s);
     CFRelease(d->s); CFRelease(d->fmt); free(d);
 }
+#endif

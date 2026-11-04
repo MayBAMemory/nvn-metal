@@ -55,6 +55,8 @@ ios/run.sh log              # 只拉一次日志
 
 没有游戏文件时：`KIRBY_NO_GAME=1 ios/run.sh build` 只编外壳和宿主，用来检查编译、链接和签名。这样出的包装上也起不来。
 
+过场动画：`build` 第一次会从源码编 libvpx（`ios/tools/build_libvpx.sh`，约 2 分钟，要联网克隆 v1.16.0，之后缓存在 `$KIRBY_WORK/build/libvpx-ios`），过场和教程视频用它软解。`KIRBY_VPX=0 ios/run.sh build` 不带，过场空播。
+
 RomFS 也可以不用 `run.sh romfs`：手机连 Mac，在 Finder 里选中手机 →「文件」→ 把整个 RomFS 文件夹拖进 Kirby Host。App 会在文稿目录下 3 层以内找根目录里有 `gfx/` 和 `shader/` 的文件夹。
 
 ## 已知限制和坑

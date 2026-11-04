@@ -48,7 +48,7 @@ Apple, Mac, iPhone and Metal are trademarks of Apple Inc.; this project is not a
 | Playing levels | ✅ | ✅ first 3D level |
 | Frame rate | ✅ 60 fps in levels (30 originally; `KIRBY_FPS=30` to go back) | 30 fps (original) |
 | Game sound | ✅ | 🚧 same fix as the Mac, not yet verified on device |
-| Cutscenes, tutorial clips | ✅ hardware VP9 + Vorbis audio | 🚧 black frames only |
+| Cutscenes, tutorial clips | ✅ hardware VP9 + Vorbis audio | 🚧 libvpx software decoding wired up, to be verified on device |
 | Controls | ✅ remappable keyboard, Xbox / PS / Switch Pro controllers | ✅ on-screen pad + physical controllers |
 | Local co-op | ✅ separate keys and controller for 1P / 2P (joining not tested yet) | — |
 | Stutter when walking or in new areas | ✅ mostly gone with async pipelines | 🚧 fix ready, not yet verified on device |
@@ -131,7 +131,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 | `tools/extract_game.sh` | new on 2026-10-30, modeled on d2r-mobile, tested only against a mock hactool; the `.nsp` title-key step in particular is unverified, so reports either way are welcome. The verified path is an exported directory plus `import_dump.py` |
 | iPhone models | tested only on an iPhone 16 Pro Max. Since 2026-11-04 the build targets A14 (Metal 4's minimum; it was A18), so A14–A17 phones should install, untested; phones with less than 8 GB of memory are likely not enough |
 | iPhone memory | a free Apple ID lacks the increased-memory entitlement, so headroom is tight; a paid developer account helps |
-| iOS video | iOS has no VP9 hardware decoder entry point, so cutscenes are skipped for now |
+| iOS video | iOS has no VP9 hardware decoder entry point; since 2026-11-04 `ios/run.sh build` bundles libvpx software decoding, matched byte for byte against ffmpeg on Linux, speed on the phone not yet measured (`KIRBY_VPX=0` falls back to no-op playback) |
 | Geometry shaders | 10 skipped |
 | Online play | out of scope |
 
@@ -142,7 +142,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 - [ ] Verify async pipelines and startup prewarm on device to fix walking stutter
 - [ ] Track down garbled textures in the city (suspected wrong shader variant for skinned models)
 - [ ] Fix the leak when `nvnTextureInitialize` reinitializes, and cut memory use (fixed 2026-11-04, to be checked against on-device memory stats)
-- [ ] Cutscene video on iOS: software VP9 decoding
+- [ ] Cutscene video on iOS: software VP9 decoding (libvpx wired up 2026-11-04, speed on device to be checked)
 - [ ] Screenshot orientation, depth clamp (both changed 2026-11-04, to be verified)
 
 **Medium term: make it installable by others**
@@ -185,6 +185,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 - **Ryujinx** (MIT): the upstream shader translator `dmsh_xlate` uses its shader translation code.
 - **[SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)** (Apache-2.0): SPIR-V to Metal Shading Language.
 - **[stb_vorbis](https://github.com/nothings/stb)** (public domain / MIT): Vorbis audio in cutscenes.
+- **[libvpx](https://chromium.googlesource.com/webm/libvpx)** (BSD-3): software VP9 decoding for cutscenes on iOS; `ios/tools/build_libvpx.sh` builds it from source when packaging, not shipped with this repository.
 - **[hactool](https://github.com/SciresM/hactool)** (ISC): `tools/extract_game.sh` uses it to read your game dump; it is not shipped with this repository.
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)**: another project built on d2r-mobile that brings several Switch games to the Mac; this README and the shared-list idea follow its lead.
 

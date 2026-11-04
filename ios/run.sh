@@ -34,6 +34,12 @@ shaders)
 
 build)
   rm -rf Gen; mkdir -p Gen/dm Gen/msl
+  # 过场动画：iOS 没有 VP9 硬解入口，带 libvpx 软解（host/kirby_vp9_vpx.c）；第一次编约 2 分钟，之后用缓存。KIRBY_VPX=0 不带（过场空播）
+  # cutscenes: iOS has no VP9 hardware decode entry point, so libvpx software decoding is bundled (host/kirby_vp9_vpx.c); about 2 minutes the first time, cached after. KIRBY_VPX=0 leaves it out (no-op cutscenes)
+  if [ "${KIRBY_VPX:-1}" != 0 ]; then
+    VPX=$BLD/libvpx-ios; tools/build_libvpx.sh "$VPX" || { t "🔴 libvpx 没编出来；KIRBY_VPX=0 ios/run.sh build 可以先不带过场视频"; exit 1; }
+    export KIRBY_VPX_DIR=$VPX
+  fi
   python3 -I tools/gen_build.py ../host Gen > Gen/kirby.xcconfig || { t "🔴 gen_build 失败"; exit 1; }
   if [ "${KIRBY_NO_GAME:-0}" = 1 ]; then
     t "⚠ KIRBY_NO_GAME：不带游戏模块和着色器，只检查外壳与宿主的编译 / 链接（这样的包装上也起不来）"

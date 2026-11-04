@@ -1,5 +1,5 @@
-// 卡比过场 / 教程视频：WebM 解封装（kirby_webm.c）+ VP9 硬解（kirby_vp9.c，VideoToolbox），由 hle_movie_kirby.c 接到游戏的 movie:: 播放器上。
-// Kirby cutscene / tutorial video: WebM demux (kirby_webm.c) + VP9 hardware decode (kirby_vp9.c, VideoToolbox), wired to the game's movie:: player by hle_movie_kirby.c.
+// 卡比过场 / 教程视频：WebM 解封装（kirby_webm.c）+ VP9 解码（Mac：kirby_vp9.c，VideoToolbox 硬解；iOS：kirby_vp9_vpx.c，libvpx 软解），由 hle_movie_kirby.c 接到游戏的 movie:: 播放器上。
+// Kirby cutscene / tutorial video: WebM demux (kirby_webm.c) + VP9 decode (Mac: kirby_vp9.c, VideoToolbox hardware; iOS: kirby_vp9_vpx.c, libvpx software), wired to the game's movie:: player by hle_movie_kirby.c.
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -25,7 +25,7 @@ void kw_close(kw_file *f);
 int kw_find(const kw_file *f, int type);    // 第一条该类型轨道的下标，没有返回 -1 | index of the first track of that type, -1 if none
 
 typedef struct kv_dec kv_dec;
-int kv_available(void);                                   // 本机 VideoToolbox 能不能解 VP9 | whether VideoToolbox can decode VP9 here
+int kv_available(void);                                   // 本机能不能解 VP9（VideoToolbox 能解，或带了 libvpx） | whether VP9 can be decoded here (VideoToolbox can, or libvpx is built in)
 kv_dec *kv_open(int width, int height);                   // 失败返回 NULL | NULL on failure
 // 解一个样本（可以是超帧）。出了一帧就把紧排 NV12（Y 行距 = 宽，UV 紧跟其后）写进 out 并返回 1；隐藏帧等不出画面的返回 0；出错返回 -1
 // Decode one sample (may be a superframe). If a frame comes out, write packed NV12 (Y stride = width, UV right after) into out and return 1; 0 for hidden frames that show nothing; -1 on error

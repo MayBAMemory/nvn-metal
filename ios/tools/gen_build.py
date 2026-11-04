@@ -44,6 +44,10 @@ for s in srcs:
         rel = 'dm/' + os.path.relpath(s, os.path.join(DMROOT, 'dm'))
     flat = rel.replace('/', '__')   # 相对仓库根：不同目录同名文件不冲突 | relative to the repo root: same-named files in different dirs do not collide
     os.symlink(s, f'{gen}/src/{flat}')
+# KIRBY_VPX_DIR（run.sh build 编好的 libvpx，ios/tools/build_libvpx.sh）：过场动画走 libvpx 软解（host/kirby_vp9_vpx.c 定义了 KIRBY_VPX 才编），静态库跟框架一起进链接参数
+# KIRBY_VPX_DIR (libvpx built by run.sh build, ios/tools/build_libvpx.sh): cutscenes use libvpx software decoding (host/kirby_vp9_vpx.c builds only with KIRBY_VPX), and the static library joins the frameworks on the link line
+vpx = os.environ.get('KIRBY_VPX_DIR')
+if vpx: incs.append(os.path.join(vpx, 'include')); defs.append('-DKIRBY_VPX=1')
 print('HEADER_SEARCH_PATHS = $(inherited) ' + ' '.join(f'"{d}"' for d in incs + dirs))
 print('OTHER_CFLAGS = $(inherited) ' + ' '.join(defs))
-print('KIRBY_FRAMEWORKS = ' + ' '.join(f'-framework {f}' for f in fws if f != 'Cocoa'))
+print('KIRBY_FRAMEWORKS = ' + ' '.join(f'-framework {f}' for f in fws if f != 'Cocoa') + (f' "{os.path.join(vpx, "lib", "libvpx.a")}"' if vpx else ''))

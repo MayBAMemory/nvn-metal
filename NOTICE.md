@@ -4,6 +4,7 @@
 
 - **d2r-mobile**：MIT，版权所有 (c) 2026 jhaizhou。宿主通用层（`dm/host`）、NVN → Metal 图形层（`dm/gfx`）、iOS 出包工具（`dm/ios`）都来自它，构建时直接从上游检出编译，不在本仓库内复制。`patches/d2r-mobile-kirby.patch` 是对上游文件的修改，同样以 MIT 发布。
 - **卡比移植部分**（`host/`、`ios/`、`tools/`、`docs/`、`analysis/`、`reports/`、`patches/` 中的改动）：版权所有 (c) 2026 MayBAMemory，以 MIT 发布。
+- **libvpx**（BSD-3，版权所有 The WebM project authors）：iOS 出包时 `ios/tools/build_libvpx.sh` 从源码编成静态库链进 App（过场动画 VP9 软解），源码和库都不在本仓库里。
 - 完整许可文本见 [LICENSE](LICENSE)。
 
 游戏《星之卡比 探索发现》及其程序、美术、文字、音频、着色器、数据表的版权归任天堂所有。本仓库不含、也不分发任何游戏内容；`analysis/` 与 `docs/` 中的记录是为互操作而测得的接口事实（符号名、地址、键、尺寸、计数）。

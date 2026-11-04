@@ -48,7 +48,7 @@ Apple、Mac、iPhone 和 Metal 是 Apple Inc. 的商标，本项目与苹果没�
 | 进关卡游玩 | ✅ | ✅ 第一关 3D 场景 |
 | 帧率 | ✅ 关卡 60 帧（原版 30，`KIRBY_FPS=30` 可退回） | 30 帧（原版帧率） |
 | 游戏声音 | ✅ | 🚧 修法和 Mac 相同，待真机验证 |
-| 过场动画、教程视频 | ✅ VP9 硬解 + Vorbis 音轨 | 🚧 只放黑帧 |
+| 过场动画、教程视频 | ✅ VP9 硬解 + Vorbis 音轨 | 🚧 libvpx 软解已接上，待真机验证 |
 | 操作 | ✅ 键盘可改键、Xbox / PS / Switch Pro 手柄 | ✅ 屏幕手柄 + 实体手柄 |
 | 本地双人 | ✅ 1P / 2P 各一套键位和手柄（加入流程还没测到） | — |
 | 走动、新场景的卡顿 | ✅ 异步建管线后基本消除 | 🚧 修法已有，待真机验证 |
@@ -131,7 +131,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 | `tools/extract_game.sh` | 2026-10-30 新加，照 d2r-mobile 的做法写，只用模拟的 hactool 测过；`.nsp` 的标题密钥那一步尤其没验过，跑通或跑不通都欢迎告诉我们。已经验过的路是导出目录再 `import_dump.py` |
 | iPhone 机型 | 只在 iPhone 16 Pro Max 上测过。编译目标 2026-11-04 起降到 A14（Metal 4 的下限，原来是 A18），A14–A17 的机型理论上能装，没测过；内存少于 8 GB 的机型很可能不够用 |
 | iPhone 内存 | 免费 Apple ID 没有「提高内存上限」权限，余量很紧；付费开发者账号能缓解 |
-| iOS 视频 | iOS 没有 VP9 硬解入口，过场动画先空播 |
+| iOS 视频 | iOS 没有 VP9 硬解入口，2026-11-04 起 `ios/run.sh build` 带 libvpx 软解；Linux 上和 ffmpeg 逐字节对过，手机上的速度还没测（`KIRBY_VPX=0` 退回空播） |
 | 几何着色器 | 10 份跳过 |
 | 联机 | 不在范围内 |
 
@@ -142,7 +142,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 - [ ] 真机验证异步建管线和启动预热，解决走动卡顿
 - [ ] 查清进城后贴图乱飞（怀疑带骨骼的模型选错了着色器变体）
 - [ ] 修 `nvnTextureInitialize` 重新初始化时的泄漏，压内存（2026-11-04 已改，待真机看内存统计）
-- [ ] iOS 上的过场视频：VP9 软解
+- [ ] iOS 上的过场视频：VP9 软解（2026-11-04 已接 libvpx，待真机看速度）
 - [ ] 截图方向、深度截断（depth clamp）（2026-11-04 两项都改了，待验证）
 
 **中期：让别人也能装起来**
@@ -186,6 +186,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 - **Ryujinx**（MIT）：上游着色器翻译器 `dmsh_xlate` 用到它的着色器翻译代码。
 - **[SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross)**（Apache-2.0）：把 SPIR-V 转成 Metal 着色语言。
 - **[stb_vorbis](https://github.com/nothings/stb)**（公有领域 / MIT）：过场动画的 Vorbis 音轨。
+- **[libvpx](https://chromium.googlesource.com/webm/libvpx)**（BSD-3）：iOS 上过场动画的 VP9 软解；`ios/tools/build_libvpx.sh` 出包时从源码现编，不随本仓库提供。
 - **[hactool](https://github.com/SciresM/hactool)**（ISC）：`tools/extract_game.sh` 用它从你的游戏包取文件；它不随本仓库提供。
 - **[MacNativeGames](https://github.com/ly05010419/MacNativeGames)**：同样基于 d2r-mobile、把多款 Switch 游戏带到 Mac 的项目，README 写法和共享清单的思路参考了它。
 
