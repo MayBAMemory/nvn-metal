@@ -53,7 +53,7 @@ tools/setup_mac.sh --dump <ExeFS 目录> <RomFS 目录>
 tools/setup_mac.sh
 ```
 
-它依次做 8 步，每步做完在 `$KIRBY_WORK/setup/<步>.ok` 记一笔：
+它依次做 9 步，每步做完在 `$KIRBY_WORK/setup/<步>.ok` 记一笔：
 
 | 步 | 做什么 | 大约多久 |
 |---|---|---|
@@ -66,6 +66,7 @@ tools/setup_mac.sh
 | 6 `mac_shaders` | 编 macOS 版 metallib，约 3.8 万次 | M5 上约 1 小时 |
 | 7 | `make -C host` | 1 分钟 |
 | 8 | 无窗口跑 30 秒自检 | 30 秒 |
+| 9 | 包成 `~/kirby-work/Kirby Host.app`（`tools/mac_app.sh`） | 几秒 |
 
 **这条命令要跑很久**（总共约 1.5 小时）。在后台跑，盯着日志 `$KIRBY_WORK/setup/setup.log`，不要因为一阵子没输出就杀掉它；第 6 步每编 500 个打一行进度。跑的时候 CPU 会占满，提醒用户这期间别测性能。
 
@@ -93,7 +94,7 @@ tools/setup_mac.sh
 
 跑完会打出 🎉。告诉用户：
 
-- 开玩：`host/run_mac.sh`。第一次启动会弹出键位设置（⌘, 随时再开）。缺省 WASD 移动，J K U I = A B X Y，回车 = +。手柄（Xbox / PS / Switch Pro）插上就能用。
+- 开玩：双击 `~/kirby-work/Kirby Host.app`（可以拖进「应用程序」或程序坞），或者命令行 `host/run_mac.sh`，两边存档相同。这个 App 指向工作区里的游戏文件，只能在这台 Mac 上用、不要分享。第一次启动会弹出键位设置（⌘, 随时再开）。缺省 WASD 移动，J K U I = A B X Y，回车 = +。手柄（Xbox / PS / Switch Pro）插上就能用。
 - 第一次到新场景会卡一下，玩过的下次就不卡（[mac.md](mac.md)）。
 - 存档在 `$KIRBY_WORK/mac/save`。
 - 工作区里是游戏内容，只供自己用，不要分享。

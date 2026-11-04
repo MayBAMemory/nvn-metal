@@ -104,7 +104,7 @@ flowchart LR
 tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或：tools/setup_mac.sh --dump <ExeFS 目录> <RomFS 目录>
 ```
 
-它依次做完下表的 1–4 步，编好宿主，再无窗口跑 30 秒自检；中断了重跑同一条命令，从断的地方接着做。全程约 1.5 小时。
+它依次做完下表的 1–4 步，编好宿主，无窗口跑 30 秒自检，最后包成能双击的 `Kirby Host.app`；中断了重跑同一条命令，从断的地方接着做。全程约 1.5 小时。
 
 > **推荐交给 AI 助理。** 用 Claude Code、Codex 或其他 AI 助理打开这个仓库，告诉它你自己的游戏包和 `prod.keys`（或已经导出的 ExeFS / RomFS）在哪，让它照 [docs/ai_install.md](docs/ai_install.md) 做：那一页是专门写给 AI 助理的，从检查机器、跑上面那条命令到出错时怎么处理都写了。
 
@@ -114,7 +114,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 | 2. 准备上游 | 检出 d2r-mobile 的 `6a2474d`，套上 `patches/d2r-mobile-kirby.patch` | 1 分钟 |
 | 3. 改写 | 改写三个模块并核对 | 几分钟 |
 | 4. 着色器库 | 翻译出库，再编成 macOS 版 metallib（约 3.8 万次编译） | M5 上约 1 小时，只做一次 |
-| 5. 开玩 | Mac：`make -C host && host/run_mac.sh`；iPhone：`ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
+| 5. 开玩 | Mac：双击 `~/kirby-work/Kirby Host.app`（`tools/mac_app.sh` 出包），或 `make -C host && host/run_mac.sh`；iPhone：`ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
 
 每一步的完整命令见 [docs/build.md](docs/build.md)；Mac 上的键位、存档位置、声音和视频的说明见 [docs/mac.md](docs/mac.md)；iPhone 的签名和装机见 [ios/README.md](ios/README.md)。
 
@@ -132,7 +132,6 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 | iPhone 机型 | 只在 iPhone 16 Pro Max 上测过，编译目标目前是 A18 |
 | iPhone 内存 | 免费 Apple ID 没有「提高内存上限」权限，余量很紧；付费开发者账号能缓解 |
 | iOS 视频 | iOS 没有 VP9 硬解入口，过场动画先空播 |
-| Mac 窗口 | 标题和菜单还是上游的「D2R Mobile」，不影响玩 |
 | 几何着色器 | 10 份跳过 |
 | 联机 | 不在范围内 |
 
@@ -149,7 +148,7 @@ tools/setup_mac.sh <你的游戏包.xci 或 .nsp> <你的 prod.keys>     # 或�
 **中期：让别人也能装起来**
 
 - [ ] 一条命令从导出目录做到能玩，加一份给 AI 助理的安装说明（2026-11-04 已有 `tools/setup_mac.sh` 和 [docs/ai_install.md](docs/ai_install.md)，待真 Mac 上从头跑通）
-- [ ] Mac 上打包成可以双击的 `.app`，窗口标题和菜单换成自己的
+- [ ] Mac 上打包成可以双击的 `.app`，窗口标题和菜单换成自己的（2026-11-04 已有 `tools/mac_app.sh` 和 `host/kirby_app.m`，待真 Mac 上验证；现在的包只能在构建它的那台 Mac 上用）
 - [ ] 共享管线清单：大家玩过记下的 `pso_user.tsv`（只有管线的键和格式，不含游戏数据）汇总进仓库，所有人首次进场景都不卡
 - [ ] 支持更多 iPhone 机型（A16 / A17）
 - [ ] 本地双人的加入流程实测

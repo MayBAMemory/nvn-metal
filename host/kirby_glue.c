@@ -23,7 +23,26 @@ void uimsg_subscribe(void (*fn)(const char *cat, const char *act, const char *ar
 void dm_input_sampled_right(int32_t *rx, int32_t *ry) { *rx = 0; *ry = 0; }
 
 // ---- dm_i18n.c、dm_custom.c：语言与自定义页 | language and custom page ----
-const char *dm_ui(const char *key) { return key; }    // 宿主界面文案：没有表就原样给键名 | host UI strings: with no table, return the key itself
+// 宿主界面文案：上游 Mac 外壳（front_mac.m）的菜单和提示框按键名取字；卡比只给它用到的这几条，别的原样给键名。
+// 语言看 DM_LANG（.app 起时 kirby_app.m 按系统首选语言设），没设看 LANG；en 开头用英文，否则中文
+// Host UI strings: the upstream Mac shell (front_mac.m) looks up its menu and dialog text by key; Kirby supplies only the ones it uses and returns other keys as they are.
+// Language: DM_LANG (set from the system's preferred language by kirby_app.m for .app starts), else LANG; English when it starts with en, otherwise Chinese
+static const struct { const char *k, *zh, *en; } k_ui[] = {
+    {"dmAppQuit", "退出 Kirby Host", "Quit Kirby Host"},
+    {"dmAppMenuView", "显示", "View"},
+    {"dmAppFullscreen", "全屏", "Toggle Full Screen"},
+    {"dmAppMenuHelp", "帮助", "Help"},
+    {"dmAppKeysTitle", "键位设置…", "Key Settings…"},   // 卡比的输入装好后这一项改为打开键位设置窗口（kirby_input.m） | once Kirby's input is installed this item opens the key settings window (kirby_input.m)
+    {"dmAppKeysText", "缺省键位：WASD 左摇杆；J K U I = A B X Y；Q E = L R；Z C = ZL ZR；回车 = +；Tab = −；方向键 = 十字键。\n\n改键：菜单「键位设置…」（⌘,）。",
+                      "Default keys: WASD left stick; J K U I = A B X Y; Q E = L R; Z C = ZL ZR; Return = +; Tab = −; arrows = D-pad.\n\nRemap: menu \"Key Settings…\" (⌘,)."},
+    {"dmAppOK", "好", "OK"},
+};
+const char *dm_ui(const char *key) {
+    const char *l = getenv("DM_LANG"); if (!l || !*l) l = getenv("LANG");
+    int en = l && !strncmp(l, "en", 2);
+    for (unsigned i = 0; i < sizeof k_ui / sizeof *k_ui; i++) if (!strcmp(k_ui[i].k, key)) return en ? k_ui[i].en : k_ui[i].zh;
+    return key;
+}
 int dm_sys_lang(void) { return 8; }                   // 只在 D2R 的设置文件逻辑里用（已由 dm_game_d2r 挡住） | only used by D2R's settings-file logic (already gated by dm_game_d2r)
 int dm_custom_lang_explicit(void) { return -1; }      // 「没设过」 | "never set"
 

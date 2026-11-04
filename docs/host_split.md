@@ -39,7 +39,7 @@
    K02 用的是「SDK 导出表里有没有这个名字」，这个标准太宽：导出不等于被引用。**以后判断「某个强制接管会不会命中」，一律以 `D:\kirby-work\reloc_refs.txt` 为准。**
 2. **卡比的 SDK 和 D2R 的 SDK 布局相同**，至少抽查的两处地址完全一样：`nn::init::Start` 都在 `sdk+0x2b0470`，`StandardAllocator::Allocate` 都在 `sdk+0x2f9974`。NSO 文件的哈希不同，大概是文件头里的构建信息不同。这意味着 D2R 在 SDK 层面（内核调用、线程、同步）踩过的坑，卡比大概率完全一样，宿主的这部分可以放心复用。
 3. 卡比 SDK 的 `nn::init::Start` 反汇编结果与 `kirby_main.c` 的启动顺序逐条一致（`tools/sdis_sym.py` 可以复查）。
-4. 共用文件里还有几处 D2R 的痕迹只影响外观：窗口标题「D2R Mobile」（`front_mac.m`）、`app_mac.m` 的双击启动流程、`hle_fdstat.c` 的路径分类。先不动。
+4. 共用文件里还有几处 D2R 的痕迹只影响外观：窗口标题「D2R Mobile」（`front_mac.m`）、`app_mac.m` 的双击启动流程、`hle_fdstat.c` 的路径分类。2026-11-04 起前两项在卡比这边换掉（`host/kirby_app.m` 取代 `app_mac.m`，不再编它；窗口标题和菜单文案见 [mac.md](mac.md)），上游文件没改；`hle_fdstat.c` 先不动。
 
 ## 已知风险（编译和运行时才能确认）
 

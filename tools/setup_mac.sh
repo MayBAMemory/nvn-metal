@@ -1,5 +1,5 @@
 #!/bin/bash
-# 一条命令：从你自己的游戏做到在 Mac 上能玩（Apple 芯片）。每一步做完记一笔，中断了重跑同一条命令，从断的地方接着做。
+# 一条命令：从你自己的游戏做到在 Mac 上能玩（Apple 芯片），最后包成能双击的 Kirby Host.app。每一步做完记一笔，中断了重跑同一条命令，从断的地方接着做。
 #   tools/setup_mac.sh <游戏包 .xci 或 .nsp> <prod.keys>       有游戏包：交给 hactool 拆包（仓库不带解密代码）
 #   tools/setup_mac.sh --dump <ExeFS 目录> <RomFS 目录>          已经用 nxdumptool 等工具导出了 ExeFS / RomFS
 #   tools/setup_mac.sh                                           工作区里已经有游戏文件（之前导入过，或从旧电脑拷来）
@@ -7,7 +7,7 @@
 #   缺省本仓库的兄弟目录 d2r-mobile）、PYTHON（不设就建 ~/.venvs/kirby）、HACTOOL、JOBS（并发，缺省全部核）。
 # 要：Apple 芯片 Mac、macOS 26 起、Xcode 26（开过一次、同意过许可）、Homebrew；约 16 GB 空闲磁盘（导出目录方式约 10 GB）。
 # 全程约 1.5 小时，大头是最后编 3.8 万个着色器。日志在 $KIRBY_WORK/setup/setup.log；某一步要重做就删 $KIRBY_WORK/setup/<步>.ok。
-# One command: from your own game to playable on an Apple silicon Mac. Each finished step is recorded, so re-running the same command after an interruption resumes there.
+# One command: from your own game to playable on an Apple silicon Mac, ending with a double-clickable Kirby Host.app. Each finished step is recorded, so re-running the same command after an interruption resumes there.
 #   tools/setup_mac.sh <game dump .xci or .nsp> <prod.keys>     from a game dump: hactool unpacks it (this repository has no decryption code)
 #   tools/setup_mac.sh --dump <ExeFS dir> <RomFS dir>            ExeFS / RomFS already dumped with nxdumptool or similar
 #   tools/setup_mac.sh                                           the work directory already has the game files (imported before, or copied from another computer)
@@ -47,7 +47,7 @@ NCPU=$(sysctl -n hw.ncpu 2> /dev/null || echo 4); JOBS=${JOBS:-$NCPU}
 say "工作区 $W；上游 $D2R；并发 $JOBS"
 
 # ── 0. 检查这台 Mac | check this Mac ────────────────────────────────────────
-head_ "0/8 检查这台 Mac"
+head_ "0/9 检查这台 Mac"
 [ "$(uname -s)" = Darwin ] || die "只能在 macOS 上跑（这台是 $(uname -s)）"
 if [ "$(uname -m)" != arm64 ]; then
   [ "$(sysctl -n hw.optional.arm64 2> /dev/null)" = 1 ] && die "终端在 Rosetta 下（x86_64）。用原生终端重跑，或：arch -arm64 $0 ..."
@@ -80,7 +80,7 @@ freegb=$(( $(df -Pk "$W" | awk 'NR==2 {print $4}') / 1048576 ))
 say "✓ macOS $osv / $(sysctl -n machdep.cpu.brand_string 2> /dev/null) / Python $("$PY" -c 'import platform; print(platform.python_version())') / 空闲 ${freegb} GB"
 
 # ── 1. 上游 d2r-mobile 固定在 6a2474d 并套补丁 | upstream at 6a2474d plus the patch ──
-head_ "1/8 上游 d2r-mobile（$BASE + 补丁）"
+head_ "1/9 上游 d2r-mobile（$BASE + 补丁）"
 P=$REPO/patches/d2r-mobile-kirby.patch
 if [ ! -d "$D2R/.git" ]; then
   [ ! -e "$D2R" ] || die "$D2R 已存在但不是 git 检出"
@@ -102,7 +102,7 @@ got=$(sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p' "$D2R/dm/gfx/nvn/dmsh_chain.h
 [ "$got" = "$CHAIN" ] || die "上游的着色器链版本是 ${got:-?}，应是 $CHAIN。多半是跑过上游的 setup.sh：git -C $D2R checkout -- dm/gfx/nvn/dmsh_chain.h"
 
 # ── 2. 游戏文件 | game files (K01) ──────────────────────────────────────────
-head_ "2/8 游戏文件（ExeFS / RomFS）"
+head_ "2/9 游戏文件（ExeFS / RomFS）"
 v100() {   # $1 = 放 main / sdk / subsdk0 的目录 | directory holding main / sdk / subsdk0
   local ok=0 want name got
   while read -r want name; do
@@ -131,7 +131,7 @@ else
 fi
 
 # ── 3. 改写三个模块并核对 | rewrite and verify the three modules (K04) ─────
-head_ "3/8 改写 main / sdk / subsdk0 并核对（几分钟）"
+head_ "3/9 改写 main / sdk / subsdk0 并核对（几分钟）"
 if have k04; then say "✓ 已做（跳过）"
 else
   export DM_RULESET=native DM_ROOT=$W LLVM_BIN   # 同 docs/build.md 的 K04 | as in K04 of docs/build.md
@@ -147,7 +147,7 @@ else
 fi
 
 # ── 4. 提取着色器 | extract shaders (K06) ──────────────────────────────────
-head_ "4/8 提取着色器（十几分钟）"
+head_ "4/9 提取着色器（十几分钟）"
 if have k06; then say "✓ 已做（跳过）"
 else
   # bnsh_extract.py / main_shaders.py 会改写仓库里的 analysis/ 索引，做完还原；所以先要求 analysis/ 没有别的改动
@@ -164,7 +164,7 @@ else
 fi
 
 # ── 5. 翻译出着色器库 | translate the shader library (H3) ──────────────────
-head_ "5/8 着色器翻译成 MSL（十几分钟）"
+head_ "5/9 着色器翻译成 MSL（十几分钟）"
 if have h3; then say "✓ 已做（跳过）"
 else
   export DOTNET_ROOT
@@ -179,7 +179,7 @@ else
 fi
 
 # ── 6. 编成 macOS 版 metallib | compile macOS metallibs ───────────────────
-head_ "6/8 编 macOS 版着色器（约 3.8 万次编译，M5 上约 1 小时；中断了重跑只补没编的）"
+head_ "6/9 编 macOS 版着色器（约 3.8 万次编译，M5 上约 1 小时；中断了重跑只补没编的）"
 M=$ST/mac_shaders.ok
 if [ -f "$M" ] && [ ! "$W/uint_masks.tsv" -nt "$M" ] && [ ! "$W/iattr_masks.tsv" -nt "$M" ]; then say "✓ 已做（跳过）"
 else
@@ -195,11 +195,11 @@ else
 fi
 
 # ── 7. 编宿主 | build the host ─────────────────────────────────────────────
-head_ "7/8 编宿主 host/kirbyhost"
+head_ "7/9 编宿主 host/kirbyhost"
 make -C "$REPO/host" D2R_MOBILE="$D2R" || die "宿主编不过"
 
 # ── 8. 自检：无窗口跑 30 秒 | self-test: 30 seconds headless ──────────────
-head_ "8/8 自检（无窗口跑 30 秒）"
+head_ "8/9 自检（无窗口跑 30 秒）"
 if [ "$TEST" = 1 ]; then
   out=$("$REPO/host/run_mac.sh" 30); echo "$out"
   log=$(echo "$out" | sed -n 's/^日志：\(.*\)（.*$/\1/p')
@@ -211,8 +211,12 @@ if [ "$TEST" = 1 ]; then
 else say "跳过（--no-test）"
 fi
 
+# ── 9. 包成能双击的 App | package a double-clickable App ─────────────────
+head_ "9/9 包成 App（Kirby Host.app）"
+"$HERE/mac_app.sh" "$W" || die "打包 App 没成"
+
 mins=$(( ($(date +%s) - T0) / 60 ))
 echo
-say "🎉 好了（这次用了 $mins 分钟）。开玩：host/run_mac.sh"
+say "🎉 好了（这次用了 $mins 分钟）。开玩：双击 $W/Kirby Host.app，或者命令行 host/run_mac.sh"
 echo "   第一次启动会弹出键位设置（⌘, 随时再开）；缺省 WASD 移动，J K U I = A B X Y，回车 = +。存档在 $W/mac/save。"
 echo "   键位、双人、声音和卡顿的说明见 docs/mac.md。"

@@ -53,7 +53,7 @@ or, when the work directory already has the game files:
 tools/setup_mac.sh
 ```
 
-It runs 8 steps and records each finished one as `$KIRBY_WORK/setup/<step>.ok`:
+It runs 9 steps and records each finished one as `$KIRBY_WORK/setup/<step>.ok`:
 
 | Step | What | About |
 |---|---|---|
@@ -66,6 +66,7 @@ It runs 8 steps and records each finished one as `$KIRBY_WORK/setup/<step>.ok`:
 | 6 `mac_shaders` | Compile macOS metallibs, about 38,000 | about an hour on an M5 |
 | 7 | `make -C host` | 1 minute |
 | 8 | 30-second headless self-test | 30 seconds |
+| 9 | Package `~/kirby-work/Kirby Host.app` (`tools/mac_app.sh`) | seconds |
 
 **This takes a long time** (about 1.5 hours in total). Run it in the background and follow `$KIRBY_WORK/setup/setup.log`; do not kill it because it has been quiet for a while. Step 6 prints a progress line every 500 shaders. It uses every core, so tell the user not to measure performance meanwhile.
 
@@ -93,7 +94,7 @@ Read the 🔴 line first; the script tries to say the cause and the fix there. C
 
 When it prints 🎉, tell the user:
 
-- To play: `host/run_mac.sh`. The first launch opens the key settings (⌘, any time later). Default: WASD to move, J K U I = A B X Y, Return = +. Controllers (Xbox / PS / Switch Pro) work when connected.
+- To play: double-click `~/kirby-work/Kirby Host.app` (it can go in Applications or the Dock), or run `host/run_mac.sh`; both use the same save. The App points at the game files in the work directory, works only on this Mac and must not be shared. The first launch opens the key settings (⌘, any time later). Default: WASD to move, J K U I = A B X Y, Return = +. Controllers (Xbox / PS / Switch Pro) work when connected.
 - The first visit to a new area hitches briefly; it does not the next time ([mac.en.md](mac.en.md)).
 - Saves are in `$KIRBY_WORK/mac/save`.
 - The work directory holds game content: for their own use only, do not share it.

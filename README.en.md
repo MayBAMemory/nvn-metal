@@ -104,7 +104,7 @@ You need **your own copy of the game**: Kirby and the Forgotten Land v1.0.0 for 
 tools/setup_mac.sh <your dump.xci or .nsp> <your prod.keys>     # or: tools/setup_mac.sh --dump <ExeFS dir> <RomFS dir>
 ```
 
-It runs steps 1–4 of the table below, builds the host and does a 30-second headless self-test; if it is interrupted, run the same command again and it resumes. About 1.5 hours in total.
+It runs steps 1–4 of the table below, builds the host, does a 30-second headless self-test and packages a double-clickable `Kirby Host.app`; if it is interrupted, run the same command again and it resumes. About 1.5 hours in total.
 
 > **Recommended: hand it to an AI assistant.** Open this repository in Claude Code, Codex or another assistant, tell it where your own game dump and `prod.keys` (or an already exported ExeFS / RomFS) are, and ask it to follow [docs/ai_install.en.md](docs/ai_install.en.md): that page is written for AI assistants and covers checking the machine, running the command above and what to do when something fails.
 
@@ -114,7 +114,7 @@ It runs steps 1–4 of the table below, builds the host and does a 30-second hea
 | 2. Upstream | Check out d2r-mobile at `6a2474d` and apply `patches/d2r-mobile-kirby.patch` | 1 minute |
 | 3. Rewrite | Rewrite and check the three modules | a few minutes |
 | 4. Shader library | Translate, then compile macOS metallibs (about 38,000 compiles) | about an hour on an M5, once |
-| 5. Play | Mac: `make -C host && host/run_mac.sh`; iPhone: `ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
+| 5. Play | Mac: double-click `~/kirby-work/Kirby Host.app` (built by `tools/mac_app.sh`), or `make -C host && host/run_mac.sh`; iPhone: `ios/run.sh build && ios/run.sh install && ios/run.sh run` | — |
 
 Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the commands themselves are language-neutral). Keys, saves, sound and video on the Mac: [docs/mac.en.md](docs/mac.en.md). iPhone signing and install: [ios/README.md](ios/README.md).
 
@@ -132,7 +132,6 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 | iPhone models | tested only on an iPhone 16 Pro Max; the build currently targets A18 |
 | iPhone memory | a free Apple ID lacks the increased-memory entitlement, so headroom is tight; a paid developer account helps |
 | iOS video | iOS has no VP9 hardware decoder entry point, so cutscenes are skipped for now |
-| Mac window | title and menu still say "D2R Mobile" from upstream; harmless |
 | Geometry shaders | 10 skipped |
 | Online play | out of scope |
 
@@ -149,7 +148,7 @@ Full commands for every step are in [docs/build.md](docs/build.md) (Chinese; the
 **Medium term: make it installable by others**
 
 - [ ] One command from a dump to a playable build, plus install notes written for AI assistants (2026-11-04: `tools/setup_mac.sh` and [docs/ai_install.en.md](docs/ai_install.en.md) exist; to be run from scratch on a real Mac)
-- [ ] A double-clickable Mac `.app` with its own window title and menu
+- [ ] A double-clickable Mac `.app` with its own window title and menu (2026-11-04: `tools/mac_app.sh` and `host/kirby_app.m` exist, to be verified on a real Mac; the package only works on the Mac that built it)
 - [ ] A shared pipeline list: everyone's recorded `pso_user.tsv` (pipeline keys and formats only, no game data) merged into the repository so nobody stutters in a new area
 - [ ] More iPhone models (A16 / A17)
 - [ ] Test the local co-op join flow

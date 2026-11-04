@@ -1,10 +1,10 @@
 # 卡比宿主 kirbyhost（Mac，Apple 芯片原生跑；Intel Mac 上可加 -arch arm64 只做编译检查）。
 # 组成 = dm/host 的通用部分（原样编，不复制）+ dm/gfx 全部 + 本目录（卡比入口、手柄、垫片，以及之后的卡比专属接管）。
-# 不编 D2R 专属文件：HOST_EXCL 里的，以及全部 dm/host/dm_*.c。拆分依据见 kirby/docs/host_split.md。
+# 不编 D2R 专属文件：HOST_EXCL 里的，以及全部 dm/host/dm_*.c；App 形态用本目录的 kirby_app.m，不用上游 app_mac.m。拆分依据见 kirby/docs/host_split.md。
 # 用法：make -C host              运行：host/kirbyhost <改写产物目录> [main sdk subsdk0] [-- 游戏参数]
 # Kirby host kirbyhost (Mac, runs natively on Apple silicon; on an Intel Mac add -arch arm64 for compile checking only).
 # Made of = the generic part of dm/host (compiled in place, not copied) + all of dm/gfx + this directory (Kirby entry, controller, shims, and later Kirby-only takeovers).
-# D2R-only files are not built: those in HOST_EXCL, and all of dm/host/dm_*.c. See docs/host_split.md for the split.
+# D2R-only files are not built: those in HOST_EXCL, and all of dm/host/dm_*.c; the App form uses kirby_app.m here instead of upstream app_mac.m. See docs/host_split.md for the split.
 # dm/ 不在本仓库：上游 d2r-mobile 检出默认放在兄弟目录 ../d2r-mobile；放在别处就 make D2R_MOBILE=/绝对路径/d2r-mobile（相对路径是相对 host/）
 # dm/ is not in this repository: the upstream d2r-mobile checkout defaults to the sibling ../d2r-mobile; override with D2R_MOBILE=... (relative to host/)
 D2R_MOBILE?=../../d2r-mobile
@@ -13,7 +13,7 @@ CFLAGS?=-O1 -g -Wall -Wno-unused-function
 ARCH?=
 HOST_EXCL=main.c diag.c hle_tact.c hle_granny.c hle_charname.c hle_target.c hle_private_aim.c hle_hid.c hle_movie.c touch_mac.c romfs_validate.c
 HOST=$(DM)/host/loader.c $(DM)/host/hle.c $(DM)/host/crash.c $(DM)/host/thread.c $(DM)/host/memstat.m $(DM)/host/entry.S \
-     $(DM)/host/front_mac.m $(DM)/host/app_mac.m $(DM)/ios/Sources/dm_gamepad.m \
+     $(DM)/host/front_mac.m $(DM)/ios/Sources/dm_gamepad.m \
      $(filter-out $(addprefix $(DM)/host/,$(HOST_EXCL)),$(sort $(wildcard $(DM)/host/hle_*.c)))
 KIRBY=$(sort $(wildcard *.c *.m))
 GFX=$(sort $(wildcard $(DM)/gfx/*.c $(DM)/gfx/nvn/*.c $(DM)/gfx/nvn/*.m $(DM)/gfx/nvn/*.S $(DM)/gfx/tex/*.c $(DM)/gfx/tex/*.m))

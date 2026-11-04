@@ -86,7 +86,8 @@ void dm_host_preload_start(int argc, char **argv) {
 int dm_app_bootstrap(int *argc, char ***argv);
 int main(int argc, char **argv) {
 #if TARGET_OS_OSX
-    dm_app_bootstrap(&argc, &argv);
+    dm_app_bootstrap(&argc, &argv);   // 双击 .app 起时备好环境和参数（kirby_app.m） | prepares environment and arguments when started as an .app (kirby_app.m)
+    { void kirby_mac_brand(void); kirby_mac_brand(); }   // 窗口标题换成 Kirby Host | window title becomes Kirby Host
 #endif
     if (atomic_load(&g_pre.started)) {
         pthread_join(g_pre.th, NULL);

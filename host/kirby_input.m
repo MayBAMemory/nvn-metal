@@ -3,13 +3,13 @@
 //   键盘：本地事件监听（先于窗口拿到按键），按每个玩家的键位表换算；带 ⌘ 的组合键放行给系统菜单。
 //   手柄：按连接先后编号（手柄 1、2…），每个玩家选一个（缺省 1P = 手柄 1、2P = 手柄 2），120 Hz 轮询。
 // 算好后交给 hle_hid_kirby.c 的 kirby_input_set（玩家、来源），那边从此不再用上游合成的那份。2P 有键位或分到的手柄连着，就算 2P 有输入来源，2 号手柄报已连接。
-// 设置存在 NSUserDefaults（域 = 可执行文件名 kirbyhost）。只在 Mac 上编：iOS 走自己的触屏 / 手柄路线。
+// 设置存在 NSUserDefaults（域固定是 kirbyhost，命令行和 .app 共用）。只在 Mac 上编：iOS 走自己的触屏 / 手柄路线。
 // Kirby's Mac input: remappable keys, separate keyboard bindings and controllers for two players (local co-op), plus a "Key Settings" window (menu ⌘,).
 // The upstream Mac shell (front_mac.m) hard-codes its keys and merges every controller into one (dm_gamepad.m, written for single-player D2R), so Kirby reads input itself:
 //   Keyboard: a local event monitor (sees keys before the window), mapped through each player's binding table; combinations with ⌘ are passed through to the system menus.
 //   Controllers: numbered by connection order (controller 1, 2, ...), each player picks one (default 1P = controller 1, 2P = controller 2), polled at 120 Hz.
 // The results go to kirby_input_set (player, source) in hle_hid_kirby.c, which then stops using the upstream merged input. 2P counts as having an input source when it has bindings
-// or its assigned controller is connected, and the No.2 controller then reports as connected. Settings live in NSUserDefaults (domain = the executable name, kirbyhost). Mac only: iOS keeps its own touch / controller path.
+// or its assigned controller is connected, and the No.2 controller then reports as connected. Settings live in NSUserDefaults (always the domain kirbyhost, shared by the command line and the .app). Mac only: iOS keeps its own touch / controller path.
 #include <TargetConditionals.h>
 #if TARGET_OS_OSX
 #import <Cocoa/Cocoa.h>
@@ -58,8 +58,15 @@ static NSString *key_name(uint16_t c) {
 }
 
 // ---- 设置的读写 | loading and saving settings ----
+// 固定用域 kirbyhost：命令行起时它就是 standardUserDefaults；包成 .app（kirby_app.m）后 standardUserDefaults 换成包名，用固定的域两边才是同一份键位
+// Always the domain kirbyhost: for a command-line start that is what standardUserDefaults is; packaged as an .app (kirby_app.m) standardUserDefaults becomes the bundle id, so a fixed domain keeps one set of keys for both
+NSUserDefaults *kirby_defaults(void) {
+    static NSUserDefaults *u; static dispatch_once_t once;
+    dispatch_once(&once, ^{ u = [[NSUserDefaults alloc] initWithSuiteName:@"kirbyhost"] ?: NSUserDefaults.standardUserDefaults; });
+    return u;
+}
 static void prefs_load(void) {
-    NSUserDefaults *u = NSUserDefaults.standardUserDefaults;
+    NSUserDefaults *u = kirby_defaults();
     for (int p = 0; p < 2; p++) {
         NSArray *a = [u arrayForKey:[NSString stringWithFormat:@"KirbyKeys%d", p + 1]];
         for (int i = 0; i < NACT; i++) g_bind[p][i] = a.count == NACT ? (uint16_t)[a[i] unsignedIntValue] : k_default[p][i];
@@ -67,7 +74,7 @@ static void prefs_load(void) {
     }
 }
 static void prefs_save(void) {
-    NSUserDefaults *u = NSUserDefaults.standardUserDefaults;
+    NSUserDefaults *u = kirby_defaults();
     for (int p = 0; p < 2; p++) {
         NSMutableArray *a = [NSMutableArray array]; for (int i = 0; i < NACT; i++) [a addObject:@(g_bind[p][i])];
         [u setObject:a forKey:[NSString stringWithFormat:@"KirbyKeys%d", p + 1]]; [u setInteger:g_pad_of[p] forKey:[NSString stringWithFormat:@"KirbyPad%d", p + 1]];
@@ -182,6 +189,10 @@ static void install(void) {
     // 菜单：应用菜单里加「键位设置…」⌘, | menu: "Key Settings..." ⌘, in the application menu
     NSMenu *app = NSApp.mainMenu.itemArray.firstObject.submenu;
     if (app) { NSMenuItem *it = [[NSMenuItem alloc] initWithTitle:@"键位设置…" action:@selector(show:) keyEquivalent:@","]; it.target = g_ui; [app insertItem:it atIndex:0]; }
+    // 「帮助」里上游那项（keys:）弹的是写死的键位对照；改成打开卡比的键位设置 | upstream's Help item (keys:) shows a fixed key list; point it at Kirby's key settings instead
+    for (NSMenuItem *top in NSApp.mainMenu.itemArray)
+        for (NSMenuItem *it in top.submenu.itemArray)
+            if (it.action == @selector(keys:)) { it.title = @"键位设置…"; it.action = @selector(show:); it.target = g_ui; }
     [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged handler:^NSEvent *(NSEvent *e) {
         uint16_t c = e.keyCode; if (c > 255) return e;
         if (e.type == NSEventTypeFlagsChanged) {   // 修饰键单独按：按 / 抬看对应的标志位 | modifiers on their own: down / up from the matching flag
@@ -210,7 +221,7 @@ static void install(void) {
     keys_publish(); pads_poll();
     // 第一次用（还没存过键位）就弹出键位设置，让人知道键在哪；KIRBY_SHOW_KEYS=1 强制弹出 | first use (no saved keys yet): show the key settings so people know where the keys are; KIRBY_SHOW_KEYS=1 forces it
     const char *sk = getenv("KIRBY_SHOW_KEYS");
-    if (![NSUserDefaults.standardUserDefaults arrayForKey:@"KirbyKeys1"] || (sk && *sk == '1')) { prefs_save(); [g_ui show:nil]; }
+    if (![kirby_defaults() arrayForKey:@"KirbyKeys1"] || (sk && *sk == '1')) { prefs_save(); [g_ui show:nil]; }
     LOG("输入：卡比自己的键位 / 手柄分配已接管（键位设置：菜单 ⌘,）；1P 手柄 %d、2P 手柄 %d", g_pad_of[0], g_pad_of[1]);
 }
 // 游戏初始化手柄时调（客体线程）：交给主线程装；没有主线程循环（无窗口测试）就永远不装，照旧用上游的输入
