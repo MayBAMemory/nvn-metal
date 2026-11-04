@@ -130,6 +130,12 @@ int dm_app_bootstrap(int *argc, char ***argv) {
     }
 }
 
+// 手柄代码（dm_gamepad.m，上游）问「是不是面板 / 读取画面开着」，决定空着的 ZR 要不要当 D2R 的免费回城：卡比一律答「是」= ZR 原样交给游戏。
+// 原来由上游 app_mac.m 给，卡比改用本文件后不再编它，所以在这里给（iOS 由 ios/Sources/front_ios_kirby.m 给）
+// The gamepad code (upstream dm_gamepad.m) asks "is a panel / loading screen open" to decide whether an empty ZR acts as D2R's free town portal: Kirby always answers "yes" = ZR goes to the game untouched.
+// Upstream app_mac.m used to provide it; Kirby no longer builds that file, so it is defined here (iOS: ios/Sources/front_ios_kirby.m)
+int dm_front_navigation(void) { return 1; }
+
 // 窗口标题：上游 front_mac.m 建窗口时写死「D2R Mobile」。这里在主线程循环跑起来（窗口已建好）后改掉；无窗口时什么都不做
 // Window title: upstream front_mac.m hard-codes "D2R Mobile" when it creates the window. This changes it once the main run loop is running (the window exists); nothing happens headless
 void kirby_mac_brand(void) {
